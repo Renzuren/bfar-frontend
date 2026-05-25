@@ -352,10 +352,15 @@ const MLUpload = () => {
     setScrollPosition(newScrollPosition);
   };
 
+  // Get max scroll width
+  const getMaxScroll = () => {
+    if (!tableRef.current) return 0;
+    return tableRef.current.scrollWidth - tableRef.current.clientWidth;
+  };
+
   // Calculate scroll percentage for display
   const getScrollPercentage = () => {
-    if (!tableRef.current) return 0;
-    const maxScroll = tableRef.current.scrollWidth - tableRef.current.clientWidth;
+    const maxScroll = getMaxScroll();
     if (maxScroll <= 0) return 0;
     return Math.round((scrollPosition / maxScroll) * 100);
   };
@@ -767,7 +772,7 @@ const MLUpload = () => {
                       variant="outline"
                       size="sm"
                       onClick={handleScrollRight}
-                      disabled={tableRef.current ? scrollPosition >= (tableRef.current.scrollWidth - tableRef.current.clientWidth) : false}
+                      disabled={getScrollPercentage() >= 99}
                       className="h-8 w-8 p-0"
                     >
                       <ChevronRight className="w-4 h-4" />
@@ -777,56 +782,54 @@ const MLUpload = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="relative">
+              <div className="relative rounded-lg border overflow-hidden">
                 {columns.length > 6 && (
                   <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
                 )}
                 {columns.length > 6 && (
                   <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
                 )}
-                <ScrollArea 
-                  className="h-96 rounded-lg border" 
+                <div 
+                  className="h-96 overflow-x-auto overflow-y-auto"
                   ref={tableRef}
                   onScroll={handleTableScroll}
                 >
-                  <div className="min-w-full">
-                    <table className="w-full">
-                      <thead className="bg-slate-50 sticky top-0 z-20">
-                        <tr>
-                          {columns.map((column, index) => (
-                            <th
-                              key={index}
-                              className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider border-b bg-slate-50 min-w-[120px]"
+                  <table className="w-full border-collapse">
+                    <thead className="bg-slate-50 sticky top-0 z-20">
+                      <tr>
+                        {columns.map((column, index) => (
+                          <th
+                            key={index}
+                            className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider border-b bg-slate-50 whitespace-nowrap min-w-[140px]"
+                          >
+                            {column}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-slate-200">
+                      {csvData.map((row, rowIndex) => (
+                        <tr 
+                          key={rowIndex} 
+                          className={`hover:bg-slate-50 transition-colors ${
+                            rowIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
+                          }`}
+                        >
+                          {columns.map((column, colIndex) => (
+                            <td
+                              key={colIndex}
+                              className="px-4 py-3 text-sm text-slate-900 whitespace-nowrap min-w-[140px]"
                             >
-                              {column}
-                            </th>
+                              {row[column] || (
+                                <span className="text-slate-400 italic">—</span>
+                              )}
+                            </td>
                           ))}
                         </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-slate-200">
-                        {csvData.map((row, rowIndex) => (
-                          <tr 
-                            key={rowIndex} 
-                            className={`hover:bg-slate-50 transition-colors ${
-                              rowIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
-                            }`}
-                          >
-                            {columns.map((column, colIndex) => (
-                              <td
-                                key={colIndex}
-                                className="px-4 py-3 text-sm text-slate-900 whitespace-nowrap min-w-[120px]"
-                              >
-                                {row[column] || (
-                                  <span className="text-slate-400 italic">—</span>
-                                )}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </ScrollArea>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </CardContent>
           </Card>
