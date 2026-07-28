@@ -115,37 +115,37 @@ const FormAnalytics = () => {
   const exportRef = useRef(null);
 
   useEffect(() => {
-    fetchData();
-  }, [id]);
-
-  const fetchData = async () => {
-    try {
-      const [formRes, responsesRes] = await Promise.all([
-        api.get(`/forms/${id}`),
-        api.get(`/forms/${id}/responses`)
-      ]);
-
-      setForm(formRes.data);
-      setResponses(responsesRes.data || []);
-
-      let analyticsPayload = null;
+    const fetchData = async () => {
       try {
-        const analyticsRes = await api.get(`/forms/${id}/analytics`);
-        analyticsPayload = preprocessAnalyticsData(analyticsRes.data);
-      } catch (analyticsError) {
-        console.warn('Analytics endpoint fetch failed, using local fallback analytics', analyticsError);
-        toast.error('Analytics endpoint unavailable. Using local fallback analytics.');
-        analyticsPayload = computeFallbackAnalytics(responsesRes.data || [], formRes.data.questions || []);
-      }
+        const [formRes, responsesRes] = await Promise.all([
+          api.get(`/forms/${id}`),
+          api.get(`/forms/${id}/responses`)
+        ]);
 
-      setAnalytics(analyticsPayload);
-    } catch (error) {
-      toast.error('Failed to load form analytics');
-      navigate('/dashboard');
-    } finally {
-      setLoading(false);
-    }
-  };
+        setForm(formRes.data);
+        setResponses(responsesRes.data || []);
+
+        let analyticsPayload = null;
+        try {
+          const analyticsRes = await api.get(`/forms/${id}/analytics`);
+          analyticsPayload = preprocessAnalyticsData(analyticsRes.data);
+        } catch (analyticsError) {
+          console.warn('Analytics endpoint fetch failed, using local fallback analytics', analyticsError);
+          toast.error('Analytics endpoint unavailable. Using local fallback analytics.');
+          analyticsPayload = computeFallbackAnalytics(responsesRes.data || [], formRes.data.questions || []);
+        }
+
+        setAnalytics(analyticsPayload);
+      } catch (error) {
+        toast.error('Failed to load form analytics');
+        navigate('/dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [id, navigate]);
 
   const renderTooltip = ({ active, payload }) => {
     if (!active || !payload || !payload.length) return null;
