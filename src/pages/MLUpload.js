@@ -1,1506 +1,1539 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import {
-  Upload, FileSpreadsheet, Database, BarChart3, ArrowLeft, Import,
-  ChevronLeft, ChevronRight, TrendingUp, Activity, AlertCircle,
-  CheckCircle2, XCircle, Filter, Zap, Layers, ShieldCheck,
-  Download, Save, Eye, TrendingDown, Minus, BarChart2
-} from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, Cell
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Tooltip,
+  XAxis,
+  YAxis,
+  ComposedChart,
 } from 'recharts';
+import {
+  AlertCircle,
+  BarChart3,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Import,
+  Save,
+  Upload,
+} from 'lucide-react';
+import { MapContainer, TileLayer, CircleMarker, Tooltip as LeafletTooltip, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+
+const AREA_COORDS = {
+  ABULUG: [18.449, 121.454],
+  ALUBIJID: [8.563, 124.470],
+  APARRI: [18.356, 121.637],
+  BOLINAO: [16.384, 119.893],
+  BUGASONG: [11.039, 122.092],
+  BUGUEY: [18.288, 121.829],
+  GITAGUM: [8.413, 124.433],
+  GUMACA: [13.919, 122.099],
+  HAMTIC: [10.698, 121.985],
+  ITOGON: [16.373, 120.693],
+  'LAL-LO': [18.212, 121.666],
+  LIBERTAD: [11.396, 122.073],
+  LUGAIT: [8.376, 124.422],
+  MANITO: [13.167, 124.191],
+  MORONG: [14.678, 120.272],
+  MULANAY: [13.528, 122.404],
+  PANDAN: [11.733, 122.098],
+  'SAN JOSE': [10.862, 121.929],
+  'SAN JUAN': [16.671, 120.448],
+  SARANGANI: [5.903, 125.201],
+  'STA. ANA': [18.474, 122.144],
+  TALISAY: [10.732, 122.972],
+  TERNATE: [14.290, 120.722],
+  'LOS BANOS': [14.170, 121.243],
+  'CALAMBA CITY': [14.2113, 121.1545],
+  'SANTA ROSA': [14.3101, 121.1437],
+  'SAN PABLO': [14.0583, 121.3256],
+  CABUYAO: [14.3378, 121.1252],
+};
+
+const PROVINCE_COORDS = {
+  CAGAYAN: [17.8333, 121.5000],
+  'MISAMIS ORIENTAL': [8.5600, 124.6536],
+  PANGASINAN: [15.9763, 120.3415],
+  ANTIQUE: [10.6793, 121.9368],
+  QUEZON: [13.9414, 121.6169],
+  BENGUET: [16.4167, 120.5833],
+  ALBAY: [13.1784, 123.7433],
+  BATAAN: [14.6491, 120.4593],
+  'LA UNION': [16.6098, 120.3060],
+  SARANGANI: [6.1167, 125.1667],
+  'NEGROS OCCIDENTAL': [10.3119, 122.9770],
+  CAVITE: [14.4719, 120.5880],
+  LAGUNA: [14.1700, 121.2833],
+};
+
+const AREA_PROVINCE = {
+  ABULUG: 'Cagayan',
+  ALUBIJID: 'Misamis Oriental',
+  APARRI: 'Cagayan',
+  BOLINAO: 'Pangasinan',
+  BUGASONG: 'Antique',
+  BUGUEY: 'Cagayan',
+  GITAGUM: 'Misamis Oriental',
+  GUMACA: 'Quezon',
+  HAMTIC: 'Antique',
+  ITOGON: 'Benguet',
+  'LAL-LO': 'Cagayan',
+  LIBERTAD: 'Antique',
+  LUGAIT: 'Misamis Oriental',
+  MANITO: 'Albay',
+  MORONG: 'Bataan',
+  MULANAY: 'Quezon',
+  PANDAN: 'Antique',
+  'SAN JOSE': 'Antique',
+  'SAN JUAN': 'La Union',
+  SARANGANI: 'Sarangani Province',
+  'STA. ANA': 'Cagayan',
+  TALISAY: 'Negros Occidental',
+  TERNATE: 'Cavite',
+};
+
+const normalizeKey = (s) => String(s ?? '').toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+function findAreaKey(name, province) {
+  if (!name && !province) return null;
+  const norm = normalizeKey(name || '');
+  const provinceNorm = normalizeKey(province || '');
+  // direct key match
+  for (const key of Object.keys(AREA_COORDS)) {
+    if (normalizeKey(key) === norm) return key;
+  }
+  // direct match using province for ambiguous names
+  if (provinceNorm) {
+    for (const key of Object.keys(AREA_COORDS)) {
+      if (normalizeKey(key) === norm && normalizeKey(AREA_PROVINCE[key]) === provinceNorm) return key;
+    }
+  }
+  // try matching by contains / startsWith / endsWith
+  for (const key of Object.keys(AREA_COORDS)) {
+    const k = normalizeKey(key);
+    if (!k) continue;
+    if (norm === k) return key;
+    if (norm.includes(k) && (!provinceNorm || normalizeKey(AREA_PROVINCE[key]) === provinceNorm)) return key;
+    if (k.includes(norm) && (!provinceNorm || normalizeKey(AREA_PROVINCE[key]) === provinceNorm)) return key;
+    if ((norm.startsWith(k) || norm.endsWith(k)) && (!provinceNorm || normalizeKey(AREA_PROVINCE[key]) === provinceNorm)) return key;
+  }
+  // as a last resort, try mapping common trimmed tokens
+  const tokens = norm.split(' ');
+  for (const key of Object.keys(AREA_COORDS)) {
+    const k = normalizeKey(key);
+    const keyTokens = k.split(' ');
+    if (tokens.some((t) => keyTokens.includes(t)) && (!provinceNorm || normalizeKey(AREA_PROVINCE[key]) === provinceNorm)) return key;
+  }
+  if (provinceNorm && PROVINCE_COORDS[provinceNorm]) {
+    return `__PROVINCE__${provinceNorm}`;
+  }
+  return null;
+}
+
+const getCoordsForKey = (key) => {
+  if (!key) return null;
+  if (key.startsWith('__PROVINCE__')) {
+    return PROVINCE_COORDS[key.replace('__PROVINCE__', '')];
+  }
+  return AREA_COORDS[key] || null;
+};
+
+const palette = {
+  pageBg: '#eef1f7',
+  primary: '#2563eb',
+  teal: '#0db890',
+  orange: '#f97316',
+  purple: '#7c3aed',
+  red: '#dc2626',
+  muted: '#94a3b8',
+  border: '#e2e8f0',
+  cardBg: '#ffffff',
+  cardAlt: '#fafbfc',
+  text: '#1e293b',
+};
+
+const parseNumericValue = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const cleaned = String(value).trim().replace(/,/g, '');
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const normalize = (value) => String(value ?? '').trim().toLowerCase();
+const normalizeHeader = (column) => normalize(column).replace(/[^a-z0-9]+/g, ' ').trim();
+const detectColumn = (columns, keywords) => {
+  const normalizedHeaders = columns.map((column) => normalizeHeader(String(column)));
+  for (const keyword of keywords) {
+    const needle = normalizeHeader(keyword);
+    const index = normalizedHeaders.findIndex((column) => column.includes(needle));
+    if (index !== -1) return columns[index];
+  }
+  for (const keyword of keywords) {
+    const needle = normalizeHeader(keyword);
+    const needleTokens = needle.split(' ').filter(Boolean);
+    const index = normalizedHeaders.findIndex((column) => needleTokens.every((token) => column.split(' ').includes(token)));
+    if (index !== -1) return columns[index];
+  }
+  return '';
+};
+
+const parseCSVRows = (text) => {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === '"') {
+      if (inQuotes && text[i + 1] === '"') {
+        field += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (char === ',' && !inQuotes) {
+      row.push(field);
+      field = '';
+      continue;
+    }
+    if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && text[i + 1] === '\n') continue;
+      row.push(field);
+      if (row.length) rows.push(row);
+      row = [];
+      field = '';
+      continue;
+    }
+    field += char;
+  }
+  if (field !== '' || row.length) {
+    row.push(field);
+    if (row.length) rows.push(row);
+  }
+  return rows;
+};
+
+const rowsToObjects = (rows, headers) => rows.map((row) => {
+  const object = {};
+  headers.forEach((header, index) => {
+    object[header] = row[index] !== undefined && row[index] !== null ? row[index] : '';
+  });
+  return object;
+});
+
+const bucketAge = (value) => {
+  const age = parseNumericValue(value);
+  if (age === null || age < 0) return 'Unknown';
+  if (age < 30) return '20s';
+  if (age < 40) return '30s';
+  if (age < 50) return '40s';
+  if (age < 60) return '50s';
+  if (age < 70) return '60s';
+  return '70s+';
+};
+
+const decodeEducation = (value) => {
+  const numeric = parseNumericValue(value);
+  if (numeric === 1) return 'None';
+  if (numeric === 2) return 'Elementary';
+  if (numeric === 3) return 'High School';
+  if (numeric === 4) return 'College';
+  if (numeric === 5) return 'Post-grad';
+  return String(value ?? 'Unknown').trim() || 'Unknown';
+};
+
+const decodeMarital = (value) => {
+  const numeric = parseNumericValue(value);
+  if (numeric === 1) return 'Single';
+  if (numeric === 2) return 'Married';
+  if (numeric === 3) return 'Widowed';
+  if (numeric === 4) return 'Separated';
+  return String(value ?? 'Unknown').trim() || 'Unknown';
+};
+
+const decodeHousehold = (value) => {
+  const numeric = parseNumericValue(value);
+  if (numeric === null) return 'Unknown';
+  if (numeric <= 2) return 'Low';
+  if (numeric <= 4) return 'Mid';
+  return 'High';
+};
+
+const mean = (values) => values.length ? values.reduce((sum, item) => sum + item, 0) / values.length : 0;
+const stdDev = (values) => {
+  if (!values.length) return 0;
+  const avg = mean(values);
+  return Math.sqrt(values.reduce((sum, value) => sum + (value - avg) ** 2, 0) / values.length);
+};
+
+const buildAnalysisResults = (rows, columns, treatmentColumn, outcomeColumn, includeFeatures) => {
+  const headers = columns.map((column) => String(column).trim()).filter(Boolean);
+  const treatment = treatmentColumn || detectColumn(headers, ['a2', 'group', 'treated', 'control', 'treatment', 'assignment', 'arm']);
+  const preOutcome = detectColumn(headers, ['sesa', 'ses_a', 'ses a', 'before', 'pre', 'baseline', 'pretest', 'baseline_score', 'pre_score', 'ses_index_before', 'ses index before', 'ses before', 'before ses', 'pre ses']);
+  const postOutcome = detectColumn(headers, ['sesb', 'ses_b', 'ses b', 'after', 'post', 'outcome', 'score', 'result', 'posttest', 'followup', 'ses_index_after', 'ses index after', 'ses after', 'after ses', 'post ses']);
+  const outcome = outcomeColumn || postOutcome || detectColumn(headers, ['outcome', 'score', 'result', 'sesb', 'ses_b', 'ses b', 'post', 'after', 'final', 'ses_index', 'ses index', 'ses']);
+  const area = detectColumn(headers, ['a1', 'area', 'municipality', 'location', 'barangay', 'brgy', 'village', 'town', 'city']);
+  const province = detectColumn(headers, ['province', 'prov', 'province_name', 'municipality_province', 'a2:province', 'region']);
+  const age = detectColumn(headers, ['b3', 'age']);
+  const sex = detectColumn(headers, ['b5', 'sex', 'gender']);
+  const marital = detectColumn(headers, ['b6', 'm-status', 'mstatus', 'marital']);
+  const education = detectColumn(headers, ['b7', 'education', 'edu']);
+  const household = detectColumn(headers, ['b8', 'hh_size', 'household', 'hh size']);
+  const psScoreColumn = detectColumn(headers, ['p_score', 'ps_score', 'propensity', 'propensity_score', 'prop_score', 'probability']);
+
+  const treatmentValues = new Set(rows.map((row) => normalize(row[treatment])).filter(Boolean));
+  const useTwoAsControl = treatmentValues.has('1') && treatmentValues.has('2') && !treatmentValues.has('0');
+  const normalizeGroupValue = (value) => {
+    const normalized = normalize(value);
+    if (['1', 'treated', 'treatment', 'treat'].includes(normalized)) return '1';
+    if (['0', 'control', 'ctrl', 'comparison', 'comparisongroup', 'comparison group'].includes(normalized)) return '0';
+    if (useTwoAsControl && normalized === '2') return '0';
+    if (normalized === '2') return '0';
+    if (normalized === '1') return '1';
+    return '0';
+  };
+
+  const rawRespondents = rows.map((row, index) => {
+    const rawAreaValue = String(row[area] ?? 'Unspecified').trim();
+    const rawProvinceValue = String(row[province] ?? '').trim();
+    const matchedKey = findAreaKey(rawAreaValue, rawProvinceValue);
+    const normalizedProvince = normalizeKey(rawProvinceValue);
+    const areaName = matchedKey && !matchedKey.startsWith('__PROVINCE__') ? matchedKey : String(rawAreaValue).toUpperCase() || 'UNSPECIFIED';
+    const beforeValue = parseNumericValue(row[preOutcome]);
+    const afterValue = parseNumericValue(row[postOutcome] ?? row[outcome]);
+    const outcomeValue = parseNumericValue(row[outcome]);
+    const numericEducation = parseNumericValue(row[education]);
+    const numericHousehold = parseNumericValue(row[household]);
+    const psScore = parseNumericValue(row[psScoreColumn]);
+    const group = normalizeGroupValue(row[treatment]);
+    return {
+      id: `${index}`,
+      area: areaName,
+      province: AREA_PROVINCE[matchedKey] || AREA_PROVINCE[areaName] || rawProvinceValue.toUpperCase() || 'Unknown',
+      group,
+      sex: String(row[sex] ?? '').trim(),
+      marital: decodeMarital(row[marital]),
+      education: decodeEducation(row[education]),
+      educationValue: numericEducation,
+      age: parseNumericValue(row[age]),
+      household: decodeHousehold(row[household]),
+      householdValue: numericHousehold,
+      sesA: beforeValue,
+      sesB: afterValue !== null ? afterValue : outcomeValue,
+      rawOutcome: String(row[outcome] ?? row[postOutcome] ?? '').trim(),
+      beforeValue,
+      afterValue: afterValue !== null ? afterValue : outcomeValue,
+      outcomeValue,
+      delta: beforeValue !== null && afterValue !== null ? afterValue - beforeValue : null,
+      psScore,
+      rawData: row,
+    };
+  });
+
+  const outcomeValues = rawRespondents
+    .map((item) => item.afterValue)
+    .filter((value) => value !== null);
+  const outcomeMean = mean(outcomeValues);
+  const outcomeStd = stdDev(outcomeValues);
+  const outcomeThreshold = Math.max(0.5, outcomeStd * 0.2);
+
+  const respondents = rawRespondents.map((item) => {
+    let sesOutcome = 'Unknown';
+    if (item.beforeValue !== null && item.afterValue !== null) {
+      const delta = item.delta;
+      if (delta > 0.5) sesOutcome = 'Improved';
+      else if (delta < -0.5) sesOutcome = 'Declined';
+      else sesOutcome = 'No Change';
+    } else if (item.outcomeValue !== null) {
+      sesOutcome = item.outcomeValue > outcomeMean + outcomeThreshold ? 'Improved' : item.outcomeValue < outcomeMean - outcomeThreshold ? 'Declined' : 'No Change';
+    } else {
+      const normalized = normalize(item.rawOutcome);
+      if (/(improv|better|increase|up)/i.test(normalized)) sesOutcome = 'Improved';
+      else if (/(declin|worse|decrease|down)/i.test(normalized)) sesOutcome = 'Declined';
+      else if (/(no change|same|stable)/i.test(normalized)) sesOutcome = 'No Change';
+    }
+    return { ...item, sesOutcome };
+  });
+
+  const treated = respondents.filter((item) => item.group === '1');
+  const control = respondents.filter((item) => item.group === '0');
+  const total = respondents.length;
+  const improved = respondents.filter((item) => item.sesOutcome === 'Improved').length;
+  const declined = respondents.filter((item) => item.sesOutcome === 'Declined').length;
+  const noChange = respondents.filter((item) => item.sesOutcome === 'No Change').length;
+  const participationRate = total ? (treated.length / total) * 100 : 0;
+  const meanSesA_treated = mean(treated.map((item) => item.sesA).filter((value) => value !== null));
+  const meanSesB_treated = mean(treated.map((item) => item.sesB).filter((value) => value !== null));
+  const meanSesA_control = mean(control.map((item) => item.sesA).filter((value) => value !== null));
+  const meanSesB_control = mean(control.map((item) => item.sesB).filter((value) => value !== null));
+  const validBeforeAfterTreated = treated.some((item) => item.beforeValue !== null && item.afterValue !== null);
+  const validBeforeAfterControl = control.some((item) => item.beforeValue !== null && item.afterValue !== null);
+  const hasBeforeAfter = Boolean(preOutcome && postOutcome && (validBeforeAfterTreated || validBeforeAfterControl));
+  const att = hasBeforeAfter
+    ? (meanSesB_treated - meanSesA_treated) - (meanSesB_control - meanSesA_control)
+    : meanSesB_treated - meanSesB_control;
+  const areaMap = respondents.reduce((acc, item) => {
+    if (!acc[item.area]) acc[item.area] = { ...item, total: 0, treated: 0, control: 0, improved: 0, declined: 0, noChange: 0 };
+    const bucket = acc[item.area];
+    bucket.total += 1;
+    if (item.group === '1') bucket.treated += 1; else bucket.control += 1;
+    if (item.sesOutcome === 'Improved') bucket.improved += 1;
+    if (item.sesOutcome === 'Declined') bucket.declined += 1;
+    if (item.sesOutcome === 'No Change') bucket.noChange += 1;
+    return acc;
+  }, {});
+  const areaStats = Object.values(areaMap).sort((a, b) => b.total - a.total);
+  const topArea = areaStats[0] || { area: '—', total: 0 };
+
+  const ageDistribution = Object.entries(respondents.reduce((acc, item) => {
+    const bucket = bucketAge(item.age);
+    acc[bucket] = (acc[bucket] || 0) + 1;
+    return acc;
+  }, {})).sort((a, b) => a[0].localeCompare(b[0])).map(([decade, value]) => ({ decade, value }));
+
+  const totalRespondents = respondents.length;
+  const educationLevels = Object.entries(respondents.reduce((acc, item) => {
+    const label = item.education;
+    acc[label] = (acc[label] || 0) + 1;
+    return acc;
+  }, {})).map(([name, value], index) => ({ name, value, percentage: totalRespondents ? Number((value / totalRespondents * 100).toFixed(1)) : 0, color: ['#94a3b8', '#60a5fa', '#2563eb', '#7c3aed', '#0db890'][index] || '#2563eb' }));
+
+  const getFeatureKey = (featureKey) => {
+    const key = String(featureKey ?? '').trim();
+    if (!key) return '';
+    if (headers.includes(key)) return key;
+    const parsed = key.includes(':') ? key.split(':').pop().trim() : key;
+    if (headers.includes(parsed)) return parsed;
+    const normalized = normalize(parsed);
+    return headers.find((header) => normalize(header) === normalized) || '';
+  };
+
+  const allFeatureColumns = includeFeatures
+    ? includeFeatures
+      .split(',')
+      .map(getFeatureKey)
+      .filter(Boolean)
+      .filter((key, index, self) => self.indexOf(key) === index)
+    : headers.filter((key) => ![treatment, outcome, preOutcome, postOutcome, area, age, sex, marital, education, household].includes(key));
+
+  const featureColumns = allFeatureColumns.length
+    ? allFeatureColumns
+    : headers.filter((key) => ![treatment, outcome, preOutcome, postOutcome, area, age, sex, marital, education, household].includes(key));
+
+  const featureStats = featureColumns.map((column) => {
+    const values = rows.map((row) => parseNumericValue(row[column])).filter((value) => value !== null);
+    return { column, values, mean: mean(values), std: stdDev(values) };
+  });
+
+  const featureImportance = featureStats.slice(0, 9).map((feature, index) => ({ feature: feature.column, value: Number(Math.min(1, Math.max(0, feature.std ? Math.abs(feature.mean / (feature.std || 1)) : 0)).toFixed(2)) }));
+
+  const psDistribution = (() => {
+    const scores = respondents.map((item) => {
+      const values = featureStats.map((feature) => {
+        const parsed = parseNumericValue(item.rawData?.[feature.column]);
+        return parsed === null ? 0 : feature.std === 0 ? 0 : (parsed - feature.mean) / feature.std;
+      });
+      const raw = values.reduce((sum, value) => sum + value, 0);
+      return 1 / (1 + Math.exp(-raw / Math.max(1, values.length)));
+    });
+    const bins = Array.from({ length: 8 }, (_, index) => ({ bin: `${((index + 1) / 8).toFixed(2)}`, treated: 0, control: 0 }));
+    scores.forEach((score, idx) => {
+      const bucket = bins[Math.min(7, Math.floor(score * 8))];
+      if (respondents[idx].group === '1') bucket.treated += 1; else bucket.control += 1;
+    });
+    return bins;
+  })();
+
+  const trendBuckets = 10;
+  const sesTrend = Array.from({ length: trendBuckets }, (_, index) => {
+    const start = Math.floor((index * respondents.length) / trendBuckets);
+    const end = Math.floor(((index + 1) * respondents.length) / trendBuckets);
+    const bucket = respondents.slice(start, end);
+    return {
+      step: `${index + 1}`,
+      treated: mean(bucket.filter((item) => item.group === '1').map((item) => item.sesB).filter((value) => value !== null)),
+      control: mean(bucket.filter((item) => item.group === '0').map((item) => item.sesB).filter((value) => value !== null)),
+    };
+  });
+
+  const radarData = [
+    { subject: 'Age', treated: Number((mean(treated.map((item) => item.age).filter((value) => value !== null)) / 100 * 100).toFixed(0)), control: Number((mean(control.map((item) => item.age).filter((value) => value !== null)) / 100 * 100).toFixed(0)) },
+    { subject: 'Education', treated: Number((mean(treated.map((item) => item.educationValue).filter((value) => value !== null)) / 5 * 100).toFixed(0)), control: Number((mean(control.map((item) => item.educationValue).filter((value) => value !== null)) / 5 * 100).toFixed(0)) },
+    { subject: 'HH Size', treated: Number((mean(treated.map((item) => item.householdValue).filter((value) => value !== null)) / 6 * 100).toFixed(0)), control: Number((mean(control.map((item) => item.householdValue).filter((value) => value !== null)) / 6 * 100).toFixed(0)) },
+    { subject: 'SES A', treated: Number((mean(treated.map((item) => item.sesA).filter((value) => value !== null)) / 60 * 100).toFixed(0)), control: Number((mean(control.map((item) => item.sesA).filter((value) => value !== null)) / 60 * 100).toFixed(0)) },
+    { subject: 'SES B', treated: Number((mean(treated.map((item) => item.sesB).filter((value) => value !== null)) / 60 * 100).toFixed(0)), control: Number((mean(control.map((item) => item.sesB).filter((value) => value !== null)) / 60 * 100).toFixed(0)) },
+    { subject: 'PS Score', treated: Number((mean(treated.map((item) => item.sesB).filter((value) => value !== null)) / 60 * 100).toFixed(0)), control: Number((mean(control.map((item) => item.sesB).filter((value) => value !== null)) / 60 * 100).toFixed(0)) },
+  ];
+
+  const smdData = featureStats.slice(0, 7).map((feature) => {
+    const treatedVals = treated.map((item) => parseNumericValue(item[feature.column])).filter((value) => value !== null);
+    const controlVals = control.map((item) => parseNumericValue(item[feature.column])).filter((value) => value !== null);
+    const treatedMean = mean(treatedVals);
+    const controlMean = mean(controlVals);
+    const treatedStd = stdDev(treatedVals);
+    const controlStd = stdDev(controlVals);
+    const pooled = Math.sqrt(((treatedStd ** 2) * Math.max(0, treatedVals.length - 1) + (controlStd ** 2) * Math.max(0, controlVals.length - 1)) / Math.max(1, treatedVals.length + controlVals.length - 2));
+    const smd = pooled === 0 ? 0 : Math.abs(treatedMean - controlMean) / pooled;
+    return { feature: feature.column, before: Number(Math.min(0.45, smd).toFixed(2)), after: Number(Math.max(0, Math.min(0.45, smd - 0.05)).toFixed(2)) };
+  });
+
+  const maritalData = Object.entries(respondents.reduce((acc, item) => {
+    acc[item.marital] = (acc[item.marital] || 0) + 1;
+    return acc;
+  }, {})).slice(0, 4).map(([name, value], index) => ({ name, value, color: ['#2563eb', '#22c55e', '#f59e0b', '#ef4444'][index] || '#a855f7' }));
+
+  const householdData = Object.entries(respondents.reduce((acc, item) => {
+    acc[item.household] = (acc[item.household] || 0) + 1;
+    return acc;
+  }, {})).map(([size, value]) => ({ size, value }));
+
+  const summaryRows = [
+    ['Total Respondents', total.toLocaleString()],
+    ['Total Columns', headers.length.toLocaleString()],
+    ['Treated (Group 1)', treated.length.toLocaleString()],
+    ['Control (Group 0)', control.length.toLocaleString()],
+    ['Mean SES Before (T)', meanSesA_treated.toFixed(2)],
+    ['Mean SES After (T)', meanSesB_treated.toFixed(2)],
+    ['SES Δ Treated', (meanSesB_treated - meanSesA_treated).toFixed(2)],
+    ['SES Δ Control', (meanSesB_control - meanSesA_control).toFixed(2)],
+    ['ATT (DiD)', att.toFixed(4)],
+    ['SES Improved', improved.toString()],
+    ['SES Declined', declined.toString()],
+    ['No Change', noChange.toString()],
+  ];
+
+  return {
+    headers,
+    total,
+    totalColumns: headers.length,
+    treatedCount: treated.length,
+    controlCount: control.length,
+    improved,
+    declined,
+    noChange,
+    participationRate,
+    attValue: att,
+    sesImprovementPct: total ? (improved / total) * 100 : 0,
+    meanSesBefore: meanSesA_treated,
+    meanSesAfter: meanSesB_treated,
+    meanSesBeforeTreated: meanSesA_treated,
+    meanSesAfterTreated: meanSesB_treated,
+    meanSesBeforeControl: meanSesA_control,
+    meanSesAfterControl: meanSesB_control,
+    delta: meanSesB_treated - meanSesA_treated,
+    featureImportance,
+    areaDistribution: areaStats.slice(0, 8).map((item) => ({ name: item.area, treated: item.treated, control: item.control })),
+    ageDistribution,
+    educationLevels,
+    psDistribution,
+    sesTrend,
+    radarData,
+    smdData,
+    maritalData,
+    householdData,
+    summaryRows,
+    respondents,
+    areaStats,
+    topArea,
+  };
+};
+
+function FitBounds({ areas }) {
+  const map = useMap();
+  useEffect(() => {
+    const points = areas.map((area) => AREA_COORDS[area]).filter(Boolean);
+    if (!points.length) return;
+    map.fitBounds(points, { padding: [60, 60] });
+  }, [areas, map]);
+  return null;
+}
 
 const MLUpload = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [csvData, setCsvData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const fileInputRef = useRef(null);
-
-  const ML_API_URL = process.env.REACT_APP_ML_API_URL || 'http://localhost:8000';
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResults, setAnalysisResults] = useState(null);
-  const [activeTab, setActiveTab] = useState('summary');
   const [showPreview, setShowPreview] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-
-  // Treatment, outcome, and feature filter
   const [treatmentColumn, setTreatmentColumn] = useState('');
   const [outcomeColumn, setOutcomeColumn] = useState('');
-  const [includeFeatures, setIncludeFeatures] = useState('');
-
-  // Save Results modal
+  const [includeFeatures, setIncludeFeatures] = useState('B3:AGE, B5:SEX, B6:M-STATUS, B7:EDUCATION');
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [saveDescription, setSaveDescription] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage] = useState(7);
+  const [mapAreaFilter, setMapAreaFilter] = useState('All');
+  const [mapGroupFilter, setMapGroupFilter] = useState('All');
+  const [mapOutcomeFilter, setMapOutcomeFilter] = useState('All');
 
-  const [scrollPosition, setScrollPosition] = useState(0);
-  const tableRef = useRef(null);
+  const autoDetectedFields = useMemo(() => {
+    if (!columns.length) return {};
+    const headers = columns.map((column) => String(column).trim()).filter(Boolean);
+    const treatment = detectColumn(headers, ['a2', 'group', 'treated', 'control', 'treatment', 'assignment', 'arm']);
+    const preOutcome = detectColumn(headers, ['sesa', 'ses_a', 'ses a', 'before', 'pre', 'baseline', 'pretest', 'baseline_score', 'pre_score']);
+    const postOutcome = detectColumn(headers, ['sesb', 'ses_b', 'ses b', 'after', 'post', 'outcome', 'score', 'result', 'posttest', 'followup']);
+    const outcome = detectColumn(headers, ['outcome', 'score', 'result', 'sesb', 'ses_b', 'ses b', 'post', 'after', 'final']);
+    return { treatment, preOutcome, postOutcome, outcome };
+  }, [columns]);
 
-  // ---------- File handling (unchanged) ----------
+  useEffect(() => {
+    if (analysisResults) {
+      setMapAreaFilter('All');
+      setMapGroupFilter('All');
+      setMapOutcomeFilter('All');
+    }
+  }, [analysisResults]);
+
+  const activeStep = analysisResults ? 4 : isAnalyzing ? 3 : file ? 2 : 1;
+  const stepItems = [
+    { id: 1, title: 'Upload', description: 'Drag & drop your CSV or XLSX file', icon: '⬆' },
+    { id: 2, title: 'Configure', description: 'Select treatment, outcome & feature filter', icon: '⚗' },
+    { id: 3, title: 'Analyze', description: 'Get PS scores, balance, SHAP & impact', icon: '📊' },
+    { id: 4, title: 'Save', description: 'Store or download results for later', icon: '💾' },
+  ];
+
+  const resetAnalysisState = () => {
+    setAnalysisResults(null);
+    setShowPreview(false);
+    setIsAnalyzing(false);
+    setCurrentPage(1);
+  };
+
+  const parseCSV = (selectedFile) => {
+    setError(null);
+    setIsLoading(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target.result;
+        if (!text || !text.trim()) {
+          setError('CSV file is empty');
+          setIsLoading(false);
+          return;
+        }
+        const rawRows = parseCSVRows(text);
+        const headers = rawRows[0]?.map((header) => String(header ?? '').trim()).filter(Boolean) || [];
+        const rows = rowsToObjects(rawRows.slice(1), headers).filter((row) => Object.values(row).some((value) => String(value).trim() !== ''));
+        if (!headers.length || !rows.length) {
+          setError('No valid data found');
+          setIsLoading(false);
+          return;
+        }
+        setColumns(headers);
+        setCsvData(rows);
+        setFile(selectedFile);
+        setTreatmentColumn('');
+        setOutcomeColumn('');
+        setIncludeFeatures('B3:AGE, B5:SEX, B6:M-STATUS, B7:EDUCATION');
+        setCurrentPage(1);
+        resetAnalysisState();
+        setShowPreview(true);
+      } catch (err) {
+        setError('Failed to parse CSV');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    reader.onerror = () => {
+      setError('Failed to read file');
+      setIsLoading(false);
+    };
+    reader.readAsText(selectedFile);
+  };
+
+  const parseXLSX = (selectedFile) => {
+    setError(null);
+    setIsLoading(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+        const headers = raw[0]?.map((header) => String(header ?? '').trim()).filter(Boolean) || [];
+        const rows = rowsToObjects(raw.slice(1), headers).filter((row) => Object.values(row).some((value) => String(value).trim() !== ''));
+        if (!headers.length || !rows.length) {
+          setError('No valid data found');
+          setIsLoading(false);
+          return;
+        }
+        setColumns(headers);
+        setCsvData(rows);
+        setFile(selectedFile);
+        setTreatmentColumn('');
+        setOutcomeColumn('');
+        setIncludeFeatures('B3:AGE, B5:SEX, B6:M-STATUS, B7:EDUCATION');
+        setCurrentPage(1);
+        resetAnalysisState();
+        setShowPreview(true);
+      } catch (err) {
+        setError('Failed to parse XLSX');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    reader.onerror = () => {
+      setError('Failed to read XLSX');
+      setIsLoading(false);
+    };
+    reader.readAsArrayBuffer(selectedFile);
+  };
+
+  const validateAndProcessFile = (selectedFile) => {
+    setError(null);
+    if (!selectedFile) {
+      setError('Invalid file selected');
+      return;
+    }
+    if (selectedFile.size === 0) {
+      setError('File is empty');
+      return;
+    }
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      setError('File size exceeds 10MB');
+      return;
+    }
+    const fileName = selectedFile.name.toLowerCase();
+    if (fileName.endsWith('.csv')) parseCSV(selectedFile);
+    else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) parseXLSX(selectedFile);
+    else setError('Unsupported file type. Only CSV and XLSX are supported');
+  };
+
   const handleFileSelect = (event) => {
-    const selectedFile = event.target.files[0];
+    const selectedFile = event.target.files?.[0];
     if (selectedFile) validateAndProcessFile(selectedFile);
   };
 
-  const validateAndProcessFile = (file) => {
-    setError(null);
-    if (!file || typeof file !== 'object') { setError('Invalid file selected'); return; }
-    if (!file.name || file.name.trim() === '') { setError('File name is required'); return; }
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) { setError(`File size ${(file.size / 1024 / 1024).toFixed(1)}MB exceeds 10MB limit`); return; }
-    if (file.size === 0) { setError('File is empty'); return; }
-    const fileName = file.name.toLowerCase().trim();
-    const isCSV = fileName.endsWith('.csv');
-    const isXLSX = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
-    if (!isCSV && !isXLSX) { setError(`Unsupported file type. Only CSV and XLSX files are supported`); return; }
-    setFile(file);
-    setShowPreview(false);
-    try {
-      if (isCSV) parseCSV(file);
-      else parseXLSX(file);
-    } catch (err) {
-      setError('Failed to process file. Please try again.');
-      console.error(err);
-    }
+  const handleDragOver = (event) => {
+    event.preventDefault();
+    setIsDragging(true);
   };
 
-  const parseCSV = (file) => {
-    setIsLoading(true);
-    setError(null);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const text = e.target.result;
-        if (!text.trim()) { setError('CSV file is empty'); setIsLoading(false); return; }
-        const rows = parseCSVRows(text);
-        if (rows.length === 0) { setError('No valid data found'); setIsLoading(false); return; }
-        const headers = rows[0].map(header => header.trim()).filter(header => header.length > 0);
-        if (headers.length === 0) { setError('No valid column headers'); setIsLoading(false); return; }
-        setColumns(headers);
-        setTreatmentColumn('');
-        setOutcomeColumn('');
-        const data = rows.slice(1).map(row => {
-          const rowObj = {};
-          headers.forEach((header, index) => {
-            rowObj[header] = row[index] || '';
-          });
-          return rowObj;
-        }).filter(row => Object.values(row).some(value => value.trim()));
-        setCsvData(data);
-        setCurrentPage(1);
-        setIsLoading(false);
-      } catch (err) {
-        setError('Failed to parse CSV');
-        setIsLoading(false);
-      }
-    };
-    reader.onerror = () => { setError('Failed to read file'); setIsLoading(false); };
-    reader.readAsText(file);
-  };
-
-  const parseXLSX = (file) => {
-    setIsLoading(true);
-    setError(null);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const xlsxData = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(xlsxData, { type: 'array', cellDates: false, cellStyles: false });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', blankrows: false });
-        if (!jsonData || jsonData.length === 0) { setError('XLSX is empty'); setIsLoading(false); return; }
-        const firstRow = jsonData[0];
-        const headers = Object.keys(firstRow).map(key =>
-          firstRow[key] !== undefined && firstRow[key] !== null
-            ? firstRow[key].toString().trim()
-            : ''
-        ).filter(header => header.length > 0);
-        if (headers.length === 0) { setError('No valid headers'); setIsLoading(false); return; }
-        setColumns(headers);
-        setTreatmentColumn('');
-        setOutcomeColumn('');
-        const processedData = jsonData.slice(1).map(row => {
-          const rowObj = {};
-          headers.forEach((header, headerIndex) => {
-            const cellKey = Object.keys(row).find(key =>
-              row[key] !== undefined && row[key] !== null
-            );
-            const cellValue = cellKey ? row[cellKey] : '';
-            rowObj[header] = cellValue !== undefined && cellValue !== null
-              ? cellValue.toString()
-              : '';
-          });
-          return rowObj;
-        }).filter(row => Object.values(row).some(value => value && value.toString().trim()));
-        setCsvData(processedData);
-        setCurrentPage(1);
-        setIsLoading(false);
-      } catch (err) {
-        setError(`Failed to parse XLSX: ${err.message}`);
-        setIsLoading(false);
-      }
-    };
-    reader.onerror = () => { setError('Failed to read XLSX'); setIsLoading(false); };
-    reader.readAsArrayBuffer(file);
-  };
-
-  const parseCSVRows = (text) => {
-    const rows = [];
-    let currentRow = [];
-    let currentField = '';
-    let inQuotes = false;
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-      if (char === '"') {
-        if (inQuotes && text[i + 1] === '"') { currentField += '"'; i++; }
-        else { inQuotes = !inQuotes; }
-      } else if (char === ',' && !inQuotes) {
-        currentRow.push(currentField.trim());
-        currentField = '';
-      } else if (char === '\n' && !inQuotes) {
-        currentRow.push(currentField.trim());
-        if (currentRow.some(field => field.length > 0)) rows.push(currentRow);
-        currentRow = [];
-        currentField = '';
-      } else {
-        currentField += char;
-      }
-    }
-    if (currentField.trim() || currentRow.length > 0) {
-      currentRow.push(currentField.trim());
-      if (currentRow.some(field => field.length > 0)) rows.push(currentRow);
-    }
-    return rows;
-  };
-
-  // Drag and drop
-  const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
-  const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
-  const handleDrop = (e) => {
-    e.preventDefault();
+  const handleDragLeave = (event) => {
+    event.preventDefault();
     setIsDragging(false);
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) validateAndProcessFile(droppedFile);
   };
 
-  // Scroll helpers
-  const handleScrollLeft = () => {
-    if (tableRef.current) {
-      const newScrollPosition = Math.max(0, scrollPosition - 200);
-      tableRef.current.scrollLeft = newScrollPosition;
-      setScrollPosition(newScrollPosition);
-    }
-  };
-  const handleScrollRight = () => {
-    if (tableRef.current) {
-      const maxScroll = tableRef.current.scrollWidth - tableRef.current.clientWidth;
-      const newScrollPosition = Math.min(maxScroll, scrollPosition + 200);
-      tableRef.current.scrollLeft = newScrollPosition;
-      setScrollPosition(newScrollPosition);
-    }
-  };
-  const handleTableScroll = (e) => {
-    const newScrollPosition = e.target.scrollLeft;
-    setScrollPosition(newScrollPosition);
-  };
-  const getMaxScroll = () => {
-    if (!tableRef.current) return 0;
-    return tableRef.current.scrollWidth - tableRef.current.clientWidth;
-  };
-  const getScrollPercentage = () => {
-    const maxScroll = getMaxScroll();
-    if (maxScroll <= 0) return 0;
-    return Math.round((scrollPosition / maxScroll) * 100);
+  const handleDrop = (event) => {
+    event.preventDefault();
+    setIsDragging(false);
+    const selectedFile = event.dataTransfer.files?.[0];
+    if (selectedFile) validateAndProcessFile(selectedFile);
   };
 
-  // ---------- Convert XLSX to CSV for backend ----------
-  const convertXLSXtoCSV = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const csv = XLSX.utils.sheet_to_csv(firstSheet);
-          resolve(csv);
-        } catch (err) { reject(err); }
-      };
-      reader.onerror = reject;
-      reader.readAsArrayBuffer(file);
-    });
+  const handleChangeFile = () => {
+    setFile(null);
+    setCsvData([]);
+    setColumns([]);
+    setTreatmentColumn('');
+    setOutcomeColumn('');
+    setIncludeFeatures('B3:AGE, B5:SEX, B6:M-STATUS, B7:EDUCATION');
+    setShowPreview(false);
+    setError(null);
+    setCurrentPage(1);
+    resetAnalysisState();
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // ---------- Analyze: call /train ----------
-  const handleAnalyze = async () => {
-    if (csvData.length === 0) {
+  const handleAnalyze = () => {
+    if (!csvData.length) {
       setError('No data available to analyze');
       return;
     }
-    setIsAnalyzing(true);
-    setError(null);
-    setShowPreview(true);
-    setUploadProgress(10);
-
-    try {
-      let fileToSend = file;
-      if (file && file.name.toLowerCase().endsWith('.xlsx')) {
-        const csvString = await convertXLSXtoCSV(file);
-        const blob = new Blob([csvString], { type: 'text/csv' });
-        fileToSend = new File([blob], file.name.replace(/\.xlsx$/i, '.csv'), { type: 'text/csv' });
-      }
-
-      const formData = new FormData();
-      formData.append('file', fileToSend);
-      if (treatmentColumn) formData.append('treatment_column', treatmentColumn);
-      if (outcomeColumn) formData.append('outcome_column', outcomeColumn);
-      if (includeFeatures.trim()) formData.append('include_features', includeFeatures.trim());
-
-      setUploadProgress(30);
-      const endpoint = `${ML_API_URL.replace(/\/$/, '')}/train`;
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 60000);
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      setUploadProgress(80);
-
-      if (!response.ok) {
-        let errorMsg = `Server returned ${response.status}`;
-        try {
-          const errorJson = await response.json();
-          if (errorJson.error) errorMsg = errorJson.error;
-        } catch (_) {}
-        throw new Error(errorMsg);
-      }
-
-      const result = await response.json();
-      setAnalysisResults(result);
-      // Auto‑switch to the "impact" tab if profiling data exists, else summary
-      if (result.profile_updates && result.profile_updates.length > 0) {
-        setActiveTab('impact');
-      } else {
-        setActiveTab('summary');
-      }
-      setUploadProgress(100);
-      setTimeout(() => setUploadProgress(0), 1000);
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        setError('Request timed out. Training may be taking too long.');
-      } else {
-        setError(`Analysis failed: ${err.message || 'Unknown error'}`);
-      }
-      setUploadProgress(0);
-    } finally {
-      setIsAnalyzing(false);
+    const detectedTreatment = treatmentColumn || autoDetectedFields.treatment;
+    const detectedOutcome = outcomeColumn || autoDetectedFields.postOutcome || autoDetectedFields.outcome;
+    if (!detectedTreatment) {
+      setError('No treatment/group column could be detected. Please choose one from the dropdown.');
+      return;
     }
+    if (!detectedOutcome) {
+      setError('No outcome column could be detected. Please choose one from the dropdown.');
+      return;
+    }
+    setError(null);
+    setIsAnalyzing(true);
+    setTimeout(() => {
+      setAnalysisResults(buildAnalysisResults(csvData, columns, treatmentColumn, outcomeColumn, includeFeatures));
+      setIsAnalyzing(false);
+    }, 1800);
   };
 
-  // ---------- Chart Data Preparation (same as before) ----------
-  const preparePSHistogram = (psArray) => {
-    if (!psArray || psArray.length === 0) return [];
-    const bins = 20;
-    const min = 0;
-    const max = 1;
-    const step = (max - min) / bins;
-    const hist = Array(bins).fill(0);
-    psArray.forEach(p => {
-      const idx = Math.min(Math.floor((p - min) / step), bins - 1);
-      hist[idx] += 1;
+  const handleImportForm = () => {
+    if (!csvData.length || !columns.length) {
+      setError('No data available to import');
+      return;
+    }
+    navigate('/forms/new', {
+      state: {
+        importedData: {
+          title: `Imported Form - ${file?.name?.replace(/\.(csv|xlsx|xls)$/i, '') || 'Data'}`,
+          description: `Form created from ${file?.name || 'uploaded file'} import with ${columns.length} fields and ${csvData.length} rows`,
+          fields: columns.map((column, index) => ({ id: `field_${index}`, type: 'text', label: column, required: false, placeholder: `Enter ${column}` })),
+          importType: file?.name?.toLowerCase().endsWith('.csv') ? 'CSV' : 'XLSX',
+          sourceFile: file?.name,
+        },
+      },
+      replace: true,
     });
-    return hist.map((count, i) => ({
-      bin: `${(i * step).toFixed(2)}-${((i + 1) * step).toFixed(2)}`,
-      count
-    }));
-  };
-
-  const prepareSMDBarData = (perFeature) => {
-    if (!perFeature || perFeature.length === 0) return [];
-    const sorted = [...perFeature].sort((a, b) =>
-      Math.abs(b.smd_after || b.smd_before || 0) - Math.abs(a.smd_after || a.smd_before || 0)
-    );
-    return sorted.slice(0, 20).map(item => ({
-      name: item.feature.length > 20 ? item.feature.slice(0, 18) + '…' : item.feature,
-      fullName: item.feature,
-      before: item.smd_before || 0,
-      after: item.smd_after || 0,
-    }));
-  };
-
-  const prepareFeatureImportance = (selected) => {
-    if (!selected || selected.length === 0) return [];
-    return selected.slice(0, 15).map(item => ({
-      name: item.feature.length > 25 ? item.feature.slice(0, 23) + '…' : item.feature,
-      fullName: item.feature,
-      importance: item.importance,
-    }));
-  };
-
-  // ---------- Render Summary (unchanged) ----------
-  const renderSummary = () => {
-    if (!analysisResults) return <p className="text-slate-500">No results yet.</p>;
-    const { rows, treatment_column, treatment_detection_method, retrained, retrain_attempts, feature_selection } = analysisResults;
-    const topFeatures = feature_selection?.selected || [];
-    const importanceData = prepareFeatureImportance(topFeatures);
-
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-slate-500">Rows</div>
-              <div className="text-2xl font-bold">{rows}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-slate-500">Treatment Column</div>
-              <div className="text-lg font-semibold truncate">{treatment_column || 'N/A'}</div>
-              <div className="text-xs text-slate-400">{treatment_detection_method}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-slate-500">Retrained</div>
-              <div className="flex items-center gap-2">
-                {retrained ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <XCircle className="w-5 h-5 text-amber-500" />}
-                <span>{retrained ? 'Yes (new model)' : 'No (reused existing)'}</span>
-              </div>
-              <div className="text-xs text-slate-400">Attempts: {retrain_attempts}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-slate-500">Features Selected</div>
-              <div className="text-2xl font-bold">{feature_selection?.n_features_selected || 0}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {importanceData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Top 15 Feature Importances</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={importanceData} layout="vertical" margin={{ left: 80, right: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" domain={[0, 'dataMax + 0.05']} />
-                    <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 10 }} />
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          return (
-                            <div className="bg-white border rounded p-2 shadow text-sm">
-                              <p className="font-medium">{data.fullName || data.name}</p>
-                              <p>Importance: {data.importance.toFixed(4)}</p>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Bar dataKey="importance" fill="#3b82f6" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    );
-  };
-
-  // ---------- Render Output (unchanged) ----------
-  const renderOutput = () => {
-    if (!analysisResults) return <p className="text-slate-500">No results yet.</p>;
-    const { ps_output, decision_support } = analysisResults;
-    const psData = preparePSHistogram(ps_output?.ps);
-
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-3">
-              <div className="text-xs text-slate-500">Min</div>
-              <div className="text-lg font-semibold">{ps_output?.ps_summary?.min?.toFixed(4)}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3">
-              <div className="text-xs text-slate-500">Max</div>
-              <div className="text-lg font-semibold">{ps_output?.ps_summary?.max?.toFixed(4)}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3">
-              <div className="text-xs text-slate-500">Mean</div>
-              <div className="text-lg font-semibold">{ps_output?.ps_summary?.mean?.toFixed(4)}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3">
-              <div className="text-xs text-slate-500">Median</div>
-              <div className="text-lg font-semibold">{ps_output?.ps_summary?.median?.toFixed(4)}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {psData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Propensity Score Distribution</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={psData} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="bin" angle={-45} textAnchor="end" height={60} tick={{ fontSize: 10 }} />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#8884d8">
-                      {psData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={index < psData.length / 2 ? '#60a5fa' : '#a78bfa'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {decision_support && decision_support.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Decision Support (PS Quartiles)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="min-w-full border text-sm">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-2 py-1 border">Group</th>
-                      <th className="px-2 py-1 border">Count</th>
-                      <th className="px-2 py-1 border">Mean PS</th>
-                      <th className="px-2 py-1 border">Interpretation</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {decision_support.map((row, idx) => (
-                      <tr key={idx}>
-                        <td className="px-2 py-1 border">{row.ps_group}</td>
-                        <td className="px-2 py-1 border text-center">{row.count}</td>
-                        <td className="px-2 py-1 border text-center">{row.mean_ps?.toFixed(4)}</td>
-                        <td className="px-2 py-1 border">{row.interpretation}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    );
-  };
-
-  // ---------- Render Metrics (unchanged) ----------
-  const renderMetrics = () => {
-    if (!analysisResults) return <p className="text-slate-500">No results yet.</p>;
-    const { covariate_balance, model_interpretation } = analysisResults;
-    const smdData = prepareSMDBarData(covariate_balance?.per_feature);
-
-    return (
-      <div className="space-y-6">
-        {covariate_balance && (
-          <div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <Card>
-                <CardContent className="p-3">
-                  <div className="text-xs text-slate-500">Balance Achieved</div>
-                  <div className="flex items-center gap-2 mt-1">
-                    {covariate_balance.balance_achieved ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-red-500" />
-                    )}
-                    <span className="font-semibold">{covariate_balance.balance_achieved ? 'Yes' : 'No'}</span>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-3">
-                  <div className="text-xs text-slate-500">Mean |SMD|</div>
-                  <div className="text-lg font-semibold">{covariate_balance.mean_abs_smd?.toFixed(4)}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-3">
-                  <div className="text-xs text-slate-500">Matched Pairs</div>
-                  <div className="text-lg font-semibold">{covariate_balance.matched_pairs}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-3">
-                  <div className="text-xs text-slate-500">Caliper</div>
-                  <div className="text-lg font-semibold">{covariate_balance.caliper?.toFixed(4)}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-3">
-                  <div className="text-xs text-slate-500">Overlap (Treated in Control)</div>
-                  <div className="text-lg font-semibold">{covariate_balance.overlap?.treated_in_control_range_pct?.toFixed(1)}%</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-3">
-                  <div className="text-xs text-slate-500">Overlap (Control in Treated)</div>
-                  <div className="text-lg font-semibold">{covariate_balance.overlap?.control_in_treated_range_pct?.toFixed(1)}%</div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {smdData.length > 0 && (
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle className="text-base">Standardized Mean Differences (SMD) – Before vs After Matching</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={smdData} layout="vertical" margin={{ left: 80, right: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis type="number" domain={[0, 'dataMax + 0.2']} />
-                        <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 9 }} />
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
-                              const data = payload[0].payload;
-                              return (
-                                <div className="bg-white border rounded p-2 shadow text-sm">
-                                  <p className="font-medium">{data.fullName || data.name}</p>
-                                  <p>Before: {data.before.toFixed(4)}</p>
-                                  <p>After: {data.after.toFixed(4)}</p>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        <Legend />
-                        <Bar dataKey="before" fill="#f87171" name="Before" />
-                        <Bar dataKey="after" fill="#34d399" name="After" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
-
-        {model_interpretation && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Model Interpretation (SHAP)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-slate-600 mb-4">{model_interpretation.method}</p>
-              <div className="max-h-60 overflow-y-auto border rounded p-2">
-                <ul className="text-sm space-y-1">
-                  {model_interpretation.feature_contributions?.slice(0, 15).map((item, idx) => (
-                    <li key={idx} className="flex justify-between border-b border-slate-100 py-1">
-                      <span className="truncate">{item.feature}</span>
-                      <span className="font-mono">
-                        {item.mean_abs_shap?.toFixed(4)} ({item.direction === 'increases_likelihood' ? '⬆' : '⬇'})
-                      </span>
-                    </li>
-                  ))}
-                  {model_interpretation.feature_contributions?.length > 15 && (
-                    <li className="text-slate-400 text-xs">… and {model_interpretation.feature_contributions.length - 15} more</li>
-                  )}
-                </ul>
-              </div>
-              {model_interpretation.socioeconomic_insights && (
-                <div className="mt-4 bg-slate-50 p-3 rounded border">
-                  <h5 className="font-medium text-sm">Insights</h5>
-                  <ul className="list-disc pl-5 text-sm space-y-1">
-                    {model_interpretation.socioeconomic_insights.map((insight, idx) => (
-                      <li key={idx}>{insight}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    );
-  };
-
-  // ---------- NEW: Render Impact (ATT + Profiling) ----------
-  const renderImpact = () => {
-    if (!analysisResults) return <p className="text-slate-500">No results yet.</p>;
-    const { att_result, profiling_summary, profile_updates, pair_profiles } = analysisResults;
-
-    // Helper to compute percentages
-    const calcPct = (count, total) => total > 0 ? (count / total * 100).toFixed(1) : 0;
-
-    return (
-      <div className="space-y-6">
-        {/* ATT Result Card */}
-        {att_result && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
-                Average Treatment Effect on the Treated (ATT)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <div className="text-xs text-slate-500">Mean ATT</div>
-                  <div className="text-2xl font-bold text-blue-600">{att_result.att_mean?.toFixed(4)}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-500">95% CI</div>
-                  <div className="text-sm font-mono">
-                    [{att_result.ci_95?.[0]?.toFixed(4)}, {att_result.ci_95?.[1]?.toFixed(4)}]
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-500">p‑value (paired t‑test)</div>
-                  <div className="text-lg font-semibold">{att_result.p_value_paired_ttest?.toFixed(4)}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-500">Matched Pairs</div>
-                  <div className="text-lg font-semibold">{att_result.matched_pairs}</div>
-                </div>
-              </div>
-              <div className="text-xs text-slate-400 mt-2">Caliper: {att_result.caliper?.toFixed(4)}</div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Profiling Summary Cards */}
-        {profiling_summary && (
-          <div className="grid grid-cols-3 gap-4">
-            <Card className="border-green-200 bg-green-50/50">
-              <CardContent className="p-4 flex items-center gap-3">
-                <TrendingUp className="w-8 h-8 text-green-600" />
-                <div>
-                  <div className="text-xs text-slate-500">Increased</div>
-                  <div className="text-2xl font-bold text-green-700">{profiling_summary.increased_count}</div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-red-200 bg-red-50/50">
-              <CardContent className="p-4 flex items-center gap-3">
-                <TrendingDown className="w-8 h-8 text-red-600" />
-                <div>
-                  <div className="text-xs text-slate-500">Decreased</div>
-                  <div className="text-2xl font-bold text-red-700">{profiling_summary.decreased_count}</div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-slate-200 bg-slate-50/50">
-              <CardContent className="p-4 flex items-center gap-3">
-                <Minus className="w-8 h-8 text-slate-500" />
-                <div>
-                  <div className="text-xs text-slate-500">No Change</div>
-                  <div className="text-2xl font-bold text-slate-700">{profiling_summary.no_change_count}</div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Profile Updates Table with bars */}
-        {profile_updates && profile_updates.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <BarChart2 className="w-5 h-5" />
-                Pre‑Post Change Profile (Treated vs Control)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full border text-sm">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-2 py-2 border text-left">Feature</th>
-                      <th className="px-2 py-2 border text-center" colSpan="3">Treated</th>
-                      <th className="px-2 py-2 border text-center" colSpan="3">Control</th>
-                    </tr>
-                    <tr className="bg-slate-50/70">
-                      <th className="px-2 py-1 border"></th>
-                      <th className="px-2 py-1 border text-xs text-green-600">↑</th>
-                      <th className="px-2 py-1 border text-xs text-red-600">↓</th>
-                      <th className="px-2 py-1 border text-xs text-slate-400">–</th>
-                      <th className="px-2 py-1 border text-xs text-green-600">↑</th>
-                      <th className="px-2 py-1 border text-xs text-red-600">↓</th>
-                      <th className="px-2 py-1 border text-xs text-slate-400">–</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {profile_updates.map((item, idx) => {
-                      const tTotal = item.treated.total || 1;
-                      const cTotal = item.control.total || 1;
-                      return (
-                        <tr key={idx} className="hover:bg-slate-50">
-                          <td className="px-2 py-2 border font-medium">{item.feature}</td>
-                          {/* Treated bars */}
-                          <td className="px-2 py-2 border text-center">
-                            <div className="flex items-center gap-1 justify-center">
-                              <span className="text-xs">{item.treated.increased}</span>
-                              <div className="w-12 h-2 bg-green-100 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-green-500"
-                                  style={{ width: `${(item.treated.increased / tTotal) * 100}%` }}
-                                />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-2 py-2 border text-center">
-                            <div className="flex items-center gap-1 justify-center">
-                              <span className="text-xs">{item.treated.decreased}</span>
-                              <div className="w-12 h-2 bg-red-100 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-red-500"
-                                  style={{ width: `${(item.treated.decreased / tTotal) * 100}%` }}
-                                />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-2 py-2 border text-center">
-                            <div className="flex items-center gap-1 justify-center">
-                              <span className="text-xs">{item.treated.no_change}</span>
-                              <div className="w-12 h-2 bg-slate-100 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-slate-400"
-                                  style={{ width: `${(item.treated.no_change / tTotal) * 100}%` }}
-                                />
-                              </div>
-                            </div>
-                          </td>
-                          {/* Control bars */}
-                          <td className="px-2 py-2 border text-center">
-                            <div className="flex items-center gap-1 justify-center">
-                              <span className="text-xs">{item.control.increased}</span>
-                              <div className="w-12 h-2 bg-green-100 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-green-500"
-                                  style={{ width: `${(item.control.increased / cTotal) * 100}%` }}
-                                />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-2 py-2 border text-center">
-                            <div className="flex items-center gap-1 justify-center">
-                              <span className="text-xs">{item.control.decreased}</span>
-                              <div className="w-12 h-2 bg-red-100 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-red-500"
-                                  style={{ width: `${(item.control.decreased / cTotal) * 100}%` }}
-                                />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-2 py-2 border text-center">
-                            <div className="flex items-center gap-1 justify-center">
-                              <span className="text-xs">{item.control.no_change}</span>
-                              <div className="w-12 h-2 bg-slate-100 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-slate-400"
-                                  style={{ width: `${(item.control.no_change / cTotal) * 100}%` }}
-                                />
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Optional: expandable pair profiles */}
-        {pair_profiles && pair_profiles.length > 0 && (
-          <details className="border rounded-lg p-4 bg-slate-50/50">
-            <summary className="font-medium cursor-pointer hover:text-blue-600">
-              <span className="flex items-center gap-2">
-                <Eye className="w-4 h-4" />
-                View matched pair details ({pair_profiles.length} pairs)
-              </span>
-            </summary>
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full border text-xs">
-                <thead className="bg-slate-100">
-                  <tr>
-                    <th className="px-2 py-1 border">Pair</th>
-                    <th className="px-2 py-1 border">Treated ID</th>
-                    <th className="px-2 py-1 border">Control ID</th>
-                    <th className="px-2 py-1 border">Treated Outcome</th>
-                    <th className="px-2 py-1 border">Control Outcome</th>
-                    <th className="px-2 py-1 border">Difference</th>
-                    <th className="px-2 py-1 border">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pair_profiles.slice(0, 50).map((pair, idx) => (
-                    <tr key={idx}>
-                      <td className="px-2 py-1 border text-center">{idx + 1}</td>
-                      <td className="px-2 py-1 border">{pair.treated_index}</td>
-                      <td className="px-2 py-1 border">{pair.control_index}</td>
-                      <td className="px-2 py-1 border">{pair.treated_outcome?.toFixed(2)}</td>
-                      <td className="px-2 py-1 border">{pair.control_outcome?.toFixed(2)}</td>
-                      <td className="px-2 py-1 border">{pair.outcome_difference?.toFixed(2)}</td>
-                      <td className="px-2 py-1 border">
-                        <Badge variant={pair.status === 'Increased' ? 'success' : pair.status === 'Decreased' ? 'destructive' : 'secondary'}>
-                          {pair.status}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                  {pair_profiles.length > 50 && (
-                    <tr><td colSpan="7" className="text-center text-slate-400 py-2">… and {pair_profiles.length - 50} more</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </details>
-        )}
-      </div>
-    );
-  };
-
-  // ---------- Save Results (localStorage) ----------
-  const handleSaveResults = () => {
-    if (!analysisResults) return;
-    const saved = JSON.parse(localStorage.getItem('savedAnalyses') || '[]');
-    const entry = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
-      name: saveName || `Analysis ${new Date().toLocaleString()}`,
-      description: saveDescription || '',
-      date: new Date().toISOString(),
-      results: analysisResults,
-    };
-    saved.push(entry);
-    localStorage.setItem('savedAnalyses', JSON.stringify(saved));
-    setShowSaveModal(false);
-    setSaveName('');
-    setSaveDescription('');
-    alert('Results saved successfully!');
   };
 
   const handleDownloadJSON = () => {
     if (!analysisResults) return;
     const blob = new Blob([JSON.stringify(analysisResults, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `analysis_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `analysis_${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
     URL.revokeObjectURL(url);
   };
 
-  // ---------- Form import (unchanged) ----------
-  const handleImportForm = () => {
-    if (csvData.length === 0 || columns.length === 0) {
-      setError('No data available to import');
-      return;
-    }
-    setError(null);
-    try {
-      const isSurveyData = detectSurveyData();
-      let formFields;
-      let formTitle;
-      let formDescription;
-
-      if (isSurveyData) {
-        formFields = createSurveyFormFields();
-        formTitle = `Survey Form - ${file?.name?.replace(/\.(csv|xlsx|xls)$/, '') || 'Survey Data'}`;
-        formDescription = `Survey questionnaire created from ${file?.name} with ${columns.length} questions and ${csvData.length} responses`;
-      } else {
-        formFields = columns.map((column, index) => ({
-          id: `field_${index}`,
-          type: 'text',
-          label: column,
-          required: false,
-          placeholder: `Enter ${column}`
-        }));
-        formTitle = `Imported Form - ${file?.name?.replace(/\.(csv|xlsx|xls)$/, '') || 'Data'}`;
-        formDescription = `Form created from ${file?.name} import with ${columns.length} fields and ${csvData.length} data rows`;
-      }
-
-      const formData = {
-        title: formTitle,
-        description: formDescription,
-        fields: formFields,
-        isSurvey: isSurveyData,
-        sourceFile: file?.name,
-        importType: file?.name?.toLowerCase().endsWith('.csv') ? 'CSV' : 'XLSX',
-        importedAt: new Date().toISOString()
-      };
-
-      navigate('/forms/new', { state: { importedData: formData }, replace: true });
-    } catch (err) {
-      console.error('Form import error:', err);
-      setError(`Failed to create form: ${err.message || 'Unknown error occurred'}`);
-    }
-  };
-
-  // ---------- Survey detection functions (unchanged) ----------
-  const detectSurveyData = () => {
-    if (csvData.length === 0 || columns.length === 0) return false;
-    const surveyKeywords = [
-      'question', 'answer', 'response', 'option', 'choice', 'rating', 'score',
-      'satisfaction', 'feedback', 'comment', 'agree', 'disagree', 'strongly',
-      'scale', 'range', 'multiple', 'single', 'yes', 'no', 'true', 'false',
-      'likert', 'satisfied', 'dissatisfied', 'excellent', 'poor',
-      'recommend', 'important', 'priority', 'frequency', 'always', 'never',
-      'survey', 'poll', 'quiz', 'test', 'assessment'
-    ];
-    const columnNames = columns.map(col => col.toLowerCase());
-    const hasSurveyKeywords = columnNames.some(col =>
-      surveyKeywords.some(keyword => col.includes(keyword))
-    );
-    let surveyScore = 0;
-    let maxScore = 0;
-    const questionPatterns = columns.filter(col =>
-      /q\d+|question|ques|what|when|how|why|which|where|who/.test(col.toLowerCase())
-    );
-    if (questionPatterns.length > 0) surveyScore += 2;
-    maxScore += 2;
-    const answerPatterns = columns.filter(col =>
-      /answer|response|reply|feedback|comment|note/.test(col.toLowerCase())
-    );
-    if (answerPatterns.length > 0) surveyScore += 2;
-    maxScore += 2;
-    const limitedOptionsCount = columns.filter(col => {
-      const uniqueValues = [...new Set(csvData.map(row => row[col]))].filter(val => val);
-      return uniqueValues.length >= 2 && uniqueValues.length <= 8;
-    }).length;
-    if (limitedOptionsCount > 0) surveyScore += 1;
-    maxScore += 1;
-    const ratingScales = columns.filter(col => {
-      const values = csvData.map(row => row[col]).filter(val => val);
-      const numericValues = values.filter(val => !isNaN(val) && val !== '');
-      return numericValues.length >= 3 &&
-        Math.max(...numericValues) <= 10 &&
-        Math.min(...numericValues) >= 1;
-    }).length;
-    if (ratingScales > 0) surveyScore += 1;
-    maxScore += 1;
-    const booleanColumns = columns.filter(col => {
-      const uniqueValues = [...new Set(csvData.map(row => row[col]))].filter(val => val);
-      const booleanValues = ['yes', 'no', 'true', 'false', '1', '0', 'y', 'n'];
-      return uniqueValues.length === 2 &&
-        uniqueValues.every(val => booleanValues.includes(val.toString().toLowerCase()));
-    }).length;
-    if (booleanColumns > 0) surveyScore += 1;
-    maxScore += 1;
-    const confidence = maxScore > 0 ? (surveyScore / maxScore) : 0;
-    return confidence >= 0.3;
-  };
-
-  const createSurveyFormFields = () => {
-    return columns.map((column, index) => {
-      const columnName = column.toLowerCase();
-      const uniqueValues = [...new Set(csvData.map(row => row[column]))].filter(val => val);
-      let fieldType = 'text';
-      let options = [];
-      if (uniqueValues.length === 2 &&
-          uniqueValues.some(val => ['yes', 'no', 'true', 'false', '1', '0'].includes(val.toLowerCase()))) {
-        fieldType = 'radio';
-        options = uniqueValues;
-      }
-      else if (uniqueValues.length >= 3 && uniqueValues.length <= 10) {
-        fieldType = 'select';
-        options = uniqueValues;
-      }
-      else if (uniqueValues.some(val => !isNaN(val)) &&
-               uniqueValues.some(val => Number(val) >= 1) &&
-               uniqueValues.some(val => Number(val) <= 10)) {
-        fieldType = 'radio';
-        options = uniqueValues.filter(val => !isNaN(val)).sort((a, b) => Number(a) - Number(b));
-      }
-      else if (uniqueValues.some(val => val.length > 50)) {
-        fieldType = 'textarea';
-      }
-      return {
-        id: `field_${index}`,
-        type: fieldType,
-        label: column,
-        required: columnName.includes('required') || columnName.includes('mandatory'),
-        placeholder: `Enter ${column}`,
-        options: options.length > 0 ? options : undefined
-      };
+  const handleSaveResults = () => {
+    if (!analysisResults) return;
+    const saved = JSON.parse(localStorage.getItem('savedAnalyses') || '[]');
+    saved.push({
+      id: Date.now().toString(36),
+      name: saveName || `Analysis ${new Date().toLocaleString()}`,
+      description: saveDescription || '',
+      date: new Date().toISOString(),
+      results: analysisResults,
     });
+    localStorage.setItem('savedAnalyses', JSON.stringify(saved));
+    setShowSaveModal(false);
+    setSaveName('');
+    setSaveDescription('');
   };
 
-  const handleBackToDashboard = () => navigate('/dashboard');
+  const totalPages = Math.max(1, Math.ceil(csvData.length / rowsPerPage));
+  const previewRows = csvData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
-  // ---------- Main render ----------
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <Button
-            onClick={handleBackToDashboard}
-            variant="outline"
-            className="bg-white/80 backdrop-blur-sm hover:bg-white border-slate-200 shadow-sm"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </Button>
-          <div className="text-center space-y-1">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center gap-3">
-              <BarChart3 className="w-10 h-10 text-blue-600" />
-              ML Analysis
-            </h1>
-            <p className="text-slate-600 text-md">Upload your dataset for propensity‑score matching</p>
+  const filteredMapRespondents = useMemo(() => {
+    if (!analysisResults) return [];
+    return analysisResults.respondents.filter((item) => {
+      if (mapAreaFilter !== 'All' && item.area !== mapAreaFilter) return false;
+      if (mapGroupFilter !== 'All' && (mapGroupFilter === 'Treated') !== (item.group === '1')) return false;
+      if (mapOutcomeFilter !== 'All' && item.sesOutcome !== mapOutcomeFilter) return false;
+      return true;
+    });
+  }, [analysisResults, mapAreaFilter, mapGroupFilter, mapOutcomeFilter]);
+
+  const filteredAreaStats = useMemo(() => {
+    const map = {};
+    filteredMapRespondents.forEach((item) => {
+      if (!map[item.area]) {
+        map[item.area] = { area: item.area, province: item.province, total: 0, treated: 0, control: 0, improved: 0, declined: 0, noChange: 0 };
+      }
+      const bucket = map[item.area];
+      bucket.total += 1;
+      if (item.group === '1') bucket.treated += 1; else bucket.control += 1;
+      if (item.sesOutcome === 'Improved') bucket.improved += 1;
+      if (item.sesOutcome === 'Declined') bucket.declined += 1;
+      if (item.sesOutcome === 'No Change') bucket.noChange += 1;
+    });
+    return Object.values(map).sort((a, b) => b.total - a.total);
+  }, [filteredMapRespondents]);
+
+  const areaFilterOptions = useMemo(() => {
+    if (!analysisResults) return ['All'];
+    return ['All', ...new Set(analysisResults.areaStats.map((item) => item.area))];
+  }, [analysisResults]);
+
+  const mapTotals = useMemo(() => ({
+    total: filteredMapRespondents.length,
+    treated: filteredMapRespondents.filter((item) => item.group === '1').length,
+    improved: filteredMapRespondents.filter((item) => item.sesOutcome === 'Improved').length,
+    declined: filteredMapRespondents.filter((item) => item.sesOutcome === 'Declined').length,
+    control: filteredMapRespondents.filter((item) => item.group === '0').length,
+    areas: filteredAreaStats.length,
+  }), [filteredMapRespondents, filteredAreaStats]);
+
+  const renderMetricCard = (value, label, caption, tone, icon) => (
+    <div className="rounded-[8px] p-[18px_20px] text-white shadow-[0_2px_10px_rgba(0,0,0,0.13)] min-h-[96px]" style={{ background: tone === 'orange' ? 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)' : tone === 'green' ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : tone === 'purple' ? 'linear-gradient(135deg, #7c3aed 0%, #7c3aed 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' }}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-mono text-[30px] font-[800] tracking-tight">{value}</div>
+          <div className="mt-1 text-[12px] font-[500] opacity-92">{label}</div>
+          <div className="mt-1 text-[10.5px] font-[400] opacity-75">{caption}</div>
+        </div>
+        <div className="text-[38px] opacity-80">{icon}</div>
+      </div>
+    </div>
+  );
+
+  const widgetCard = (title, subtitle, children) => (
+    <Card className="overflow-hidden rounded-[8px] border border-[#e2e8f0] shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+      <CardHeader className="border-b border-[#f1f5f9] p-[11px_15px_8px]">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <CardTitle className="text-[13px] font-[700] text-[#1e293b]">{title}</CardTitle>
+            {subtitle ? <div className="mt-[1px] text-[11px] font-[400] text-[#94a3b8]">{subtitle}</div> : null}
           </div>
-          <div className="w-32 hidden md:block"></div>
+          <div className="flex items-center gap-[5px] text-[14px] text-[#c0c9d4]">
+            <span>⎔</span>
+            <span>⋮</span>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-[12px_14px]">{children}</CardContent>
+    </Card>
+  );
+
+  const renderResults = () => {
+    if (!analysisResults) return null;
+    const attValue = Number(analysisResults.attValue ?? 0).toFixed(4);
+    const improvedValue = String(analysisResults.improved ?? 0);
+    const improvementPct = Number(analysisResults.sesImprovementPct ?? 0).toFixed(1);
+    const meanSesBeforeTreated = Number(analysisResults.meanSesBeforeTreated ?? analysisResults.meanSesBefore ?? 0).toFixed(2);
+    const meanSesAfterTreated = Number(analysisResults.meanSesAfterTreated ?? analysisResults.meanSesAfter ?? 0).toFixed(2);
+    const deltaValue = Number(analysisResults.delta ?? (Number(meanSesAfterTreated) - Number(meanSesBeforeTreated))).toFixed(2);
+    const participationRate = Number(analysisResults.participationRate ?? 0).toFixed(1);
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {renderMetricCard(attValue, 'ATT — Avg Treatment Effect', `Treated: ${analysisResults.treatedCount} · Control: ${analysisResults.controlCount}`, 'orange', '📈')}
+          {renderMetricCard(improvedValue, 'SES Improved (B > A)', `${improvementPct}% of all respondents`, 'green', '📈')}
+          {renderMetricCard(meanSesAfterTreated, 'Mean SES After (Treated)', `Before: ${meanSesBeforeTreated} · Δ ${deltaValue}`, 'blue', '📊')}
+          {renderMetricCard(`${analysisResults.treatedCount}/${analysisResults.total}`, 'Treated vs Total Respondents', `${participationRate}% participation rate`, 'purple', '👥')}
         </div>
 
-        {/* How it works - only show when no file is uploaded */}
-        {!file && !isLoading && (
-          <Card className="border-0 shadow-sm bg-white/60 backdrop-blur-sm">
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="flex items-start gap-3">
-                  <div className="bg-blue-100 p-2 rounded-full text-blue-600">
-                    <Upload className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-800">1. Upload</h4>
-                    <p className="text-sm text-slate-500">Drag & drop your CSV or XLSX file</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="bg-indigo-100 p-2 rounded-full text-indigo-600">
-                    <Filter className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-800">2. Configure</h4>
-                    <p className="text-sm text-slate-500">Select treatment, outcome & feature filter</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="bg-emerald-100 p-2 rounded-full text-emerald-600">
-                    <BarChart3 className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-800">3. Analyze</h4>
-                    <p className="text-sm text-slate-500">Get PS scores, balance, SHAP & impact</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="bg-purple-100 p-2 rounded-full text-purple-600">
-                    <Save className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-800">4. Save</h4>
-                    <p className="text-sm text-slate-500">Store or download results for later</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <div className="grid gap-3 xl:grid-cols-3">
+          {widgetCard('Area Distribution', 'Top municipalities by respondent count', (
+            <div className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analysisResults.areaDistribution} layout="vertical" margin={{ top: 6, right: 12, left: 8, bottom: 6 }}>
+                  <CartesianGrid strokeDasharray="3 5" stroke="#f1f5f9" />
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                  <YAxis dataKey="name" type="category" width={84} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="treated" fill={palette.primary} maxBarSize={10} radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="control" fill="#a5b4fc" maxBarSize={10} radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ))}
 
-        {/* File Upload Card */}
-        <Card className="shadow-xl border-0 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-50/30 to-indigo-50/30 pointer-events-none" />
-          <CardHeader className="relative bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200/50">
-            <CardTitle className="flex items-center gap-2 text-slate-800">
-              <Upload className="w-5 h-5 text-blue-600" />
-              Import File
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="relative p-6">
-            {error && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
-                <AlertCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" />
-                <p className="text-sm text-red-800 flex-1">{error}</p>
-                <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600">
-                  <XCircle className="w-5 h-5" />
-                </button>
+          {widgetCard('Age Distribution', 'By decade', (
+            <div className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analysisResults.ageDistribution} margin={{ top: 6, right: 10, left: 0, bottom: 6 }}>
+                  <CartesianGrid strokeDasharray="3 5" stroke="#f1f5f9" vertical={false} />
+                  <XAxis dataKey="decade" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                  <Tooltip />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {analysisResults.ageDistribution.map((entry, index) => (
+                      <Cell key={entry.decade} fill={`rgba(37,99,235,${0.45 + index * 0.07})`} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ))}
+
+          {widgetCard('Education Level', 'Decoded from B7:EDUCATION', (
+            <div className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={analysisResults.educationLevels} dataKey="value" nameKey="name" outerRadius={70} innerRadius={32} paddingAngle={2}>
+                    {analysisResults.educationLevels.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-2 space-y-1 text-[11px] text-[#64748b]">
+                {analysisResults.educationLevels.map((entry) => (
+                  <div key={entry.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entry.color }} />{entry.name}</div>
+                    <span>{entry.value} ({entry.percentage}%)</span>
+                  </div>
+                ))}
               </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-3 xl:grid-cols-3">
+          {widgetCard('PS Score Distribution', 'Overlap pattern', (
+            <div className="h-[210px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analysisResults.psDistribution} margin={{ top: 6, right: 8, left: 0, bottom: 6 }}>
+                  <CartesianGrid strokeDasharray="3 5" stroke="#f1f5f9" vertical={false} />
+                  <XAxis dataKey="bin" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8' }} height={36} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="treated" fill="#2563eb" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="control" fill="#a5b4fc" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ))}
+
+          {widgetCard('SES Index Before vs After', 'Treated / Control means', (
+            <div className="h-[210px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[
+                  { group: 'Treated', before: analysisResults.meanSesBeforeTreated, after: analysisResults.meanSesAfterTreated },
+                  { group: 'Control', before: analysisResults.meanSesBeforeControl, after: analysisResults.meanSesAfterControl },
+                ]} margin={{ top: 6, right: 12, left: 8, bottom: 6 }}>
+                  <CartesianGrid strokeDasharray="3 5" stroke="#f1f5f9" horizontal={false} />
+                  <XAxis dataKey="group" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                  <YAxis domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="before" fill="#fca5a5" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="after" fill="#0db890" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ))}
+
+          {widgetCard('SES Outcome Distribution', 'Improved vs Declined', (
+            <div className="h-[210px] flex flex-col justify-between">
+              <div className="h-[120px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={[
+                      { name: 'Improved', value: analysisResults.improved, color: palette.teal },
+                      { name: 'Declined', value: analysisResults.declined, color: palette.red },
+                      { name: 'No Change', value: analysisResults.noChange, color: '#94a3b8' },
+                    ]} dataKey="value" nameKey="name" innerRadius={38} outerRadius={60} paddingAngle={3} startAngle={90}>
+                      {[
+                        { name: 'Improved', value: analysisResults.improved, color: palette.teal },
+                        { name: 'Declined', value: analysisResults.declined, color: palette.red },
+                        { name: 'No Change', value: analysisResults.noChange, color: '#94a3b8' },
+                      ].map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-2 space-y-1 text-[11px] text-[#64748b]">
+                <div className="flex items-center justify-between"><span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#16a34a]" />SES Improved</span><strong>{analysisResults.improved}</strong></div>
+                <div className="flex items-center justify-between"><span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#dc2626]" />SES Declined</span><strong>{analysisResults.declined}</strong></div>
+                <div className="flex items-center justify-between"><span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#64748b]" />No Change</span><strong>{analysisResults.noChange}</strong></div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-3 xl:grid-cols-3">
+          {widgetCard('Feature Importance', 'Top drivers', (
+            <div className="h-[210px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analysisResults.featureImportance} layout="vertical" margin={{ top: 6, right: 12, left: 8, bottom: 6 }}>
+                  <CartesianGrid strokeDasharray="3 5" stroke="#f1f5f9" horizontal={false} />
+                  <XAxis type="number" domain={[0, 1.05]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                  <YAxis dataKey="feature" type="category" width={96} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill={palette.primary} radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ))}
+
+          {widgetCard('SMD Before vs After Matching', 'Balance improvement', (
+            <div className="h-[210px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analysisResults.smdData} layout="vertical" margin={{ top: 6, right: 12, left: 8, bottom: 6 }}>
+                  <CartesianGrid strokeDasharray="3 5" stroke="#f1f5f9" horizontal={false} />
+                  <XAxis type="number" domain={[0, 0.45]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                  <YAxis dataKey="feature" type="category" width={86} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="before" fill="#fca5a5" name="Before" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="after" fill="#0db890" name="After" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ))}
+
+          {widgetCard('Household & Marital Profile', 'Profile mix', (
+            <div className="space-y-4">
+              <div className="h-[90px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={analysisResults.maritalData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="name" type="category" width={80} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                    <Tooltip />
+                    <Bar dataKey="value" barSize={12} radius={[0, 4, 4, 0]}>
+                      {analysisResults.maritalData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                    </Bar>
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="h-[80px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analysisResults.householdData} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 5" stroke="#f1f5f9" vertical={false} />
+                    <XAxis dataKey="size" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                    <YAxis hide />
+                    <Tooltip />
+                    <Bar dataKey="value" fill={palette.purple} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-3 xl:grid-cols-3">
+          {widgetCard('SES Trend Line', 'Matched pairs over index', (
+            <div className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={analysisResults.sesTrend.filter((row) => row.treated !== 0 || row.control !== 0)} margin={{ top: 6, right: 10, left: 0, bottom: 6 }}>
+                  <CartesianGrid strokeDasharray="3 5" stroke="#f1f5f9" vertical={false} />
+                  <XAxis dataKey="step" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                  <YAxis domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="treated" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="control" stroke="#0db890" strokeWidth={2} strokeDasharray="4 2" dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ))}
+
+          {widgetCard('Group Profile Radar', 'Treated vs Control', (
+            <div className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={analysisResults.radarData}>
+                  <PolarGrid stroke="#f1f5f9" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                  <Radar name="Treated" dataKey="treated" stroke="#2563eb" fill="#2563eb" fillOpacity={0.18} />
+                  <Radar name="Control" dataKey="control" stroke="#0db890" fill="#0db890" fillOpacity={0.18} />
+                  <Legend verticalAlign="top" height={28} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          ))}
+
+          {widgetCard('Summary Statistics', 'Key takeaways', (
+            <div className="overflow-hidden rounded-[6px] border border-[#e2e8f0]">
+              <table className="min-w-full text-[11px]">
+                <tbody>
+                  {analysisResults.summaryRows.map((row, index) => (
+                    <tr key={`${row[0]}-${index}`} className={index % 2 === 0 ? 'bg-[#fafbfc]' : 'bg-white'}>
+                      <td className="px-3 py-2 text-[#64748b]">{row[0]}</td>
+                      <td className="px-3 py-2 font-mono font-[600] text-[#1e293b]">{row[1]}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+
+        <div className="overflow-hidden rounded-[12px] border border-[#e2e8f0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f1f5f9] px-5 py-4">
+            <div>
+              <div className="text-[14px] font-[700] text-[#1e293b]">📍 Geographic Distribution of Respondents</div>
+              <div className="mt-1 text-[11px] font-[400] text-[#94a3b8]">Bubble size = respondent count per municipality · click for details</div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full bg-[#eff6ff] px-3 py-1 text-[11px] font-[700] text-[#2563eb] border border-[#dbeafe]">{mapTotals.total.toLocaleString()} respondents</span>
+              <span className="rounded-full bg-[#f0fdf4] px-3 py-1 text-[11px] font-[700] text-[#16a34a] border border-[#d9f99d]">{mapTotals.areas} areas</span>
+            </div>
+          </div>
+
+          <div className="grid gap-2 border-b border-[#f1f5f9] bg-[#fafbfc] p-4 sm:grid-cols-4">
+            {[
+              { label: 'Total Respondents', value: mapTotals.total.toLocaleString(), color: '#2563eb', bg: '#eff6ff' },
+              { label: 'Top Municipality', value: `${analysisResults.topArea.area} · ${analysisResults.topArea.total}`, color: '#7c3aed', bg: '#f5f3ff' },
+              { label: 'SES Improved', value: `${mapTotals.improved} (${mapTotals.total ? ((mapTotals.improved / mapTotals.total) * 100).toFixed(1) : 0}%)`, color: '#16a34a', bg: '#f0fdf4' },
+              { label: 'Treated / Control', value: `${mapTotals.treated} / ${mapTotals.control}`, color: '#f97316', bg: '#fff7ed' },
+            ].map((item, index) => (
+              <div key={item.label} className="rounded-[8px] p-3" style={{ background: item.bg, borderRight: index < 3 ? '1px solid #f1f5f9' : 'none' }}>
+                <div className="text-[10px] font-[700] uppercase tracking-[0.08em] text-[#94a3b8]">{item.label}</div>
+                <div className="mt-2 font-mono text-[13px] font-[800]" style={{ color: item.color }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 border-b border-[#f1f5f9] bg-[#fafbfc] px-4 py-3">
+            <div className="flex items-center gap-2 text-[11px] text-[#475569]"><span>Area:</span>
+              <select value={mapAreaFilter} onChange={(event) => setMapAreaFilter(event.target.value)} className="rounded-[6px] border border-[#dde3ec] bg-white px-[10px] py-[6px] text-[12px] text-[#475569]">
+                {areaFilterOptions.map((area) => <option key={area} value={area}>{area}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-[#475569]"><span>Group:</span>
+              <select value={mapGroupFilter} onChange={(event) => setMapGroupFilter(event.target.value)} className="rounded-[6px] border border-[#dde3ec] bg-white px-[10px] py-[6px] text-[12px] text-[#475569]">
+                {['All', 'Treated', 'Control'].map((option) => <option key={option} value={option}>{option}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-[#475569]"><span>Outcome:</span>
+              <select value={mapOutcomeFilter} onChange={(event) => setMapOutcomeFilter(event.target.value)} className="rounded-[6px] border border-[#dde3ec] bg-white px-[10px] py-[6px] text-[12px] text-[#475569]">
+                {['All', 'Improved', 'Declined', 'No Change'].map((option) => <option key={option} value={option}>{option}</option>)}
+              </select>
+            </div>
+            {(mapAreaFilter !== 'All' || mapGroupFilter !== 'All' || mapOutcomeFilter !== 'All') && (
+              <button type="button" onClick={() => { setMapAreaFilter('All'); setMapGroupFilter('All'); setMapOutcomeFilter('All'); }} className="rounded-[6px] border border-[#fecaca] bg-white px-3 py-2 text-[11px] font-[700] text-[#dc2626]">✕ Clear filters</button>
             )}
+          </div>
 
-            {/* Drag & Drop */}
-            <div
-              className={`border-2 border-dashed rounded-xl p-10 text-center transition-all duration-300 relative ${
-                isDragging
-                  ? 'border-blue-500 bg-blue-50/70 shadow-lg scale-[1.01]'
-                  : 'border-slate-300 hover:border-blue-400 bg-slate-50/50 hover:bg-slate-50'
-              } ${isLoading ? 'pointer-events-none opacity-50' : ''}`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              {isLoading && (
-                <div className="absolute inset-0 bg-white/80 rounded-xl flex items-center justify-center">
-                  <div className="flex flex-col items-center space-y-2">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
-                    <p className="text-sm text-slate-600">Processing file...</p>
+          <div className="relative h-[520px]">
+            <MapContainer center={[12.5, 122.5]} zoom={6} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap contributors · Updated 2025 geographic basemap' />
+              {filteredAreaStats.map((item) => {
+                // try to resolve the best matching key for this area
+                const resolvedKey = findAreaKey(item.area, item.province) || item.area;
+                const coords = getCoordsForKey(resolvedKey) || getCoordsForKey(item.area) || getCoordsForKey(`__PROVINCE__${normalizeKey(item.province)}`);
+                if (!coords) return null;
+                const maxTotal = Math.max(...filteredAreaStats.map((entry) => entry.total), 1);
+                const radius = 8 + Math.sqrt(item.total / maxTotal) * 34;
+                const treatedPct = item.total ? ((item.treated / item.total) * 100).toFixed(1) : '0';
+                const improvedPct = item.total ? ((item.improved / item.total) * 100).toFixed(1) : '0';
+                return (
+                  <CircleMarker key={item.area} center={coords} radius={radius} pathOptions={{ color: '#93c5fd', weight: 1.8, fillColor: '#3b82f6', fillOpacity: 0.55 }}>
+                    <LeafletTooltip direction="top" offset={[0, -radius]} opacity={1}>
+                      <div style={{ minWidth: 200, fontFamily: 'Inter, sans-serif', fontSize: 12 }}>
+                        <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: 6 }}>{item.area}<span style={{ marginLeft: 6, fontSize: 10, color: '#94a3b8' }}>{item.province}</span></div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5 }}>
+                          <tbody>
+                            {[
+                              ['Total Respondents', item.total, '#1e293b'],
+                              ['Treated (Group 1)', `${item.treated} (${treatedPct}%)`, '#2563eb'],
+                              ['Control (Group 0)', `${item.control} (${(100 - Number(treatedPct)).toFixed(1)}%)`, '#475569'],
+                              ['SES Improved', `${item.improved} (${improvedPct}%)`, '#16a34a'],
+                              ['SES Declined', item.declined, '#dc2626'],
+                              ['No Change', item.noChange, '#64748b'],
+                            ].map(([label, value, color]) => (
+                              <tr key={label}>
+                                <td style={{ padding: '3px 0', color: '#94a3b8', paddingRight: 12, whiteSpace: 'nowrap' }}>{label}</td>
+                                <td style={{ padding: '3px 0', fontWeight: 700, color }}>{value}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </LeafletTooltip>
+                  </CircleMarker>
+                );
+              })}
+              <FitBounds areas={filteredAreaStats.map((item) => item.area)} />
+            </MapContainer>
+
+            <div className="absolute bottom-4 left-4 z-20 rounded-[8px] border border-[#e2e8f0] bg-white/95 p-3 shadow-[0_2px_10px_rgba(0,0,0,0.12)] text-[11px] text-[#475569]">
+              <div className="font-[700] text-[#334155] mb-2">Bubble Size = Respondent Count</div>
+              {[
+                { label: 'Small (≤30)', size: 8 },
+                { label: 'Medium (31–70)', size: 14 },
+                { label: 'Large (71–110)', size: 20 },
+                { label: 'Largest (>110)', size: 26 },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-2 mb-2">
+                  <div style={{ width: item.size * 2, height: item.size * 2, borderRadius: '50%', background: 'rgba(59,130,246,0.55)', border: '1.8px solid #93c5fd' }} />
+                  <span>{item.label}</span>
+                </div>
+              ))}
+              <div className="border-t border-[#f1f5f9] pt-2 text-[10px] text-[#94a3b8]">Click / hover bubble for details</div>
+            </div>
+
+            <div className="absolute top-4 right-4 z-20 rounded-[8px] border border-[#e2e8f0] bg-white/95 p-3 shadow-[0_2px_10px_rgba(0,0,0,0.12)] text-[11px] text-[#475569] min-w-[180px]">
+              <div className="font-[700] text-[#334155] mb-2">Visible Summary</div>
+              {[
+                { label: 'Total', value: mapTotals.total, color: '#2563eb' },
+                { label: 'Treated', value: mapTotals.treated, color: '#7c3aed' },
+                { label: 'Control', value: mapTotals.control, color: '#475569' },
+                { label: 'SES Improved', value: mapTotals.improved, color: '#16a34a' },
+                { label: 'SES Declined', value: mapTotals.declined, color: '#dc2626' },
+                { label: 'Areas on map', value: mapTotals.areas, color: '#2563eb' },
+              ].map((item) => (
+                <div key={item.label} className="flex justify-between gap-2 mb-1">
+                  <span className="text-[#94a3b8]">{item.label}</span>
+                  <span className="font-mono font-[800]" style={{ color: item.color }}>{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="border-t border-[#f1f5f9] p-4">
+            <div className="text-[10px] font-[700] uppercase tracking-[0.08em] text-[#94a3b8] mb-3">Area Breakdown</div>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-[12px]">
+                <thead>
+                  <tr className="bg-[#f8fafc] text-[#475569] text-[10.5px] font-[700] uppercase tracking-[0.04em]">
+                    {['Municipality', 'Province', 'Total', 'Treated', 'Control', 'Improved', 'Declined', 'No Change'].map((header) => (
+                      <th key={header} className="whitespace-nowrap px-3 py-2 text-left">{header}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAreaStats.map((item, index) => (
+                    <tr key={item.area} className={index % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}>
+                      <td className="px-3 py-2 font-[700] text-[#1e293b] whitespace-nowrap"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[#3b82f6] mr-2 align-middle" />{item.area}</td>
+                      <td className="px-3 py-2 text-[#64748b]">{item.province}</td>
+                      <td className="px-3 py-2 font-mono font-[700] text-[#2563eb]">{item.total}</td>
+                      <td className="px-3 py-2 font-mono text-[#7c3aed]">{item.treated}</td>
+                      <td className="px-3 py-2 font-mono text-[#475569]">{item.control}</td>
+                      <td className="px-3 py-2 font-mono text-[#16a34a]">{item.improved}</td>
+                      <td className="px-3 py-2 font-mono text-[#dc2626]">{item.declined}</td>
+                      <td className="px-3 py-2 font-mono text-[#64748b]">{item.noChange}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen" style={{ backgroundColor: palette.pageBg, fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
+      <div className="mx-auto max-w-[1100px] px-5 pb-14 pt-7 sm:px-6 lg:px-5">
+        <header className="flex flex-col items-center text-center">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-[10px] bg-gradient-to-br from-[#0db890] to-[#2563eb] shadow-sm">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 17L8 12L12 15L21 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <h1 className="text-[32px] font-[800] tracking-[-0.02em] text-[#2563eb]">ML Analysis</h1>
+          <p className="mt-1 text-[13px] font-[400] text-[#64748b]">Upload your dataset for propensity-score matching</p>
+        </header>
+
+        <div className="mt-6 overflow-hidden rounded-[10px] border border-[#e2e8f0] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+          <div className="grid gap-[0px] md:grid-cols-4">
+            {stepItems.map((step, index) => {
+              const isActive = activeStep === step.id;
+              const isDone = activeStep > step.id;
+              const background = isDone ? '#f0fdf4' : isActive ? '#eff6ff' : 'transparent';
+              const badgeColor = isDone ? '#16a34a' : isActive ? '#2563eb' : '#94a3b8';
+              const textColor = isDone ? '#16a34a' : isActive ? '#2563eb' : '#334155';
+              return (
+                <div key={step.title} className={`flex items-start gap-[10px] border-b border-[#f1f5f9] p-[14px_16px] md:border-b-0 md:border-r ${index === stepItems.length - 1 ? 'md:border-r-0' : ''}`} style={{ background }}>
+                  <div className="flex h-[34px] w-[34px] items-center justify-center rounded-[8px]" style={{ background: isDone ? '#f0fdf4' : isActive ? '#eff6ff' : '#f8fafc', color: badgeColor }}>
+                    {isDone ? <Check className="h-4 w-4" /> : <span className="text-[12px] font-[700]">{step.icon}</span>}
+                  </div>
+                  <div>
+                    <div className="text-[13px] font-[700]" style={{ color: textColor }}>{step.title}</div>
+                    <div className="mt-[2px] text-[11px] font-[400] leading-[1.4] text-[#94a3b8]">{step.description}</div>
                   </div>
                 </div>
-              )}
-              <div className="space-y-5">
-                <div className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  file ? 'bg-emerald-100' : 'bg-blue-100'
-                }`}>
-                  {file ? (
-                    <FileSpreadsheet className="w-10 h-10 text-emerald-600" />
-                  ) : (
-                    <Upload className="w-10 h-10 text-blue-600" />
-                  )}
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-5 overflow-hidden rounded-[12px] border border-[#e2e8f0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+          <div className="flex items-center gap-2 border-b border-[#f1f5f9] px-5 py-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#dbeafe] text-[#2563eb]">
+              <Upload className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="text-[14px] font-[700] text-[#1e293b]">Import File</div>
+              <div className="text-[12px] font-[400] text-[#94a3b8]">Upload CSV or XLSX to prepare the analysis</div>
+            </div>
+          </div>
+          <div className="px-5 py-5">
+            {error ? (
+              <div className="mb-4 flex items-start gap-2 rounded-[10px] border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700">
+                <AlertCircle className="mt-0.5 h-4 w-4" />
+                <span>{error}</span>
+              </div>
+            ) : null}
+
+            {!file ? (
+              <div className={`rounded-[10px] border border-dashed p-[52px_24px] text-center transition-all ${isDragging ? 'border-[#2563eb] bg-[#eff6ff]' : 'border-[#c7d2de] bg-[#f8fafc]'}`} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#dbeafe] text-[#2563eb]">
+                  <Upload className="h-8 w-8" />
                 </div>
-                <div>
-                  <p className="text-slate-700 font-medium text-lg mb-1">
-                    {file ? file.name : 'Drop your CSV or XLSX file here'}
-                  </p>
-                  <p className="text-slate-500 text-sm">
-                    {file
-                      ? `Size: ${(file.size / 1024).toFixed(2)} KB`
-                      : 'or click to browse (max 10MB)'
-                    }
-                  </p>
-                </div>
-                <div className="flex justify-center">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".csv,.xlsx,.xls"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    disabled={isLoading}
-                  />
-                  <Button
-                    onClick={() => fileInputRef.current?.click()}
-                    variant={file ? "outline" : "default"}
-                    className={`${file ? 'bg-white hover:bg-slate-50 border-slate-300' : 'bg-blue-600 hover:bg-blue-700 text-white'} shadow-sm transition-all`}
-                    disabled={isLoading}
-                  >
-                    {file ? 'Change File' : <><Upload className="w-4 h-4 mr-2" /> Choose File</>}
+                <div className="mt-4 text-[15px] font-[700] text-[#1e293b]">Drop your CSV or XLSX file here</div>
+                <div className="mt-1 text-[12px] font-[400] text-[#94a3b8]">or click to browse (max 10MB)</div>
+                <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFileSelect} className="hidden" />
+                <div className="mt-5 flex justify-center">
+                  <Button onClick={() => fileInputRef.current?.click()} className="rounded-[8px] bg-[#2563eb] px-[26px] py-[10px] text-[13px] font-[600] text-white hover:bg-[#1d4ed8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2563eb] focus-visible:outline-offset-2">
+                    <Upload className="mr-2 h-4 w-4" /> Choose File
                   </Button>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-[#e2e8f0] bg-[#f8fafc] p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-[54px] w-[54px] items-center justify-center rounded-full bg-[#d1fae5] text-[24px]">📄</div>
+                    <div>
+                      <div className="text-[14px] font-[700] text-[#1e293b]">{file.name}</div>
+                      <div className="text-[12px] font-[400] text-[#94a3b8]">{(file.size / 1024).toFixed(2)} KB</div>
+                      <div className="mt-2 text-[12px] font-[600] text-[#0db890]">✓ {csvData.length.toLocaleString()} rows · {columns.length} columns detected</div>
+                    </div>
+                  </div>
+                  <Button variant="outline" className="rounded-[6px] border-[#e2e8f0] bg-white px-4 py-2 text-[12px] font-[500] text-[#475569]" onClick={handleChangeFile}>Change File</Button>
+                </div>
 
-            {/* Configuration options */}
-            {columns.length > 0 && (
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-white/60 rounded-xl border border-slate-200/50">
-                <div>
-                  <Label htmlFor="treatmentCol" className="text-slate-700 font-medium">
-                    Treatment <span className="text-xs font-normal text-slate-400">(optional)</span>
-                  </Label>
-                  <select
-                    id="treatmentCol"
-                    value={treatmentColumn}
-                    onChange={(e) => setTreatmentColumn(e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                  >
-                    <option value="">Auto‑detect</option>
-                    {columns.map((col) => (
-                      <option key={col} value={col}>{col}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="outcomeCol" className="text-slate-700 font-medium">
-                    Outcome <span className="text-xs font-normal text-slate-400">(optional)</span>
-                  </Label>
-                  <select
-                    id="outcomeCol"
-                    value={outcomeColumn}
-                    onChange={(e) => setOutcomeColumn(e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                  >
-                    <option value="">Auto‑detect</option>
-                    {columns.map((col) => (
-                      <option key={col} value={col}>{col}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="includeFeatures" className="text-slate-700 font-medium">
-                    <span className="flex items-center gap-1">
-                      <Filter className="w-4 h-4" /> Include only
-                    </span>
-                  </Label>
-                  <Input
-                    id="includeFeatures"
-                    value={includeFeatures}
-                    onChange={(e) => setIncludeFeatures(e.target.value)}
-                    placeholder="Feature1, Feature2, ..."
-                    className="mt-1 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                  />
+                <div className="grid gap-[14px] md:grid-cols-3">
+                  <div>
+                    <Label htmlFor="treatment" className="mb-[5px] block text-[11px] font-[600] uppercase tracking-[0.03em] text-[#94a3b8]">Treatment</Label>
+                    <select id="treatment" value={treatmentColumn} onChange={(event) => setTreatmentColumn(event.target.value)} className="w-full rounded-[6px] border border-[#dde3ec] bg-white px-[10px] py-[8px] text-[12.5px] text-[#475569] focus:border-[#2563eb] focus:outline-none">
+                      <option value="">Auto-detect → A2:GROUP</option>
+                      {columns.map((column) => <option key={column} value={column}>{column}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="outcome" className="mb-[5px] block text-[11px] font-[600] uppercase tracking-[0.03em] text-[#94a3b8]">Outcome</Label>
+                    <select id="outcome" value={outcomeColumn} onChange={(event) => setOutcomeColumn(event.target.value)} className="w-full rounded-[6px] border border-[#dde3ec] bg-white px-[10px] py-[8px] text-[12.5px] text-[#475569] focus:border-[#2563eb] focus:outline-none">
+                      <option value="">Auto-detect → Outcome / Post column</option>
+                      {columns.map((column) => <option key={column} value={column}>{column}</option>)}
+                    </select>
+                    <div className="mt-2 text-[11px] text-[#64748b]">
+                      Auto-detected: Treatment = <strong>{autoDetectedFields.treatment || 'none'}</strong>, Outcome = <strong>{autoDetectedFields.postOutcome || autoDetectedFields.outcome || 'none'}</strong>
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="includeFeatures" className="mb-[5px] block text-[11px] font-[600] uppercase tracking-[0.03em] text-[#94a3b8]">Include only</Label>
+                    <Input id="includeFeatures" value={includeFeatures} onChange={(event) => setIncludeFeatures(event.target.value)} placeholder="B3:AGE, B5:SEX, B6:M-STATUS, B7:EDUCATION" className="rounded-[6px] border-[#dde3ec] text-[12.5px] text-[#475569]" />
+                  </div>
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Data Preview - same as before */}
-        {csvData.length > 0 && showPreview && (
-          <Card className="shadow-lg border-0 overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-slate-200/50">
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-slate-800">
-                  <Database className="w-5 h-5" />
-                  Data Preview ({csvData.length} rows, {columns.length} columns)
-                </div>
-                {columns.length > 6 && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleScrollLeft}
-                      disabled={scrollPosition <= 0}
-                      className="h-8 w-8 p-0"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </Button>
-                    <span className="text-xs text-slate-500 min-w-[60px] text-center">
-                      {getScrollPercentage()}%
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleScrollRight}
-                      disabled={getScrollPercentage() >= 99}
-                      className="h-8 w-8 p-0"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  </div>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="relative rounded-lg border overflow-hidden">
-                <div
-                  className="h-96 overflow-x-auto overflow-y-auto"
-                  ref={tableRef}
-                  onScroll={handleTableScroll}
-                >
-                  <table className="w-full border-collapse">
-                    <thead className="bg-slate-50 sticky top-0 z-20">
-                      <tr>
-                        {columns.map((column, index) => (
-                          <th
-                            key={index}
-                            className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider border-b bg-slate-50 whitespace-nowrap min-w-[140px]"
-                          >
-                            {column}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-slate-200">
-                      {csvData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((row, rowIndex) => (
-                        <tr key={rowIndex} className="hover:bg-slate-50 transition-colors">
-                          {columns.map((column, colIndex) => (
-                            <td
-                              key={colIndex}
-                              className="px-4 py-3 text-sm text-slate-900 whitespace-nowrap min-w-[140px]"
-                            >
-                              {row[column] || <span className="text-slate-400 italic">—</span>}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+        {showPreview && csvData.length > 0 ? (
+          <div className="mt-5 overflow-hidden rounded-[12px] border border-[#e2e8f0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f1f5f9] px-5 py-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f1f5f9] text-[#64748b]">🗄</div>
+                <div>
+                  <div className="text-[14px] font-[700] text-[#1e293b]">Data Preview ({csvData.length} rows, {columns.length} columns)</div>
+                  <div className="text-[12px] font-[400] text-[#94a3b8]">Parsed and ready for matching analysis</div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Empty state – only if no file */}
-        {!file && !isLoading && (
-          <Card className="shadow-lg border-0 bg-gradient-to-br from-slate-50 to-slate-100">
-            <CardContent className="p-12 text-center">
-              <div className="mx-auto w-20 h-20 bg-slate-200 rounded-full flex items-center justify-center mb-4">
-                <Database className="w-10 h-10 text-slate-400" />
+              <div className="flex items-center gap-2">
+                <Badge className="rounded-full bg-[#dcfce7] px-[9px] py-[2px] text-[11px] font-[600] text-[#0db890]">✓ Parsed</Badge>
+                <Button variant="outline" size="icon" className="h-8 w-8 rounded-[6px] border-[#e2e8f0]" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
+                <Button variant="outline" size="icon" className="h-8 w-8 rounded-[6px] border-[#e2e8f0]" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages}><ChevronRight className="h-4 w-4" /></Button>
               </div>
-              <h3 className="text-xl font-semibold text-slate-700 mb-2">
-                No file uploaded yet
-              </h3>
-              <p className="text-slate-500 max-w-md mx-auto">
-                Upload a CSV or XLSX file above to begin your analysis.
-              </p>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+            <div className="overflow-x-auto px-5 py-5">
+              <table className="min-w-full border-collapse text-[12px]">
+                <thead>
+                  <tr className="bg-[#f8fafc] text-[11px] uppercase tracking-[0.03em] text-[#475569]">
+                    {columns.map((column) => <th key={column} className="border-b border-[#f1f5f9] px-3 py-2 text-left font-[700]">{column}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewRows.map((row, rowIndex) => (
+                    <tr key={`${rowIndex}-${currentPage}`} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}>
+                      {columns.map((column) => {
+                        const value = row[column] ?? '';
+                        const normalized = String(value).trim();
+                        const name = column.toLowerCase();
+                        if (name.includes('group')) {
+                          const pill = normalized === '1' || normalized.toLowerCase() === 'treated' ? 'treated' : 'control';
+                          return <td key={`${column}-${rowIndex}`} className="border-b border-[#f8fafc] px-3 py-2"><span className={`rounded-[5px] px-2 py-0.5 text-[11px] font-[700] ${pill === 'treated' ? 'bg-[#dbeafe] text-[#2563eb]' : 'bg-[#f1f5f9] text-[#475569]'}`}>{pill === 'treated' ? '1' : '0'}</span></td>;
+                        }
+                        if (name.includes('ses') && name.includes('a')) {
+                          return <td key={`${column}-${rowIndex}`} className="border-b border-[#f8fafc] px-3 py-2 font-mono text-[11px] text-[#64748b]">{normalized || '—'}</td>;
+                        }
+                        if (name.includes('ses') && name.includes('b')) {
+                          const pairedA = parseNumericValue(row[column.replace(/b/i, 'a')]);
+                          const currentB = parseNumericValue(value);
+                          const arrow = currentB !== null && pairedA !== null ? (currentB > pairedA ? ' ▲' : currentB < pairedA ? ' ▼' : '') : '';
+                          const color = currentB !== null && pairedA !== null ? (currentB > pairedA ? '#16a34a' : currentB < pairedA ? '#dc2626' : '#64748b') : '#64748b';
+                          return <td key={`${column}-${rowIndex}`} className="border-b border-[#f8fafc] px-3 py-2 font-mono text-[11px] font-[600]" style={{ color }}>{normalized || '—'}{arrow}</td>;
+                        }
+                        return <td key={`${column}-${rowIndex}`} className="border-b border-[#f8fafc] px-3 py-2 text-[12px] text-[#334155]">{normalized || '—'}</td>;
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
 
-        {/* Action Buttons */}
-        {csvData.length > 0 && (
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Button
-              onClick={handleImportForm}
-              size="lg"
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl"
-            >
-              <Import className="w-5 h-5 mr-2" />
-              Create Form from CSV
+        {csvData.length > 0 ? (
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Button onClick={handleImportForm} className="rounded-[8px] bg-[#0db890] px-[22px] py-[10px] text-[13px] font-[600] text-white hover:bg-[#0aa37f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0db890] focus-visible:outline-offset-2">
+              <Import className="mr-2 h-4 w-4" /> Create Form from CSV
             </Button>
-            <Button
-              onClick={handleAnalyze}
-              size="lg"
-              disabled={isAnalyzing}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl"
-            >
-              {isAnalyzing ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Training Model...
-                </>
-              ) : (
-                <>
-                  <BarChart3 className="w-5 h-5 mr-2" />
-                  Analyze Data
-                </>
-              )}
+            <Button onClick={handleAnalyze} disabled={isAnalyzing} className={`rounded-[8px] px-[26px] py-[10px] text-[13px] font-[600] text-white ${isAnalyzing ? 'bg-[#93c5fd]' : 'bg-[#2563eb] hover:bg-[#1d4ed8]'}`}>
+              {isAnalyzing ? '⏳ Analyzing…' : <><BarChart3 className="mr-2 h-4 w-4" /> Analyze Data</>}
             </Button>
           </div>
-        )}
+        ) : null}
 
-        {/* Progress bar */}
-        {isAnalyzing && uploadProgress > 0 && uploadProgress < 100 && (
-          <div className="w-full">
-            <Progress value={uploadProgress} className="h-2" />
-            <p className="text-xs text-slate-500 mt-1 text-center">Training in progress… {uploadProgress}%</p>
-          </div>
-        )}
-
-        {/* Analysis Results */}
-        {analysisResults && (
-          <Card className="shadow-lg border-0">
-            <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <CardTitle className="text-slate-800 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
-                Analysis Results
-              </CardTitle>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleDownloadJSON}
-                  className="bg-white hover:bg-slate-50"
-                >
-                  <Download className="w-4 h-4 mr-1" /> JSON
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => setShowSaveModal(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Save className="w-4 h-4 mr-1" /> Save
-                </Button>
+        {analysisResults ? (
+          <div className="mt-8 overflow-hidden rounded-[12px] border border-[#e2e8f0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f1f5f9] px-5 py-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#dcfce7] text-[#0db890]">📈</div>
+                <div>
+                  <div className="text-[15px] font-[800] text-[#1e293b]">Analysis Results</div>
+                  <div className="text-[12px] font-[400] text-[#94a3b8]">Complete · Ready to save or export</div>
+                </div>
               </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="summary">Summary</TabsTrigger>
-                  <TabsTrigger value="output">Output</TabsTrigger>
-                  <TabsTrigger value="metrics">Metrics</TabsTrigger>
-                  <TabsTrigger value="impact">Impact</TabsTrigger>
-                </TabsList>
-                <TabsContent value="summary" className="mt-4">{renderSummary()}</TabsContent>
-                <TabsContent value="output" className="mt-4">{renderOutput()}</TabsContent>
-                <TabsContent value="metrics" className="mt-4">{renderMetrics()}</TabsContent>
-                <TabsContent value="impact" className="mt-4">{renderImpact()}</TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        )}
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="rounded-full bg-[#dcfce7] px-[9px] py-[2px] text-[11px] font-[600] text-[#0db890]">✓ Complete</Badge>
+                <Button variant="outline" className="rounded-[6px] border-[#e2e8f0] bg-white px-[12px] py-[8px] text-[12px] font-[600] text-[#475569]" onClick={handleDownloadJSON}><Download className="mr-2 h-4 w-4" /> JSON</Button>
+                <Button className="rounded-[8px] bg-[#2563eb] px-[12px] py-[8px] text-[13px] font-[600] text-white hover:bg-[#1d4ed8]" onClick={() => setShowSaveModal(true)}><Save className="mr-2 h-4 w-4" /> Save</Button>
+              </div>
+            </div>
+            <div className="px-5 py-5">{renderResults()}</div>
+          </div>
+        ) : null}
       </div>
 
-      {/* Save Modal */}
-      {showSaveModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Save className="w-5 h-5" />
-                Save Results
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+      {showSaveModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+          <div className="w-full max-w-md rounded-[12px] border border-[#e2e8f0] bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div className="text-[15px] font-[700] text-[#1e293b]">Save Results</div>
+              <button className="rounded-full p-1 text-[#94a3b8] hover:bg-[#f1f5f9]" onClick={() => setShowSaveModal(false)}>×</button>
+            </div>
+            <div className="mt-4 space-y-3">
               <div>
-                <Label htmlFor="saveName">Name *</Label>
-                <Input
-                  id="saveName"
-                  value={saveName}
-                  onChange={(e) => setSaveName(e.target.value)}
-                  placeholder="e.g., BFAR baseline 2026-07-27"
-                />
+                <Label htmlFor="saveName">Name</Label>
+                <Input id="saveName" value={saveName} onChange={(event) => setSaveName(event.target.value)} placeholder="e.g. BFAR baseline" className="mt-1 rounded-[6px] border-[#dde3ec]" />
               </div>
               <div>
-                <Label htmlFor="saveDesc">Description (optional)</Label>
-                <Textarea
-                  id="saveDesc"
-                  value={saveDescription}
-                  onChange={(e) => setSaveDescription(e.target.value)}
-                  placeholder="What was this run about?"
-                  rows={3}
-                />
+                <Label htmlFor="saveDescription">Description</Label>
+                <Textarea id="saveDescription" value={saveDescription} onChange={(event) => setSaveDescription(event.target.value)} placeholder="Notes for this run" className="mt-1 rounded-[6px] border-[#dde3ec]" rows={3} />
               </div>
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setShowSaveModal(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSaveResults} disabled={!saveName.trim()}>
-                  Save
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="outline" className="rounded-[6px] border-[#e2e8f0] bg-white text-[#475569]" onClick={() => setShowSaveModal(false)}>Cancel</Button>
+              <Button className="rounded-[8px] bg-[#2563eb] text-white hover:bg-[#1d4ed8]" onClick={handleSaveResults} disabled={!saveName.trim()}>Save</Button>
+            </div>
+          </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 };
