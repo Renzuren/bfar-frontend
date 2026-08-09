@@ -14,10 +14,20 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import VerifyAccount from './pages/VerifyAccount';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import VerifyResetCode from './pages/VerifyResetCode';
 import './App.css';
 
 const ProtectedRoute = ({ children }) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F8FDFF] flex items-center justify-center">
+        <p className="text-slate-600">Loading...</p>
+      </div>
+    );
+  }
+
   return user ? children : <Navigate to="/login" />;
 };
 
@@ -32,6 +42,7 @@ function App() {
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/verify-account" element={<VerifyAccount />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/verify-reset-code" element={<VerifyResetCode />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/forms/new" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
           <Route path="/forms/:id/edit" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />

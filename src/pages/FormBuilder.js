@@ -12,6 +12,8 @@ import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 
 const QUESTION_TYPES = [
+  { value: 'short_text', label: 'Short Text' },
+  { value: 'long_text', label: 'Long Text' },
   { value: 'multiple_choice', label: 'Multiple Choice' },
   { value: 'checkboxes', label: 'Checkboxes' },
   { value: 'dropdown', label: 'Dropdown' },
