@@ -75,6 +75,7 @@ import {
   incomeGroupLabel,
   toCSV,
 } from '@/lib/respondentAnalytics';
+import FeatureImportanceSection from './FeatureImportanceSection';
 
 const B_COLOR = '#2563eb';
 const NB_COLOR = '#94a3b8';
@@ -494,6 +495,9 @@ const RespondentAnalytics = ({ columns, rows, analysis = null }) => {
           </div>
         </div>
       </div>
+
+      {/* ---------- Model interpretation (feature importance) ---------- */}
+      {analysis ? <FeatureImportanceSection featureImportance={analysis.featureImportance || []} /> : null}
 
       {/* ---------- Demographics & respondent charts ---------- */}
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">

@@ -836,7 +836,20 @@ const buildAnalysisResults = (rows, columns, treatmentColumn, outcomeColumn, inc
     return { column, values, mean: mean(values), std: stdDev(values) };
   });
 
-  const featureImportance = featureStats.slice(0, 9).map((feature, index) => ({ feature: feature.column, value: Number(Math.min(1, Math.max(0, feature.std ? Math.abs(feature.mean / (feature.std || 1)) : 0)).toFixed(2)) }));
+  const featureImportance = featureStats
+    .map((feature) => {
+      const beneficiaryVals = respondents.filter((item) => item.group === GROUP_BENEFICIARY).map((item) => parseNumericValue(item.rawData?.[feature.column])).filter((value) => value !== null);
+      const nonBeneficiaryVals = respondents.filter((item) => item.group === GROUP_NON_BENEFICIARY).map((item) => parseNumericValue(item.rawData?.[feature.column])).filter((value) => value !== null);
+      const groupDiff = (mean(beneficiaryVals) - mean(nonBeneficiaryVals)) / Math.max(feature.std || 1, 1e-6);
+      const clamped = Math.max(-1, Math.min(1, groupDiff));
+      return {
+        feature: feature.column,
+        value: Number(Math.abs(clamped).toFixed(2)),
+        effect: Number(clamped.toFixed(2)),
+      };
+    })
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 15);
 
   const psDistribution = (() => {
     const scores = respondents.map((item) => {
@@ -1382,7 +1395,7 @@ const MLUpload = () => {
           </div>
         ) : null}
 
-        {csvData.length > 0 ? <RespondentAnalytics columns={columns} rows={csvData} analysis={analysisResults} /> : null}
+        {analysisResults ? <RespondentAnalytics columns={columns} rows={csvData} analysis={analysisResults} /> : null}
 
         {analysisResults ? (
           <div className="mt-10 flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-[14px] border border-[#e2e8f0] bg-white px-6 py-5 shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
