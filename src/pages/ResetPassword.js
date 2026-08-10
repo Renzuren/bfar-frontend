@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FileText } from 'lucide-react';
+import { FileText, KeyRound, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,11 +56,16 @@ const ResetPassword = () => {
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-[#F8FDFF] flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-[#003366] mb-4">Invalid Reset Link</h2>
-          <p className="text-slate-600 mb-6">This password reset link is invalid or expired.</p>
-          <Button onClick={() => navigate('/forgot-password')}>
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-4">
+        <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-cyan-200/40 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-blue-200/40 blur-3xl" />
+        <div className="relative w-full max-w-md rounded-3xl border border-slate-200/80 bg-white p-10 text-center shadow-xl">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30">
+            <AlertTriangle className="h-10 w-10" />
+          </div>
+          <h2 className="mb-3 text-2xl font-bold text-slate-900">Invalid Reset Link</h2>
+          <p className="mb-8 text-slate-500">This password reset link is invalid or expired.</p>
+          <Button onClick={() => navigate('/forgot-password')} className="w-full bg-cyan-600 text-white shadow-lg shadow-cyan-600/20 hover:bg-cyan-700">
             Request New Link
           </Button>
         </div>
@@ -69,21 +74,30 @@ const ResetPassword = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FDFF] flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-xl border border-slate-100 shadow-lg p-8">
-        <div className="flex items-center space-x-3 mb-8">
-          <div className="w-12 h-12 bg-[#00AEEF] rounded-lg flex items-center justify-center">
-            <FileText className="w-7 h-7 text-white" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-4">
+      <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-cyan-200/40 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-blue-200/40 blur-3xl" />
+
+      <div className="relative w-full max-w-md rounded-3xl border border-slate-200/80 bg-white p-8 shadow-xl sm:p-10">
+        <div className="mb-8 flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
+            <FileText className="h-7 w-7" />
           </div>
-          <h1 className="text-2xl font-bold text-[#003366]">General Assessment e-Forms</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">General Assessment e-Forms</h1>
+            <p className="text-sm text-slate-500">Account security</p>
+          </div>
         </div>
 
-        <h2 className="text-2xl font-bold text-[#003366] mb-2">Set New Password</h2>
-        <p className="text-slate-600 mb-6">
-          Enter your new password below.
-        </p>
+        <div className="mb-6 flex items-start gap-3 rounded-2xl bg-cyan-50/70 p-4 ring-1 ring-cyan-100">
+          <KeyRound className="mt-0.5 h-5 w-5 shrink-0 text-cyan-600" />
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Set New Password</h2>
+            <p className="text-sm text-slate-500">Enter your new password below.</p>
+          </div>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <Label htmlFor="password">New Password</Label>
             <Input
@@ -112,7 +126,7 @@ const ResetPassword = () => {
 
           <Button
             type="submit"
-            className="w-full bg-[#003366] hover:bg-[#002244] text-white"
+            className="w-full bg-cyan-600 text-white shadow-lg shadow-cyan-600/20 hover:bg-cyan-700"
             disabled={loading}
           >
             {loading ? 'Resetting...' : 'Reset Password'}

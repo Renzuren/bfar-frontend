@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Plus, Trash2, ArrowLeft, Save, ChevronLeft, ChevronRight, Layers, Pencil } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Save, ChevronLeft, ChevronRight, Layers, Pencil, GripVertical, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,20 +45,18 @@ const FormBuilder = () => {
   const { id } = useParams();
   const location = useLocation();
   const isEditMode = !!id;
-  
-  // Check for imported CSV data
+
   const importedData = location.state?.importedData;
   const isImportMode = !!importedData && !isEditMode;
 
-  const [formData, setFormData] = useState({ 
-    title: importedData?.title || '', 
-    description: importedData?.description || '', 
-    questions: [] 
+  const [formData, setFormData] = useState({
+    title: importedData?.title || '',
+    description: importedData?.description || '',
+    questions: []
   });
-  
+
   const [sections, setSections] = useState(() => {
     if (isImportMode && importedData?.fields) {
-      // Create sections from imported CSV fields
       return [{
         id: `section_${Date.now()}`,
         title: 'Imported Fields',
@@ -187,9 +185,7 @@ const FormBuilder = () => {
     setSections(updated);
   };
 
-  // ✅ Helper function to add the beneficiary question with one click
   const addBeneficiaryQuestion = () => {
-    // Check if a question with code 'BENE' already exists in any section
     const exists = sections.some(section =>
       section.questions.some(q => q.code === 'BENE')
     );
@@ -314,86 +310,190 @@ const FormBuilder = () => {
     }
   };
 
-  if (fetching) return <div className="min-h-screen bg-[#F8FDFF] flex items-center justify-center">Loading form...</div>;
-  if (sections.length === 0) return <div className="min-h-screen bg-[#F8FDFF] flex items-center justify-center">Loading sections...</div>;
+  if (fetching) return <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">Loading form...</div>;
+  if (sections.length === 0) return <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">Loading sections...</div>;
 
   const current = sections[currentSectionIndex];
   const isFirst = currentSectionIndex === 0;
   const isLast = currentSectionIndex === sections.length - 1;
 
   return (
-    <div className="min-h-screen bg-[#F8FDFF]">
-      <nav className="bg-white border-b sticky top-0 z-50 p-4 flex justify-between">
-        <Button variant="ghost" onClick={() => navigate('/dashboard')}><ArrowLeft className="mr-2 h-4 w-4"/> Dashboard</Button>
-        <Button onClick={handleSave} disabled={loading}><Save className="mr-2 h-4 w-4"/> {loading ? 'Saving...' : 'Save Form'}</Button>
-      </nav>
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <Card className="p-8 mb-6">
-          <Input placeholder="Form Title" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="text-lg font-semibold mb-4" />
-          <Textarea placeholder="Description (optional)" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows={3} />
-        </Card>
+    <div className="min-h-screen bg-slate-50">
+      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-6">
+          <Button variant="ghost" onClick={() => navigate('/dashboard')} className="text-slate-600">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Dashboard
+          </Button>
+          <div className="flex items-center gap-2">
+            <span className="hidden items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200 sm:inline-flex">
+              <Layers className="h-3.5 w-3.5" />
+              {isEditMode ? 'Editing form' : 'New form'}
+            </span>
+            <Button onClick={handleSave} disabled={loading} className="bg-cyan-600 text-white hover:bg-cyan-700">
+              <Save className="mr-2 h-4 w-4" /> {loading ? 'Saving...' : 'Save Form'}
+            </Button>
+          </div>
+        </div>
+      </header>
 
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-2"><Layers className="h-5 w-5 text-[#003366]"/><span className="text-sm">Sections (double‑click tab to rename)</span></div>
-          <div className="flex gap-2">
-            <Button onClick={addSection} variant="outline" size="sm"><Plus className="mr-1 h-4 w-4"/> Add Section</Button>
-            <Button onClick={addBeneficiaryQuestion} variant="outline" size="sm" className="text-[#00AEEF]">
-              <Plus className="mr-1 h-4 w-4"/> Add Beneficiary Question
+      <main className="px-4 py-8 sm:px-6">
+        <section className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
+          <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-cyan-300">
+            {isEditMode ? 'Edit form' : 'Create a new form'}
+          </p>
+          <Input
+            value={formData.title}
+            onChange={e => setFormData({ ...formData, title: e.target.value })}
+            placeholder="Enter your form title"
+            className="mb-3 h-12 border-0 border-b-2 border-white/20 bg-transparent px-0 text-2xl font-bold text-white shadow-none placeholder:text-slate-400 focus:border-cyan-300 focus:ring-0"
+          />
+          <Textarea
+            value={formData.description}
+            onChange={e => setFormData({ ...formData, description: e.target.value })}
+            placeholder="Add a short description (optional)"
+            rows={2}
+            className="max-w-2xl border-0 bg-white/5 px-0 text-sm text-slate-200 placeholder:text-slate-400 focus:ring-0"
+          />
+        </section>
+
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <Layers className="h-4 w-4 text-cyan-600" />
+            Sections <span className="hidden text-slate-400 sm:inline">(double-click a tab to rename)</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={addBeneficiaryQuestion} variant="outline" size="sm" className="border-cyan-300 text-cyan-700 hover:bg-cyan-50">
+              <UserPlus className="mr-1.5 h-4 w-4" /> Beneficiary Q
+            </Button>
+            <Button onClick={addSection} variant="outline" size="sm">
+              <Plus className="mr-1.5 h-4 w-4" /> Add Section
             </Button>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 border-b pb-2 mb-6">
+        <div className="mb-8 flex flex-wrap gap-2">
           {sections.map((sec, idx) => {
             if (editingTabIndex === idx) {
               return <Input key={sec.id} value={editingTabValue} onChange={e => setEditingTabValue(e.target.value)} onBlur={() => { if (editingTabValue.trim()) renameSection(idx, editingTabValue); setEditingTabIndex(null); }} onKeyDown={e => { if (e.key === 'Enter') { if (editingTabValue.trim()) renameSection(idx, editingTabValue); setEditingTabIndex(null); } if (e.key === 'Escape') setEditingTabIndex(null); }} className="w-auto min-w-[120px] text-sm" autoFocus />;
             }
             return (
-              <button key={sec.id} onClick={() => setCurrentSectionIndex(idx)} onDoubleClick={() => { setEditingTabValue(sec.title); setEditingTabIndex(idx); }} className={`px-4 py-2 rounded-t-lg text-sm font-medium ${idx === currentSectionIndex ? 'bg-[#003366] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                {sec.title} {idx === currentSectionIndex && <span className="ml-2 text-xs">({sec.questions.length})</span>}
+              <button
+                key={sec.id}
+                onClick={() => setCurrentSectionIndex(idx)}
+                onDoubleClick={() => { setEditingTabValue(sec.title); setEditingTabIndex(idx); }}
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                  idx === currentSectionIndex
+                    ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20'
+                    : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {sec.title}
+                <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${idx === currentSectionIndex ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                  {sec.questions.length}
+                </span>
               </button>
             );
           })}
         </div>
 
-        <Card className="p-6 mb-6">
-          <div className="flex justify-between items-start mb-6">
-            <div className="flex-1 flex items-center gap-2"><Input value={current.title} onChange={e => renameSection(currentSectionIndex, e.target.value)} className="text-xl font-semibold border border-slate-200 bg-slate-50" /><Pencil className="h-4 w-4 text-slate-400"/></div>
-            <Button variant="ghost" size="sm" onClick={() => deleteSection(currentSectionIndex)} disabled={sections.length === 1}><Trash2 className="h-4 w-4 text-red-600"/></Button>
+        <Card className="mb-8 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-6 py-4">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <GripVertical className="h-4 w-4 shrink-0 text-slate-300" />
+              <Input value={current.title} onChange={e => renameSection(currentSectionIndex, e.target.value)} className="border-0 bg-transparent text-lg font-bold text-slate-900 shadow-none focus:ring-0" />
+              <Pencil className="h-4 w-4 shrink-0 text-slate-300" />
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => deleteSection(currentSectionIndex)} disabled={sections.length === 1} className="text-rose-500 hover:bg-rose-50 hover:text-rose-600">
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
 
-          {current.questions.map((q, qIdx) => (
-            <div key={q.id} className="border-t pt-4 first:border-0 first:pt-0 mb-6">
-              <div className="flex gap-4">
-                <div className="flex-1 space-y-3">
-                  <div className="flex flex-wrap gap-3">
-                    <div className="flex-1"><Label>Question {qIdx+1}</Label><Input value={q.title} onChange={e => updateQuestion(currentSectionIndex, qIdx, 'title', e.target.value)} placeholder="Question text" /></div>
-                    <div className="w-48"><Label>Type</Label><Select value={q.type} onValueChange={v => handleTypeChange(currentSectionIndex, qIdx, v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{QUESTION_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
-                    <div className="w-48"><Label>Question Code</Label><Input value={q.code || ''} onChange={e => updateQuestion(currentSectionIndex, qIdx, 'code', e.target.value)} placeholder="e.g., A1" /></div>
-                    <div className="w-48"><Label>Move to</Label><Select value={currentSectionIndex.toString()} onValueChange={val => moveQuestionToSection(q.id, currentSectionIndex, parseInt(val))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{sections.map((sec, idx) => <SelectItem key={sec.id} value={idx.toString()}>{sec.title}</SelectItem>)}</SelectContent></Select></div>
-                  </div>
-                  <Input placeholder="Description (optional)" value={q.description || ''} onChange={e => updateQuestion(currentSectionIndex, qIdx, 'description', e.target.value)} />
-                  {['multiple_choice', 'checkboxes', 'dropdown'].includes(q.type) && (
-                    <div className="space-y-2">
-                      <Label>Options</Label>
-                      {q.options?.map((opt, oi) => <div key={oi} className="flex gap-2"><Input value={opt} onChange={e => updateOption(currentSectionIndex, qIdx, oi, e.target.value)} /><Button variant="outline" size="sm" onClick={() => deleteOption(currentSectionIndex, qIdx, oi)}><Trash2 className="h-4 w-4 text-red-600"/></Button></div>)}
-                      <Button variant="outline" size="sm" onClick={() => addOption(currentSectionIndex, qIdx)}><Plus className="mr-1 h-4 w-4"/> Add Option</Button>
+          <div className="divide-y divide-slate-100 px-6 py-2">
+            {current.questions.map((q, qIdx) => (
+              <div key={q.id} className="py-6">
+                <div className="flex gap-4">
+                  <div className="flex-1 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-50 text-xs font-bold text-cyan-700 ring-1 ring-cyan-100">
+                        {qIdx + 1}
+                      </span>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Question</span>
+                      {q.required && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-600 ring-1 ring-rose-100">Required</span>}
                     </div>
-                  )}
-                  <div className="flex items-center gap-2"><Switch checked={q.required} onCheckedChange={c => updateQuestion(currentSectionIndex, qIdx, 'required', c)}/><Label>Required</Label></div>
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      <div className="lg:col-span-2"><Label>Question text</Label><Input value={q.title} onChange={e => updateQuestion(currentSectionIndex, qIdx, 'title', e.target.value)} placeholder="Enter your question" /></div>
+                      <div><Label>Type</Label><Select value={q.type} onValueChange={v => handleTypeChange(currentSectionIndex, qIdx, v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{QUESTION_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
+                      <div><Label>Question code</Label><Input value={q.code || ''} onChange={e => updateQuestion(currentSectionIndex, qIdx, 'code', e.target.value)} placeholder="e.g., A1" /></div>
+                      <div className="lg:col-span-2"><Label>Description (optional)</Label><Input value={q.description || ''} onChange={e => updateQuestion(currentSectionIndex, qIdx, 'description', e.target.value)} placeholder="Add helper text" /></div>
+                    </div>
+
+                    {['multiple_choice', 'checkboxes', 'dropdown'].includes(q.type) && (
+                      <div className="rounded-xl bg-slate-50/80 p-4">
+                        <Label className="mb-3 block text-xs font-semibold uppercase tracking-wide text-slate-500">Options</Label>
+                        <div className="space-y-2">
+                          {q.options?.map((opt, oi) => (
+                            <div key={oi} className="flex gap-2">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-xs font-bold text-slate-400 ring-1 ring-slate-200">{oi + 1}</div>
+                              <Input value={opt} onChange={e => updateOption(currentSectionIndex, qIdx, oi, e.target.value)} placeholder={`Option ${oi + 1}`} />
+                              <Button variant="outline" size="icon" onClick={() => deleteOption(currentSectionIndex, qIdx, oi)} className="text-rose-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => addOption(currentSectionIndex, qIdx)} className="mt-3 text-cyan-700 hover:bg-cyan-50">
+                          <Plus className="mr-1.5 h-4 w-4" /> Add Option
+                        </Button>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                      <div className="flex items-center gap-2">
+                        <Switch checked={q.required} onCheckedChange={c => updateQuestion(currentSectionIndex, qIdx, 'required', c)} />
+                        <Label className="text-sm font-medium text-slate-700">Required question</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-44">
+                          <Select value={currentSectionIndex.toString()} onValueChange={val => moveQuestionToSection(q.id, currentSectionIndex, parseInt(val))}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>{sections.map((sec, idx) => <SelectItem key={sec.id} value={idx.toString()}>{sec.title}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => deleteQuestion(currentSectionIndex, qIdx)} className="text-rose-500 hover:bg-rose-50 hover:text-rose-600">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => deleteQuestion(currentSectionIndex, qIdx)}><Trash2 className="h-4 w-4 text-red-600"/></Button>
               </div>
-            </div>
-          ))}
-          <Button variant="outline" className="w-full mt-4 border-dashed" onClick={addQuestion}><Plus className="mr-2 h-4 w-4"/> Add Question to this Section</Button>
+            ))}
+          </div>
+
+          <div className="border-t border-slate-100 px-6 py-5">
+            <Button variant="outline" className="w-full border-dashed text-slate-600 hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-700" onClick={addQuestion}>
+              <Plus className="mr-2 h-4 w-4" /> Add Question to this Section
+            </Button>
+          </div>
         </Card>
 
-        <div className="flex justify-between mt-6">
-          <Button variant="outline" onClick={() => setCurrentSectionIndex(currentSectionIndex-1)} disabled={isFirst}><ChevronLeft className="mr-2 h-4 w-4"/> Previous</Button>
-          {!isLast ? <Button onClick={() => setCurrentSectionIndex(currentSectionIndex+1)}>Next <ChevronRight className="ml-2 h-4 w-4"/></Button> : <Button className="bg-green-600 hover:bg-green-700" onClick={handleSave} disabled={loading}>{loading ? 'Saving...' : 'Publish Form'}</Button>}
+        <div className="flex items-center justify-between pb-10">
+          <Button variant="outline" onClick={() => setCurrentSectionIndex(currentSectionIndex - 1)} disabled={isFirst}>
+            <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+          </Button>
+          {!isLast ? (
+            <Button onClick={() => setCurrentSectionIndex(currentSectionIndex + 1)} className="bg-slate-900 text-white hover:bg-slate-800">
+              Next <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <Button className="bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700" onClick={handleSave} disabled={loading}>
+              <Save className="mr-2 h-4 w-4" /> {loading ? 'Saving...' : 'Publish Form'}
+            </Button>
+          )}
         </div>
-      </div>
+      </main>
     </div>
   );
 };

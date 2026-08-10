@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { ArrowLeft, BarChart3, Download } from 'lucide-react';
+import { ArrowLeft, BarChart3, Download, ChartColumnBig, ChartPie, Inbox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -22,9 +22,8 @@ import {
 import { preprocessAnalyticsData } from '../lib/preprocessing';
 import { api } from '../lib/apiMiddleware';
 
-const CHART_COLORS = ['#2563eb', '#0ea5e9', '#14b8a6', '#22c55e', '#f97316', '#ef4444', '#8b5cf6', '#ec4899', '#ddb02b', '#94a3b8'];
+const CHART_COLORS = ['#0ea5e9', '#2563eb', '#14b8a6', '#22c55e', '#f97316', '#ef4444', '#8b5cf6', '#ec4899', '#ddb02b', '#94a3b8'];
 
-// Helper: treat -- as no answer
 const isNoAnswer = (value) => {
   if (value === null || value === undefined) return true;
   if (value === '') return true;
@@ -34,15 +33,12 @@ const isNoAnswer = (value) => {
 };
 
 const computeQuestionAnalytics = (responses, question, totalSubmissions) => {
-  // Collect all answers for this question (including empty ones)
   const allAnswers = responses
     .map((response) => response.answers?.find((answer) => answer.question_id === question.id))
-    .map((ans) => ans ? ans.answer : null); // preserve null for missing answers
+    .map((ans) => ans ? ans.answer : null);
 
-  // Valid answers (non-null, not "--")
   const validAnswers = allAnswers.filter(ans => !isNoAnswer(ans));
 
-  // Count of "No answer"
   const noAnswerCount = totalSubmissions - validAnswers.length;
 
   if (['multiple_choice', 'checkboxes', 'dropdown'].includes(question.type)) {
@@ -56,7 +52,6 @@ const computeQuestionAnalytics = (responses, question, totalSubmissions) => {
         optionCounts[answer] = (optionCounts[answer] || 0) + 1;
       }
     });
-    // Add "No answer" count
     if (noAnswerCount > 0) {
       optionCounts['Not answered'] = noAnswerCount;
     }
@@ -72,20 +67,18 @@ const computeQuestionAnalytics = (responses, question, totalSubmissions) => {
     const ratings = validAnswers.map(v => Number(v)).filter(r => !isNaN(r));
     const ratingCounts = { 1:0, 2:0, 3:0, 4:0, 5:0 };
     ratings.forEach(r => ratingCounts[r]++);
-    // Add "Not answered" as a separate category
     if (noAnswerCount > 0) {
       ratingCounts['Not answered'] = noAnswerCount;
     }
     return {
       ...question,
-      responses: ratings, // keep numeric ratings for average
+      responses: ratings,
       distribution: ratingCounts,
       totalAnswered: ratings.length,
       totalNoAnswer: noAnswerCount,
     };
   }
 
-  // Text responses
   const textResponses = validAnswers.filter(t => !isNoAnswer(t));
   return {
     ...question,
@@ -151,7 +144,7 @@ const FormAnalytics = () => {
     if (!active || !payload || !payload.length) return null;
     const item = payload[0];
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-lg shadow-slate-900/10 text-sm">
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-xl shadow-slate-900/10">
         <p className="font-semibold text-slate-900">{item.name}</p>
         <p className="text-slate-600">{item.value} responses</p>
       </div>
@@ -211,8 +204,8 @@ const FormAnalytics = () => {
 
   if (loading || !form || !analytics) {
     return (
-      <div className="min-h-screen bg-[#F8FDFF] flex items-center justify-center">
-        <p className="text-slate-600">Loading analytics...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">
+        <p>Loading analytics...</p>
       </div>
     );
   }
@@ -220,190 +213,213 @@ const FormAnalytics = () => {
   const totalResponses = analytics.total_responses || 0;
   const questionsData = analytics.questions || [];
 
-  return (
-    <div className="min-h-screen bg-[#F8FDFF]">
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <Button onClick={() => navigate('/dashboard')} variant="ghost" className="text-slate-600 hover:text-[#003366]">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </Button>
-        </div>
-      </nav>
+  const StatCard = ({ label, value, tint }) => (
+    <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
+      <p className={`mt-1.5 text-3xl font-bold ${tint}`}>{value}</p>
+    </Card>
+  );
 
-      <div ref={exportRef} className="max-w-7xl mx-auto px-4 py-12">
-        <div className="mb-8">
-          <h2 className="text-3xl md:text-4xl font-semibold text-[#003366] mb-2">{form.title}</h2>
-          <p className="text-base text-slate-600">
-            Analytics Overview - {totalResponses} {totalResponses === 1 ? 'submission' : 'submissions'}
-          </p>
+  const QuestionHeader = ({ questionData, badgeText }) => (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="inline-flex rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cyan-700 ring-1 ring-cyan-100">
+          {badgeText}
+        </span>
+        <h3 className="text-lg font-bold text-slate-900">{questionData.title}</h3>
+      </div>
+      <div className="text-sm text-slate-500">
+        <span className="font-semibold text-emerald-600">{questionData.totalAnswered || 0} answered</span>
+        <span className="mx-2 text-slate-300">|</span>
+        <span className="text-slate-400">{questionData.totalNoAnswer || 0} not answered</span>
+      </div>
+    </div>
+  );
+
+  const ChartFooter = ({ chartData }) => (
+    <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      {chartData.map((item, idx) => (
+        <div key={idx} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ backgroundColor: getChartColors(chartData.length)[idx] }} />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-slate-800">{item.name}</p>
+            <p className="text-sm text-slate-500">{item.value} responses</p>
+          </div>
         </div>
+      ))}
+    </div>
+  );
+
+  const ChoiceChart = ({ data }) => (
+    <ResponsiveContainer width="100%" height={320}>
+      {chartType === "bar" ? (
+        <BarChart data={data} margin={{ top: 10, right: 20, left: -12, bottom: 20 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 12 }} interval={0} angle={-30} textAnchor="end" height={60} />
+          <YAxis tick={{ fill: '#64748b' }} />
+          <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(14, 165, 233, 0.06)' }} />
+          <Bar dataKey="value" name="Responses" radius={[8, 8, 0, 0]}>
+            {data.map((entry, i) => <Cell key={`cell-${i}`} fill={getChartColors(data.length)[i]} />)}
+          </Bar>
+        </BarChart>
+      ) : (
+        <PieChart>
+          <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={4} labelLine={false} label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>
+            {data.map((entry, i) => <Cell key={`cell-${i}`} fill={getChartColors(data.length)[i]} />)}
+          </Pie>
+          <Tooltip content={renderTooltip} />
+          <Legend layout="vertical" verticalAlign="middle" align="right" iconType="circle" />
+        </PieChart>
+      )}
+    </ResponsiveContainer>
+  );
+
+  const RatingChart = ({ data }) => (
+    <ResponsiveContainer width="100%" height={320}>
+      {chartType === "bar" ? (
+        <BarChart data={data} margin={{ top: 10, right: 20, left: -12, bottom: 20 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 12 }} />
+          <YAxis tick={{ fill: '#64748b' }} />
+          <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(14, 165, 233, 0.06)' }} />
+          <Bar dataKey="value" name="Responses" radius={[8, 8, 0, 0]}>
+            {data.map((entry, i) => <Cell key={`cell-${i}`} fill={getChartColors(data.length)[i]} />)}
+          </Bar>
+        </BarChart>
+      ) : (
+        <PieChart>
+          <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={4} labelLine={false} label={({ percent }) => `${(percent * 100).toFixed(0)}%`}>
+            {data.map((entry, i) => <Cell key={`cell-${i}`} fill={getChartColors(data.length)[i]} />)}
+          </Pie>
+          <Tooltip content={renderTooltip} />
+          <Legend layout="vertical" verticalAlign="middle" align="right" iconType="circle" />
+        </PieChart>
+      )}
+    </ResponsiveContainer>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+          <Button variant="ghost" onClick={() => navigate('/dashboard')} className="text-slate-600">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Dashboard
+          </Button>
+          {totalResponses > 0 && (
+            <Button variant="outline" onClick={downloadAnalyticsCSV} className="border-cyan-300 text-cyan-700 hover:bg-cyan-50">
+              <Download className="mr-2 h-4 w-4" /> Download CSV
+            </Button>
+          )}
+        </div>
+      </header>
+
+      <div ref={exportRef} className="px-4 py-8 sm:px-6 lg:px-8">
+        <section className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
+          <p className="mb-1 text-sm font-medium uppercase tracking-[0.2em] text-cyan-300">Analytics overview</p>
+          <h2 className="mb-2 text-2xl font-bold sm:text-3xl">{form.title}</h2>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 font-medium text-white ring-1 ring-white/20">
+              <BarChart3 className="h-3.5 w-3.5" />
+              {totalResponses} {totalResponses === 1 ? 'submission' : 'submissions'}
+            </span>
+          </div>
+        </section>
 
         {totalResponses > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-            <div className="flex flex-wrap gap-3">
-              {['bar', 'pie'].map((type) => (
-                <Button key={type} size="sm" variant={chartType === type ? 'default' : 'outline'} onClick={() => setChartType(type)}>
-                  {type === 'bar' ? 'Bar Chart' : 'Pie Chart'}
-                </Button>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Button size="sm" variant="outline" onClick={downloadAnalyticsCSV}>
-                <Download className="w-4 h-4 mr-2" /> Download CSV
-              </Button>
+          <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <StatCard label="Total Submissions" value={totalResponses} tint="text-cyan-600" />
+            <StatCard label="Questions Analyzed" value={questionsData.length} tint="text-blue-600" />
+            <StatCard label="Chart Type" value={chartType === 'bar' ? 'Bar' : 'Pie'} tint="text-slate-900" />
+            <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setChartType('bar')}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-3 text-sm font-semibold transition ${chartType === 'bar' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+              >
+                <ChartColumnBig className="h-4 w-4" /> Bar
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartType('pie')}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-3 text-sm font-semibold transition ${chartType === 'pie' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+              >
+                <ChartPie className="h-4 w-4" /> Pie
+              </button>
             </div>
           </div>
         )}
 
         {totalResponses === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <BarChart3 className="w-10 h-10 text-slate-400" />
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 to-blue-100 text-cyan-600">
+              <Inbox className="h-10 w-10" />
             </div>
-            <h3 className="text-xl font-semibold text-slate-700 mb-2">No data to analyze yet</h3>
-            <p className="text-slate-600">Collect responses to see analytics</p>
+            <h3 className="mb-2 text-xl font-bold text-slate-900">No data to analyze yet</h3>
+            <p className="mx-auto max-w-md text-sm text-slate-500">
+              Share your form and start collecting responses — analytics will appear here automatically.
+            </p>
           </div>
         ) : (
           <div className="space-y-8">
             {questionsData.map((questionData, index) => {
               if (!questionData) return null;
 
-              // Multiple choice / checkboxes / dropdown
               if (['multiple_choice', 'checkboxes', 'dropdown'].includes(questionData.type)) {
                 const chartData = (questionData.responses || []).map(r => ({ name: r.option, value: r.count }));
                 if (chartData.length === 0) return null;
                 return (
-                  <Card key={index} className="p-6">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-xl font-semibold text-[#003366]">{questionData.title}</h3>
-                      <div className="text-sm text-slate-500">
-                        Answered: {questionData.totalAnswered || 0} | Not answered: {questionData.totalNoAnswer || 0}
-                      </div>
-                    </div>
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                      <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-600">
-                        {questionData.type.replace('_', ' ')}
-                      </span>
-                    </div>
-                    <ResponsiveContainer width="100%" height={340}>
-                      {chartType === "bar" ? (
-                        <BarChart data={chartData} margin={{ top: 10, right: 20, left: -12, bottom: 20 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis dataKey="name" tick={{ fill: '#475569', fontSize: 12 }} interval={0} angle={-30} textAnchor="end" height={60} />
-                          <YAxis tick={{ fill: '#475569' }} />
-                          <Tooltip content={renderTooltip} />
-                          <Legend verticalAlign="top" height={36} />
-                          <Bar dataKey="value" radius={[12,12,0,0]}>
-                            {chartData.map((entry, i) => <Cell key={`cell-${i}`} fill={getChartColors(chartData.length)[i]} />)}
-                          </Bar>
-                        </BarChart>
-                      ) : (
-                        <PieChart>
-                          <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={4} labelLine={false} label={({ name, percent }) => `${name}: ${(percent*100).toFixed(0)}%`}>
-                            {chartData.map((entry, i) => <Cell key={`cell-${i}`} fill={getChartColors(chartData.length)[i]} />)}
-                          </Pie>
-                          <Tooltip content={renderTooltip} />
-                          <Legend layout="vertical" verticalAlign="middle" align="right" iconType="circle" />
-                        </PieChart>
-                      )}
-                    </ResponsiveContainer>
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      {chartData.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                          <span className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: getChartColors(chartData.length)[idx] }} />
-                          <div><p className="text-sm font-medium text-slate-800">{item.name}</p><p className="text-sm text-slate-500">{item.value} responses</p></div>
-                        </div>
-                      ))}
-                    </div>
+                  <Card key={index} className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+                    <QuestionHeader questionData={questionData} badgeText={questionData.type.replace('_', ' ')} />
+                    <ChoiceChart data={chartData} />
+                    <ChartFooter chartData={chartData} />
                   </Card>
                 );
               }
 
-              // Rating
               if (questionData.type === 'rating') {
                 const distribution = questionData.distribution || {};
                 const chartData = Object.entries(distribution)
                   .map(([rating, count]) => ({ name: rating === 'Not answered' ? 'Not answered' : `${rating} Star`, value: count }))
                   .filter(d => d.value > 0);
                 const validRatings = (questionData.responses || []).filter(r => !isNoAnswer(r));
-                const avgRating = validRatings.length ? (validRatings.reduce((a,b)=>a+b,0)/validRatings.length).toFixed(1) : '-';
+                const avgRating = validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(1) : '-';
                 if (chartData.length === 0) return null;
                 return (
-                  <Card key={index} className="p-6">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-xl font-semibold text-[#003366]">{questionData.title}</h3>
-                      <div className="text-sm text-slate-500">
-                        Answered: {questionData.totalAnswered || 0} | Not answered: {questionData.totalNoAnswer || 0}
-                      </div>
+                  <Card key={index} className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+                    <QuestionHeader questionData={questionData} badgeText="Rating" />
+                    <div className="mb-4 flex items-center gap-2">
+                      <span className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-sm font-bold text-amber-700 ring-1 ring-amber-200">
+                        Avg {avgRating} / 5
+                      </span>
+                      <span className="text-xs text-slate-400">excluding not answered</span>
                     </div>
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                      <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-600">Rating</span>
-                      <div className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
-                        Avg (excl. not answered): {avgRating} / 5
-                      </div>
-                    </div>
-                    <ResponsiveContainer width="100%" height={340}>
-                      {chartType === "bar" ? (
-                        <BarChart data={chartData} margin={{ top:10, right:20, left:-12, bottom:20 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis dataKey="name" tick={{ fill:'#475569', fontSize:12 }} />
-                          <YAxis tick={{ fill:'#475569' }} />
-                          <Tooltip content={renderTooltip} />
-                          <Legend verticalAlign="top" height={36} />
-                          <Bar dataKey="value" radius={[12,12,0,0]}>
-                            {chartData.map((entry,i) => <Cell key={`cell-${i}`} fill={getChartColors(chartData.length)[i]} />)}
-                          </Bar>
-                        </BarChart>
-                      ) : (
-                        <PieChart>
-                          <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={4} labelLine={false} label={({ percent }) => `${(percent*100).toFixed(0)}%`}>
-                            {chartData.map((entry,i) => <Cell key={`cell-${i}`} fill={getChartColors(chartData.length)[i]} />)}
-                          </Pie>
-                          <Tooltip content={renderTooltip} />
-                          <Legend layout="vertical" verticalAlign="middle" align="right" iconType="circle" />
-                        </PieChart>
-                      )}
-                    </ResponsiveContainer>
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      {chartData.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                          <span className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: getChartColors(chartData.length)[idx] }} />
-                          <div><p className="text-sm font-medium text-slate-800">{item.name}</p><p className="text-sm text-slate-500">{item.value} responses</p></div>
-                        </div>
-                      ))}
-                    </div>
+                    <RatingChart data={chartData} />
+                    <ChartFooter chartData={chartData} />
                   </Card>
                 );
               }
 
-              // Text responses
               if ((questionData.responses || []).length === 0 && (questionData.totalNoAnswer || 0) > 0) {
                 return (
-                  <Card key={index} className="p-6">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-xl font-semibold text-[#003366]">{questionData.title}</h3>
-                      <div className="text-sm text-slate-500">
-                        Answered: 0 | Not answered: {questionData.totalNoAnswer || totalResponses}
-                      </div>
-                    </div>
-                    <p className="text-slate-500 italic">No responses provided.</p>
+                  <Card key={index} className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+                    <QuestionHeader questionData={questionData} badgeText={questionData.type.replace('_', ' ')} />
+                    <p className="text-sm italic text-slate-400">No responses provided.</p>
                   </Card>
                 );
               }
+
               return (
-                <Card key={index} className="p-6">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-xl font-semibold text-[#003366]">{questionData.title}</h3>
-                    <div className="text-sm text-slate-500">
-                      Answered: {questionData.totalAnswered || 0} | Not answered: {questionData.totalNoAnswer || 0}
-                    </div>
+                <Card key={index} className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+                  <QuestionHeader questionData={questionData} badgeText={questionData.type.replace('_', ' ')} />
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {(questionData.responses || []).map((response, idx) => (
+                      <div key={idx} className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
+                        <p className="text-sm text-slate-700">{response}</p>
+                      </div>
+                    ))}
                   </div>
-                  {(questionData.responses || []).map((response, idx) => (
-                    <div key={idx} className="bg-slate-50 rounded-lg p-3 mb-2">
-                      <p className="text-slate-700">{response}</p>
-                    </div>
-                  ))}
                 </Card>
               );
             })}

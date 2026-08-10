@@ -75,7 +75,7 @@ import {
   incomeGroupLabel,
   toCSV,
 } from '@/lib/respondentAnalytics';
-import FeatureImportanceSection from './FeatureImportanceSection';
+import { normalizeFeatureImportance, ImportanceChart, DirectionChart, DirectionLegend } from './FeatureImportanceSection';
 
 const B_COLOR = '#2563eb';
 const NB_COLOR = '#94a3b8';
@@ -293,6 +293,8 @@ const RespondentAnalytics = ({ columns, rows, analysis = null }) => {
   const beforeAfter = useMemo(() => buildBeforeAfter(filtered), [filtered]);
   const comparison = useMemo(() => buildComparison(filtered), [filtered]);
 
+  const safeFeatures = useMemo(() => normalizeFeatureImportance(analysis?.featureImportance || []), [analysis]);
+
   const indexChartData = useMemo(() => ['DOI', 'LCI', 'RPI', 'ICI', 'MWI'].map((name) => {
     const row = comparison.find((r) => r.metric === name);
     const parse = (v) => (v === '—' ? 0 : Number(String(v).replace(/[₱,]/g, '')) || 0);
@@ -496,11 +498,97 @@ const RespondentAnalytics = ({ columns, rows, analysis = null }) => {
         </div>
       </div>
 
-      {/* ---------- Model interpretation (feature importance) ---------- */}
-      {analysis ? <FeatureImportanceSection featureImportance={analysis.featureImportance || []} /> : null}
+      {/* ---------- Matching & Impact headline metrics (PSM) ---------- */}
+      {analysis ? (
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard value={Number(analysis.attValue ?? 0).toFixed(4)} label="ATT — Avg Treatment Effect" caption={`Beneficiary (B): ${analysis.beneficiaryCount} · Non-Beneficiary (NB): ${analysis.nonBeneficiaryCount}`} tone="orange" icon="📈" />
+          <MetricCard value={String(analysis.improved ?? 0)} label="SES Improved (B > A)" caption={`${Number(analysis.sesImprovementPct ?? 0).toFixed(1)}% of all respondents`} tone="green" icon="📈" />
+          <MetricCard value={Number(analysis.meanSesAfterBeneficiary ?? analysis.meanSesAfter ?? 0).toFixed(2)} label="Mean SES After (Beneficiary)" caption={`Before: ${Number(analysis.meanSesBeforeBeneficiary ?? analysis.meanSesBefore ?? 0).toFixed(2)} · Δ ${Number(analysis.delta ?? 0).toFixed(2)}`} tone="blue" icon="📊" />
+          <MetricCard value={`${analysis.beneficiaryCount}/${analysis.total}`} label="Beneficiaries vs Total Respondents" caption={`${Number(analysis.beneficiaryRate ?? 0).toFixed(1)}% beneficiary rate`} tone="purple" icon="👥" />
+        </div>
+      ) : null}
 
-      {/* ---------- Demographics & respondent charts ---------- */}
+      {/* ---------- Combined chart dashboard (all charts in one grid) ---------- */}
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {/* Model interpretation */}
+        {safeFeatures.length ? (
+          <ChartCard title="Feature Importance" subtitle={`Top ${safeFeatures.length} features ranked by mean impact`}>
+            <ImportanceChart data={safeFeatures} />
+          </ChartCard>
+        ) : null}
+        {safeFeatures.length ? (
+          <ChartCard title="Impact Direction" subtitle="How each feature shifts beneficiary likelihood">
+            <div className="mb-3"><DirectionLegend /></div>
+            <DirectionChart data={safeFeatures} />
+          </ChartCard>
+        ) : null}
+
+        {/* Matching & impact (PSM) */}
+        {analysis ? (
+          <ChartCard title="PS Score Distribution" subtitle="Propensity score overlap pattern">
+            <GroupedBar data={analysis.psDistribution || []} dataKey="bin" height={220} />
+          </ChartCard>
+        ) : null}
+        {analysis ? (
+          <ChartCard title="SES Outcome Distribution" subtitle="Improved vs Declined vs No Change">
+            <Donut data={[
+              { name: 'Improved', value: analysis.improved, color: '#16a34a' },
+              { name: 'Declined', value: analysis.declined, color: '#dc2626' },
+              { name: 'No Change', value: analysis.noChange, color: '#94a3b8' },
+            ]} dataKey="value" colors={['#16a34a', '#dc2626', '#94a3b8']} height={190} />
+            <LegendItems items={[
+              { name: 'Improved', value: analysis.improved, color: '#16a34a' },
+              { name: 'Declined', value: analysis.declined, color: '#dc2626' },
+              { name: 'No Change', value: analysis.noChange, color: '#94a3b8' },
+            ]} />
+          </ChartCard>
+        ) : null}
+        {analysis ? (
+          <ChartCard title="SMD Before vs After Matching" subtitle="Covariate balance improvement">
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={analysis.smdData || []} layout="vertical" margin={{ top: 6, right: 12, left: 8, bottom: 6 }}>
+                <CartesianGrid strokeDasharray="3 5" stroke="#f1f5f9" horizontal={false} />
+                <XAxis type="number" domain={[0, 0.45]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                <YAxis dataKey="feature" type="category" width={86} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="before" name="Before" fill="#fca5a5" radius={[0, 4, 4, 0]} maxBarSize={10} />
+                <Bar dataKey="after" name="After" fill="#0db890" radius={[0, 4, 4, 0]} maxBarSize={10} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        ) : null}
+        {analysis ? (
+          <ChartCard title="SES Trend Line" subtitle="Matched pairs over index">
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={(analysis.sesTrend || []).filter((row) => row.beneficiary !== 0 || row.nonBeneficiary !== 0)} margin={{ top: 6, right: 10, left: 0, bottom: 6 }}>
+                <CartesianGrid strokeDasharray="3 5" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="step" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                <YAxis domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="beneficiary" name="Beneficiary" stroke={B_COLOR} strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="nonBeneficiary" name="Non-Beneficiary" stroke="#0db890" strokeWidth={2} strokeDasharray="4 2" dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        ) : null}
+        {analysis ? (
+          <ChartCard title="Group Profile Radar" subtitle="B vs NB on key traits">
+            <ResponsiveContainer width="100%" height={220}>
+              <RadarChart data={analysis.radarData || []}>
+                <PolarGrid stroke="#f1f5f9" />
+                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                <Radar name="Beneficiary (B)" dataKey="beneficiary" stroke={B_COLOR} fill={B_COLOR} fillOpacity={0.18} />
+                <Radar name="Non-Beneficiary (NB)" dataKey="nonBeneficiary" stroke="#0db890" fill="#0db890" fillOpacity={0.18} />
+                <Legend verticalAlign="top" height={28} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        ) : null}
+
+        {/* Demographics & respondent charts */}
         <ChartCard title="Beneficiary Distribution" subtitle="B vs NB composition">
           <Donut data={beneficiaryDist} colors={[B_COLOR, NB_COLOR, UNKNOWN_COLOR]} />
           <LegendItems items={beneficiaryDist.map((d) => ({ name: d.name, value: `${d.count} (${d.pct}%)`, color: d.name === 'Beneficiary' ? B_COLOR : d.name === 'Non-Beneficiary' ? NB_COLOR : UNKNOWN_COLOR }))} />
@@ -554,31 +642,25 @@ const RespondentAnalytics = ({ columns, rows, analysis = null }) => {
         <ChartCard title="Material Wellbeing Indices" subtitle="DOI · LCI · RPI · ICI · MWI (median, B vs NB)">
           {indexChartData.some((d) => d.Beneficiary || d['Non-Beneficiary']) ? <GroupedBar data={indexChartData} dataKey="name" height={240} /> : <EmptyNote text="No index columns (DOI/LCI/RPI/ICI/MWI) detected" />}
         </ChartCard>
-      </div>
 
-      {/* ---------- Before/After + Perception ---------- */}
-      {beforeAfter.applicable || perception.applicable ? (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-2">
-          {beforeAfter.applicable ? (
-            <ChartCard title="Before vs After" subtitle={`SES score comparison · ${beforeAfter.pairs} paired respondents · Δ ${fmt(beforeAfter.delta, 2)}`}>
-              <GroupedBar data={beforeAfter.data} height={240} />
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-[6px] bg-[#eff6ff] p-2"><div className="text-[10.5px] text-[#64748b]">Before (mean)</div><div className="font-mono text-[15px] font-[800] text-[#2563eb]">{fmt(beforeAfter.beforeAvg, 2)}</div></div>
-                <div className="rounded-[6px] bg-[#dcfce7] p-2"><div className="text-[10.5px] text-[#64748b]">After (mean)</div><div className="font-mono text-[15px] font-[800] text-[#0db890]">{fmt(beforeAfter.afterAvg, 2)}</div></div>
-                <div className="rounded-[6px] bg-[#fef3c7] p-2"><div className="text-[10.5px] text-[#64748b]">Change</div><div className="font-mono text-[15px] font-[800] text-[#f59e0b]">{beforeAfter.delta >= 0 ? '+' : ''}{fmt(beforeAfter.delta, 2)}</div></div>
-              </div>
-            </ChartCard>
-          ) : null}
-          {perception.applicable ? (
-            <ChartCard title="Program Evaluation (PEI)" subtitle={`Perception factors (0–100) · ${perception.count} respondents · PEI ${perception.pei}`}>
-              <SingleBar data={perception.data} dataKey="name" valueKey="value" horizontal height={Math.max(240, perception.data.length * 42)} barColor="#7c3aed" />
-            </ChartCard>
-          ) : null}
-        </div>
-      ) : null}
+        {/* Before / after + perception */}
+        {beforeAfter.applicable ? (
+          <ChartCard title="Before vs After" subtitle={`SES score comparison · ${beforeAfter.pairs} paired respondents · Δ ${fmt(beforeAfter.delta, 2)}`}>
+            <GroupedBar data={beforeAfter.data} height={240} />
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-[6px] bg-[#eff6ff] p-2"><div className="text-[10.5px] text-[#64748b]">Before (mean)</div><div className="font-mono text-[15px] font-[800] text-[#2563eb]">{fmt(beforeAfter.beforeAvg, 2)}</div></div>
+              <div className="rounded-[6px] bg-[#dcfce7] p-2"><div className="text-[10.5px] text-[#64748b]">After (mean)</div><div className="font-mono text-[15px] font-[800] text-[#0db890]">{fmt(beforeAfter.afterAvg, 2)}</div></div>
+              <div className="rounded-[6px] bg-[#fef3c7] p-2"><div className="text-[10.5px] text-[#64748b]">Change</div><div className="font-mono text-[15px] font-[800] text-[#f59e0b]">{beforeAfter.delta >= 0 ? '+' : ''}{fmt(beforeAfter.delta, 2)}</div></div>
+            </div>
+          </ChartCard>
+        ) : null}
+        {perception.applicable ? (
+          <ChartCard title="Program Evaluation (PEI)" subtitle={`Perception factors (0–100) · ${perception.count} respondents · PEI ${perception.pei}`}>
+            <SingleBar data={perception.data} dataKey="name" valueKey="value" horizontal height={Math.max(240, perception.data.length * 42)} barColor="#7c3aed" />
+          </ChartCard>
+        ) : null}
 
-      {/* ---------- Ownership / access charts ---------- */}
-      <div className="grid gap-5 md:grid-cols-2">
+        {/* Ownership / access charts */}
         <ChartCard title="Durable Goods Ownership" subtitle="% of respondents owning each item">
           {durablesStats.length ? <SingleBar data={durablesStats} dataKey="name" valueKey="ownershipPct" horizontal height={Math.max(260, durablesStats.length * 40)} /> : <EmptyNote text="No durable goods columns detected" />}
         </ChartCard>
@@ -628,96 +710,6 @@ const RespondentAnalytics = ({ columns, rows, analysis = null }) => {
           </div>
         </CardContent>
       </Card>
-
-      {/* ---------- Matching & Impact Results (PSM) ---------- */}
-      {analysis ? (
-        <div className="space-y-8">
-          <div className="overflow-hidden rounded-[14px] border border-[#e2e8f0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f1f5f9] px-6 py-5">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#dcfce7] text-[#0db890]">📈</div>
-                <div>
-                  <div className="text-[15px] font-[800] text-[#1e293b]">Matching & Impact Results (PSM)</div>
-                  <div className="text-[12px] font-[400] text-[#94a3b8]">Propensity-score matching output · {analysis.total.toLocaleString()} respondents · {analysis.beneficiaryCount} B / {analysis.nonBeneficiaryCount} NB</div>
-                </div>
-              </div>
-              <Badge className="rounded-full bg-[#dcfce7] px-[9px] py-[2px] text-[11px] font-[600] text-[#0db890]">✓ Complete</Badge>
-            </div>
-            <div className="space-y-8 px-6 py-6">
-              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-                <MetricCard value={Number(analysis.attValue ?? 0).toFixed(4)} label="ATT — Avg Treatment Effect" caption={`Beneficiary (B): ${analysis.beneficiaryCount} · Non-Beneficiary (NB): ${analysis.nonBeneficiaryCount}`} tone="orange" icon="📈" />
-                <MetricCard value={String(analysis.improved ?? 0)} label="SES Improved (B > A)" caption={`${Number(analysis.sesImprovementPct ?? 0).toFixed(1)}% of all respondents`} tone="green" icon="📈" />
-                <MetricCard value={Number(analysis.meanSesAfterBeneficiary ?? analysis.meanSesAfter ?? 0).toFixed(2)} label="Mean SES After (Beneficiary)" caption={`Before: ${Number(analysis.meanSesBeforeBeneficiary ?? analysis.meanSesBefore ?? 0).toFixed(2)} · Δ ${Number(analysis.delta ?? 0).toFixed(2)}`} tone="blue" icon="📊" />
-                <MetricCard value={`${analysis.beneficiaryCount}/${analysis.total}`} label="Beneficiaries vs Total Respondents" caption={`${Number(analysis.beneficiaryRate ?? 0).toFixed(1)}% beneficiary rate`} tone="purple" icon="👥" />
-              </div>
-
-              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                <ChartCard title="PS Score Distribution" subtitle="Propensity score overlap pattern">
-                  <GroupedBar data={analysis.psDistribution || []} dataKey="bin" height={220} />
-                </ChartCard>
-
-                <ChartCard title="SES Outcome Distribution" subtitle="Improved vs Declined vs No Change">
-                  <Donut data={[
-                    { name: 'Improved', value: analysis.improved, color: '#16a34a' },
-                    { name: 'Declined', value: analysis.declined, color: '#dc2626' },
-                    { name: 'No Change', value: analysis.noChange, color: '#94a3b8' },
-                  ]} dataKey="value" colors={['#16a34a', '#dc2626', '#94a3b8']} height={190} />
-                  <LegendItems items={[
-                    { name: 'Improved', value: analysis.improved, color: '#16a34a' },
-                    { name: 'Declined', value: analysis.declined, color: '#dc2626' },
-                    { name: 'No Change', value: analysis.noChange, color: '#94a3b8' },
-                  ]} />
-                </ChartCard>
-
-                <ChartCard title="Feature Importance" subtitle="Top drivers of treatment">
-                  <SingleBar data={analysis.featureImportance || []} dataKey="feature" valueKey="value" horizontal height={220} />
-                </ChartCard>
-
-                <ChartCard title="SMD Before vs After Matching" subtitle="Covariate balance improvement">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={analysis.smdData || []} layout="vertical" margin={{ top: 6, right: 12, left: 8, bottom: 6 }}>
-                      <CartesianGrid strokeDasharray="3 5" stroke="#f1f5f9" horizontal={false} />
-                      <XAxis type="number" domain={[0, 0.45]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                      <YAxis dataKey="feature" type="category" width={86} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8' }} />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="before" name="Before" fill="#fca5a5" radius={[0, 4, 4, 0]} maxBarSize={10} />
-                      <Bar dataKey="after" name="After" fill="#0db890" radius={[0, 4, 4, 0]} maxBarSize={10} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartCard>
-
-                <ChartCard title="SES Trend Line" subtitle="Matched pairs over index">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <LineChart data={(analysis.sesTrend || []).filter((row) => row.beneficiary !== 0 || row.nonBeneficiary !== 0)} margin={{ top: 6, right: 10, left: 0, bottom: 6 }}>
-                      <CartesianGrid strokeDasharray="3 5" stroke="#f1f5f9" vertical={false} />
-                      <XAxis dataKey="step" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8' }} />
-                      <YAxis domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                      <Tooltip />
-                      <Legend />
-                      <Line type="monotone" dataKey="beneficiary" name="Beneficiary" stroke={B_COLOR} strokeWidth={2} dot={{ r: 3 }} />
-                      <Line type="monotone" dataKey="nonBeneficiary" name="Non-Beneficiary" stroke="#0db890" strokeWidth={2} strokeDasharray="4 2" dot={{ r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </ChartCard>
-
-                <ChartCard title="Group Profile Radar" subtitle="B vs NB on key traits">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <RadarChart data={analysis.radarData || []}>
-                      <PolarGrid stroke="#f1f5f9" />
-                      <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
-                      <Radar name="Beneficiary (B)" dataKey="beneficiary" stroke={B_COLOR} fill={B_COLOR} fillOpacity={0.18} />
-                      <Radar name="Non-Beneficiary (NB)" dataKey="nonBeneficiary" stroke="#0db890" fill="#0db890" fillOpacity={0.18} />
-                      <Legend verticalAlign="top" height={28} />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </ChartCard>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {/* ---------- Distribution map ---------- */}
       <div className="overflow-hidden rounded-[14px] border border-[#e2e8f0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)]">

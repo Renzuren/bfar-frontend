@@ -1214,26 +1214,33 @@ const MLUpload = () => {
   const previewRows = csvData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: palette.pageBg, fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
-      <div className="mx-auto max-w-[1500px] px-6 pb-24 pt-8 sm:px-8 lg:px-10">
-        <div className="mb-8 flex items-center justify-between">
-          <Button variant="outline" onClick={() => navigate('/dashboard')} className="rounded-[8px] border-[#e2e8f0] bg-white px-4 py-2 text-[13px] font-[600] text-[#475569] hover:bg-[#f8fafc]">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
-          </Button>
-          <span className="hidden text-[12px] font-[500] text-[#94a3b8] md:block">PSM · SES Impact · BFAR</span>
-        </div>
-
-        <header className="flex flex-col items-center text-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[12px] bg-gradient-to-br from-[#0db890] to-[#2563eb] shadow-sm">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 17L8 12L12 15L21 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+    <div className="min-h-screen bg-slate-50">
+      <div className="px-6 pb-24 pt-8 sm:px-8 lg:px-10">
+        <header className="sticky top-0 z-40 mb-8 -mx-6 border-b border-slate-200/80 bg-white/80 px-6 py-3 backdrop-blur-xl sm:-mx-8 sm:px-8 lg:-mx-10 lg:px-10">
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" onClick={() => navigate('/dashboard')} className="text-slate-600">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Dashboard
+            </Button>
+            <span className="hidden text-xs font-medium text-slate-400 md:block">PSM · SES Impact · General Assessment</span>
           </div>
-          <h1 className="text-[36px] font-[800] tracking-[-0.02em] text-[#2563eb]">ML Analysis</h1>
-          <p className="mt-2 text-[14px] font-[400] text-[#64748b]">Upload your dataset for propensity-score matching</p>
         </header>
 
-        <div className="mt-10 overflow-hidden rounded-[12px] border border-[#e2e8f0] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+        <section className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-center text-white shadow-2xl shadow-slate-900/20 sm:p-10">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
+          <div className="relative">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 17L8 12L12 15L21 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <p className="mb-1 text-sm font-medium uppercase tracking-[0.2em] text-cyan-300">Machine learning workspace</p>
+            <h1 className="text-3xl font-bold sm:text-4xl">ML Analysis</h1>
+            <p className="mx-auto mt-2 max-w-lg text-base text-slate-300">Upload your dataset for propensity-score matching and impact assessment.</p>
+          </div>
+        </section>
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
           <div className="grid gap-[0px] md:grid-cols-4">
             {stepItems.map((step, index) => {
               const isActive = activeStep === step.id;
@@ -1256,8 +1263,8 @@ const MLUpload = () => {
           </div>
         </div>
 
-        <div className="mt-8 overflow-hidden rounded-[14px] border border-[#e2e8f0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
-          <div className="flex items-center gap-2 border-b border-[#f1f5f9] px-6 py-5">
+        <div className="mt-8 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+          <div className="flex items-center gap-2 border-b border-slate-100 px-6 py-5">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#dbeafe] text-[#2563eb]">
               <Upload className="h-4 w-4" />
             </div>
@@ -1283,7 +1290,7 @@ const MLUpload = () => {
                 <div className="mt-1 text-[12px] font-[400] text-[#94a3b8]">or click to browse (max 10MB)</div>
                 <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFileSelect} className="hidden" />
                 <div className="mt-6 flex justify-center">
-                  <Button onClick={() => fileInputRef.current?.click()} className="rounded-[8px] bg-[#2563eb] px-[28px] py-[10px] text-[13px] font-[600] text-white hover:bg-[#1d4ed8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2563eb] focus-visible:outline-offset-2">
+                  <Button onClick={() => fileInputRef.current?.click()} className="rounded-xl bg-cyan-600 px-[28px] py-[10px] text-[13px] font-[600] text-white shadow-lg shadow-cyan-600/20 hover:bg-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 focus-visible:outline-offset-2">
                     <Upload className="mr-2 h-4 w-4" /> Choose File
                   </Button>
                 </div>
@@ -1331,7 +1338,7 @@ const MLUpload = () => {
         </div>
 
         {showPreview && csvData.length > 0 ? (
-          <div className="mt-8 overflow-hidden rounded-[14px] border border-[#e2e8f0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+          <div className="mt-8 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f1f5f9] px-6 py-5">
               <div className="flex items-center gap-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f1f5f9] text-[#64748b]">🗄</div>
@@ -1386,10 +1393,10 @@ const MLUpload = () => {
 
         {csvData.length > 0 ? (
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Button onClick={handleImportForm} className="rounded-[8px] bg-[#0db890] px-[22px] py-[10px] text-[13px] font-[600] text-white hover:bg-[#0aa37f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0db890] focus-visible:outline-offset-2">
+            <Button onClick={handleImportForm} className="rounded-xl bg-teal-500 px-[22px] py-[10px] text-[13px] font-[600] text-white shadow-lg shadow-teal-500/20 hover:bg-teal-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-500 focus-visible:outline-offset-2">
               <Import className="mr-2 h-4 w-4" /> Create Form from CSV
             </Button>
-            <Button onClick={handleAnalyze} disabled={isAnalyzing} className={`rounded-[8px] px-[26px] py-[10px] text-[13px] font-[600] text-white ${isAnalyzing ? 'bg-[#93c5fd]' : 'bg-[#2563eb] hover:bg-[#1d4ed8]'}`}>
+            <Button onClick={handleAnalyze} disabled={isAnalyzing} className={`rounded-xl px-[26px] py-[10px] text-[13px] font-[600] text-white shadow-lg ${isAnalyzing ? 'bg-cyan-300' : 'bg-cyan-600 shadow-cyan-600/20 hover:bg-cyan-700'}`}>
               {isAnalyzing ? '⏳ Analyzing…' : <><BarChart3 className="mr-2 h-4 w-4" /> Analyze Data</>}
             </Button>
           </div>
@@ -1398,7 +1405,7 @@ const MLUpload = () => {
         {analysisResults ? <RespondentAnalytics columns={columns} rows={csvData} analysis={analysisResults} /> : null}
 
         {analysisResults ? (
-          <div className="mt-10 flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-[14px] border border-[#e2e8f0] bg-white px-6 py-5 shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+          <div className="mt-10 flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-white px-6 py-5 shadow-sm">
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#dcfce7] text-[#0db890]">📈</div>
               <div>
@@ -1409,15 +1416,15 @@ const MLUpload = () => {
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="rounded-full bg-[#dcfce7] px-[9px] py-[2px] text-[11px] font-[600] text-[#0db890]">✓ Complete</Badge>
               <Button variant="outline" className="rounded-[6px] border-[#e2e8f0] bg-white px-[12px] py-[8px] text-[12px] font-[600] text-[#475569]" onClick={handleDownloadJSON}><Download className="mr-2 h-4 w-4" /> JSON</Button>
-              <Button className="rounded-[8px] bg-[#2563eb] px-[12px] py-[8px] text-[13px] font-[600] text-white hover:bg-[#1d4ed8]" onClick={() => setShowSaveModal(true)}><Save className="mr-2 h-4 w-4" /> Save</Button>
+              <Button className="rounded-xl bg-cyan-600 px-[12px] py-[8px] text-[13px] font-[600] text-white shadow-lg shadow-cyan-600/20 hover:bg-cyan-700" onClick={() => setShowSaveModal(true)}><Save className="mr-2 h-4 w-4" /> Save</Button>
             </div>
           </div>
         ) : null}
       </div>
 
       {showSaveModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
-          <div className="w-full max-w-md rounded-[12px] border border-[#e2e8f0] bg-white p-5 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <div className="text-[15px] font-[700] text-[#1e293b]">Save Results</div>
               <button className="rounded-full p-1 text-[#94a3b8] hover:bg-[#f1f5f9]" onClick={() => setShowSaveModal(false)}>×</button>
@@ -1425,7 +1432,7 @@ const MLUpload = () => {
             <div className="mt-4 space-y-3">
               <div>
                 <Label htmlFor="saveName">Name</Label>
-                <Input id="saveName" value={saveName} onChange={(event) => setSaveName(event.target.value)} placeholder="e.g. BFAR baseline" className="mt-1 rounded-[6px] border-[#dde3ec]" />
+                <Input id="saveName" value={saveName} onChange={(event) => setSaveName(event.target.value)} placeholder="e.g. General Assessment baseline" className="mt-1 rounded-[6px] border-[#dde3ec]" />
               </div>
               <div>
                 <Label htmlFor="saveDescription">Description</Label>
@@ -1434,7 +1441,7 @@ const MLUpload = () => {
             </div>
             <div className="mt-5 flex justify-end gap-2">
               <Button variant="outline" className="rounded-[6px] border-[#e2e8f0] bg-white text-[#475569]" onClick={() => setShowSaveModal(false)}>Cancel</Button>
-              <Button className="rounded-[8px] bg-[#2563eb] text-white hover:bg-[#1d4ed8]" onClick={handleSaveResults} disabled={!saveName.trim()}>Save</Button>
+              <Button className="rounded-xl bg-cyan-600 text-white shadow-lg shadow-cyan-600/20 hover:bg-cyan-700" onClick={handleSaveResults} disabled={!saveName.trim()}>Save</Button>
             </div>
           </div>
         </div>

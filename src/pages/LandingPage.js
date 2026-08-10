@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, BarChart3, Share2, Shield, ArrowRight, Mail, MapPin, Phone } from 'lucide-react';
+import { FileText, BarChart3, Share2, ShieldCheck, ArrowRight, Mail, MapPin, Phone, LineChart, Lock, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const LandingPage = () => {
@@ -10,7 +10,6 @@ const LandingPage = () => {
   const ctaRef = useRef(null);
 
   useEffect(() => {
-    // Simple scroll-triggered animations
     const observerOptions = {
       threshold: 0.1,
       rootMargin: '0px 0px -50px 0px'
@@ -35,53 +34,65 @@ const LandingPage = () => {
     {
       icon: FileText,
       title: 'Easy Form Builder',
-      description: 'Create dynamic questionnaires with multiple question types including text, multiple choice, checkboxes, and more.',
-      gradient: 'from-blue-500 to-cyan-500',
-      glowColor: 'cyan-400'
+      description: 'Create dynamic questionnaires with text, multiple choice, checkboxes, ratings, and more.',
+      tint: 'from-cyan-400 to-blue-600',
+      glow: 'shadow-cyan-500/30'
     },
     {
       icon: BarChart3,
       title: 'Advanced Analytics',
-      description: 'Get detailed insights with comprehensive analytics, charts, and data visualization for your survey responses.',
-      gradient: 'from-purple-500 to-pink-500',
-      glowColor: 'purple-400'
+      description: 'Get detailed insights with comprehensive charts and data visualization for every survey response.',
+      tint: 'from-violet-500 to-purple-600',
+      glow: 'shadow-violet-500/30'
     },
     {
       icon: Share2,
       title: 'Easy Sharing',
       description: 'Share your forms instantly with unique links, embed codes, and direct integration options.',
-      gradient: 'from-orange-500 to-red-500',
-      glowColor: 'orange-400'
+      tint: 'from-orange-400 to-amber-500',
+      glow: 'shadow-orange-500/30'
     },
     {
-      icon: Shield,
+      icon: ShieldCheck,
       title: 'Secure & Compliant',
-      description: 'Government-grade security with data encryption, access controls, and compliance with Philippine data regulations.',
-      gradient: 'from-green-500 to-emerald-500',
-      glowColor: 'green-400'
+      description: 'Government-grade security with data encryption, access controls, and data regulation compliance.',
+      tint: 'from-emerald-400 to-teal-600',
+      glow: 'shadow-emerald-500/30'
     }
   ];
 
+  const highlights = [
+    { icon: LineChart, title: 'Real-time Dashboards', description: 'Monitor response rates and trends the moment data comes in.' },
+    { icon: Zap, title: 'Blazing Fast Workflows', description: 'Publish forms and share links in a single click.' },
+    { icon: Lock, title: 'Bank-grade Security', description: 'Encrypted data, role-based access, and full audit trails.' },
+  ];
+
+  const stats = [
+    { value: '100%', label: 'Secure Data Handling' },
+    { value: '24/7', label: 'Reliable Uptime' },
+    { value: 'Real-time', label: 'Analytics Insights' },
+  ];
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-slate-50">
       {/* Hero Section */}
       <div
-        className="relative min-h-screen bg-gradient-to-br from-[#0a2540] via-[#0d3a5f] to-[#1a5490] overflow-hidden"
         ref={heroRef}
+        className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900"
       >
-        {/* Decorative Elements */}
-        <div className="absolute top-20 right-20 w-96 h-96 bg-cyan-400/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-20 left-20 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
+        {/* Decorative elements */}
+        <div className="pointer-events-none absolute -right-24 top-10 h-96 w-96 rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute -left-24 bottom-10 h-96 w-96 rounded-full bg-blue-400/10 blur-3xl" />
 
-        {/* Animated Water Waves */}
-        <svg className="absolute bottom-0 left-0 w-full h-96 opacity-20" viewBox="0 0 1200 320" preserveAspectRatio="none">
+        {/* Animated water waves */}
+        <svg className="absolute bottom-0 left-0 h-96 w-full opacity-20" viewBox="0 0 1200 320" preserveAspectRatio="none">
           <path d="M0,160 C240,200 480,120 720,160 C960,200 1080,120 1200,160 L1200,320 L0,320 Z" fill="rgba(52,211,153,0.2)" className="animate-wave1" />
         </svg>
-        <svg className="absolute bottom-0 left-0 w-full h-80 opacity-15" viewBox="0 0 1200 320" preserveAspectRatio="none">
+        <svg className="absolute bottom-0 left-0 h-80 w-full opacity-15" viewBox="0 0 1200 320" preserveAspectRatio="none">
           <path d="M0,192 C300,250 600,140 900,192 C1100,230 1150,170 1200,192 L1200,320 L0,320 Z" fill="rgba(96,165,250,0.25)" className="animate-wave2" />
         </svg>
 
-        {/* Rising Bubbles */}
+        {/* Rising bubbles */}
         {[...Array(12)].map((_, i) => (
           <div
             key={i}
@@ -93,30 +104,30 @@ const LandingPage = () => {
               animationDelay: `${i * 0.6}s`,
               animationDuration: `${8 + i * 0.5}s`
             }}
-          ></div>
+          />
         ))}
 
         {/* Header */}
-        <nav className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-cyan-400 rounded-lg flex items-center justify-center shadow-lg">
-                <FileText className="w-7 h-7 text-white" />
+        <nav className="relative z-10 mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/30">
+                <FileText className="h-6 w-6" />
               </div>
-              <h1 className="text-2xl font-bold text-white">General Assessment e-Forms</h1>
+              <h1 className="text-xl font-bold text-white">General Assessment e-Forms</h1>
             </div>
-            <div className="flex space-x-4">
+            <div className="flex items-center gap-3">
               <button
                 data-testid="nav-login-button"
                 onClick={() => navigate('/login')}
-                className="px-4 py-2 text-white/90 hover:text-white transition-colors duration-200 font-medium rounded-lg"
+                className="rounded-full px-4 py-2 text-sm font-medium text-white/90 transition hover:bg-white/10 hover:text-white"
               >
                 Login
               </button>
               <button
                 data-testid="nav-signup-button"
                 onClick={() => navigate('/signup')}
-                className="px-6 py-2 bg-cyan-400 text-[#0a2540] rounded-lg font-semibold text-base hover:bg-cyan-300 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-cyan-400/20"
+                className="rounded-full bg-cyan-400 px-5 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-cyan-400/30 transition hover:bg-cyan-300 hover:shadow-cyan-400/40"
               >
                 Sign Up
               </button>
@@ -124,76 +135,93 @@ const LandingPage = () => {
           </div>
         </nav>
 
-        {/* Hero Content */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
-          <div className="text-center">
-            <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white mb-6 leading-tight">
-              Streamline General Assessment
-              <br />
-              <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                Processes with a Digital eForms Platform
-              </span>
-            </h2>
-            <p className="text-xl md:text-2xl text-white/80 mb-8 max-w-3xl mx-auto leading-relaxed">
-              A centralized platform for creating forms, collecting responses, and generating real-time insights for faster and more accurate decision-making.
-            </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <button
-                data-testid="hero-get-started-button"
-                onClick={() => navigate('/signup')}
-                className="group inline-flex items-center gap-3 px-8 py-4 bg-cyan-400 text-[#0a2540] rounded-xl text-lg font-semibold hover:bg-cyan-300 hover:scale-105 transition-all duration-300 shadow-xl shadow-cyan-400/20 hover:shadow-2xl hover:shadow-cyan-400/30"
-              >
-                Get Started
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-200" />
-              </button>
-              <button
-                data-testid="hero-learn-more-button"
-                onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-                className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-xl text-lg font-semibold hover:bg-white/20 transition-all duration-300 border border-white/20 hover:border-white/30"
-              >
-                Learn More
-              </button>
-            </div>
+        {/* Hero content */}
+        <div className="relative z-10 mx-auto max-w-7xl px-4 py-20 text-center sm:px-6 md:py-28 lg:px-8">
+          <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-1.5 text-sm font-medium text-cyan-300">
+            Digital Assessment Forms Platform
+          </p>
+          <h2 className="mx-auto mb-6 max-w-4xl text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
+            Streamline General Assessment
+            <br />
+            <span className="bg-gradient-to-r from-cyan-300 to-blue-400 bg-clip-text text-transparent">
+              Processes with a Digital eForms Platform
+            </span>
+          </h2>
+          <p className="mx-auto mb-10 max-w-3xl text-lg text-slate-300 sm:text-xl">
+            A centralized platform for creating forms, collecting responses, and generating real-time insights for faster and more accurate decision-making.
+          </p>
+          <div className="flex flex-col justify-center gap-4 sm:flex-row">
+            <button
+              data-testid="hero-get-started-button"
+              onClick={() => navigate('/signup')}
+              className="group inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-8 py-4 text-lg font-semibold text-white shadow-xl shadow-cyan-500/30 transition hover:bg-cyan-400 hover:shadow-cyan-400/40"
+            >
+              Get Started
+              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+            </button>
+            <button
+              data-testid="hero-learn-more-button"
+              onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+              className="inline-flex items-center justify-center rounded-xl bg-white/10 px-8 py-4 text-lg font-semibold text-white ring-1 ring-white/20 backdrop-blur transition hover:bg-white/20"
+            >
+              Learn More
+            </button>
+          </div>
+
+          {/* Stats */}
+          <div className="mx-auto mt-16 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-3">
+            {stats.map((stat) => (
+              <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+                <p className="text-2xl font-bold text-white">{stat.value}</p>
+                <p className="mt-1 text-sm text-slate-400">{stat.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
       {/* Features Section */}
-      <div
-        id="features"
-        className="py-20 bg-gradient-to-b from-gray-50 to-white"
-        ref={featuresRef}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h3 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 mb-4">
+      <div id="features" ref={featuresRef} className="bg-slate-50 py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto mb-14 max-w-2xl text-center">
+            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-cyan-600">Features</p>
+            <h3 className="mb-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
               Powerful Features for Data Collection
             </h3>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              Everything you need to create, distribute, and analyze surveys for fisheries and aquatic resources management.
+            <p className="text-lg text-slate-500">
+              Everything you need to create, distribute, and analyze assessment forms.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
             {features.map((feature, index) => (
               <div
                 key={index}
-                className="group bg-white rounded-2xl border border-gray-100 shadow-lg hover:shadow-2xl p-8 transition-all duration-300 hover:-translate-y-2 hover:scale-105"
+                className="group rounded-2xl border border-slate-200/80 bg-white p-8 shadow-sm transition hover:-translate-y-1.5 hover:shadow-xl"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="relative mb-6">
-                  <div className={`w-16 h-16 bg-gradient-to-br ${feature.gradient} rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:rotate-3 group-hover:scale-110`}>
-                    <feature.icon className="w-8 h-8 text-white" />
+                  <div className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${feature.tint} text-white shadow-lg ${feature.glow} transition group-hover:scale-110 group-hover:rotate-3`}>
+                    <feature.icon className="h-8 w-8" />
                   </div>
-                  <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} rounded-xl blur-xl opacity-20 group-hover:opacity-40 transition-opacity duration-300`}></div>
                 </div>
+                <h4 className="mb-3 text-xl font-semibold text-slate-900">{feature.title}</h4>
+                <p className="text-base leading-relaxed text-slate-500">{feature.description}</p>
+              </div>
+            ))}
+          </div>
 
-                <h4 className="text-xl font-semibold text-gray-900 mb-3 group-hover:text-gray-800 transition-colors duration-200">
-                  {feature.title}
-                </h4>
-                <p className="text-base text-gray-600 leading-relaxed group-hover:text-gray-700 transition-colors duration-200">
-                  {feature.description}
-                </p>
+          {/* Highlights */}
+          <div className="mt-16 grid grid-cols-1 gap-6 md:grid-cols-3">
+            {highlights.map((highlight, index) => (
+              <div key={index} className="flex items-start gap-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600 ring-1 ring-cyan-100">
+                  <highlight.icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <h5 className="font-semibold text-slate-900">{highlight.title}</h5>
+                  <p className="mt-1 text-sm text-slate-500">{highlight.description}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -201,115 +229,94 @@ const LandingPage = () => {
       </div>
 
       {/* Call-to-Action Section */}
-      <div
-        className="py-20 md:py-32 bg-gradient-to-br from-[#0a2540] via-[#0d3a5f] to-[#1a5490] relative overflow-hidden"
-        ref={ctaRef}
-      >
-        {/* Decorative Element */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-[600px] h-[600px] bg-cyan-400/10 rounded-full blur-3xl"></div>
-        </div>
+      <div ref={ctaRef} className="bg-slate-50 pb-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 px-6 py-16 text-center shadow-2xl shadow-slate-900/20 sm:px-12 md:py-20">
+            <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl" />
 
-        <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Ready to Transform Your Data Collection?
-          </h2>
-          <p className="text-xl text-white/80 mb-8 max-w-2xl mx-auto leading-relaxed">
-            Join thousands of assessment professionals using GA e-Forms to streamline their data collection and analysis processes.
-          </p>
-          <button
-            onClick={() => navigate('/signup')}
-            className="group inline-flex items-center gap-3 px-8 py-4 bg-cyan-400 text-[#0a2540] rounded-xl text-lg font-semibold hover:bg-cyan-300 hover:scale-105 transition-all duration-300 shadow-xl shadow-cyan-400/20 hover:shadow-2xl hover:shadow-cyan-400/30"
-          >
-            Start Creating Forms Today
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-200" />
-          </button>
+            <div className="relative mx-auto max-w-2xl">
+              <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                Ready to Transform Your Data Collection?
+              </h2>
+              <p className="mb-8 text-lg text-slate-300">
+                Join assessment professionals using General Assessment e-Forms to streamline their data collection and analysis processes.
+              </p>
+              <button
+                onClick={() => navigate('/signup')}
+                className="group inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-8 py-4 text-lg font-semibold text-white shadow-xl shadow-cyan-500/30 transition hover:bg-cyan-400 hover:shadow-cyan-400/40"
+              >
+                Start Creating Forms Today
+                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="bg-[#0a2540] border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <footer className="border-t border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             {/* Branding */}
             <div>
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-cyan-400 rounded-lg flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-white" />
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
+                  <FileText className="h-5 w-5" />
                 </div>
-                <h3 className="text-xl font-bold text-white">General Assessment e-Forms</h3>
+                <h3 className="text-lg font-bold text-slate-900">General Assessment e-Forms</h3>
               </div>
-              <p className="text-sm text-white/70 leading-relaxed">
-                Official digital forms platform of the Bureau of Fisheries and Aquatic Resources.
-                Empowering fisheries professionals with modern data collection tools.
+              <p className="text-sm leading-relaxed text-slate-500">
+                Empowering assessment professionals with modern, secure, and real-time data collection tools.
               </p>
             </div>
 
             {/* Quick Links */}
             <div>
-              <h4 className="text-white/90 font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2">
+              <h4 className="mb-4 font-semibold text-slate-900">Quick Links</h4>
+              <ul className="space-y-2.5">
                 <li>
-                  <button
-                    onClick={() => navigate('/login')}
-                    className="px-4 py-2 text-white/70 hover:text-white transition-colors duration-200 text-sm font-medium"
-                  >
+                  <button onClick={() => navigate('/login')} className="text-sm font-medium text-slate-500 transition hover:text-cyan-600">
                     Login
                   </button>
                 </li>
                 <li>
-                  <button
-                    onClick={() => navigate('/signup')}
-                    className="px-4 py-2 text-white/70 hover:text-white transition-colors duration-200 text-sm font-medium"
-                  >
+                  <button onClick={() => navigate('/signup')} className="text-sm font-medium text-slate-500 transition hover:text-cyan-600">
                     Sign Up
                   </button>
                 </li>
                 <li>
                   <button
                     onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-                    className="px-4 py-2 text-white/70 hover:text-white transition-colors duration-200 text-sm font-medium"
+                    className="text-sm font-medium text-slate-500 transition hover:text-cyan-600"
                   >
                     Features
                   </button>
-                </li>
-                <li>
-                  <a
-                    href="#"
-                    className="px-4 py-2 text-white/70 hover:text-white transition-colors duration-200 text-sm font-medium inline-block"
-                  >
-                    Support
-                  </a>
                 </li>
               </ul>
             </div>
 
             {/* Contact */}
             <div>
-              <h4 className="text-white/90 font-semibold mb-4">Contact</h4>
+              <h4 className="mb-4 font-semibold text-slate-900">Contact</h4>
               <div className="space-y-3">
-                <div className="flex items-start space-x-3">
-                  <MapPin className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-white/70">
-                    Bureau of Fisheries and Aquatic Resources<br />
+                <div className="flex items-start gap-3">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-cyan-600" />
+                  <p className="text-sm text-slate-500">
+                    General Assessment e-Forms Team
+                    <br />
                     Quezon City, Philippines
                   </p>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <Mail className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                  <a
-                    href="mailto:support@gas.gov.ph"
-                    className="text-sm text-white/70 hover:text-cyan-400 transition-colors duration-200"
-                  >
+                <div className="flex items-center gap-3">
+                  <Mail className="h-4 w-4 shrink-0 text-cyan-600" />
+                  <a href="mailto:support@gas.gov.ph" className="text-sm text-slate-500 transition hover:text-cyan-600">
                     support@gas.gov.ph
                   </a>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <Phone className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                  <a
-                    href="tel:+632-123-4567"
-                    className="text-sm text-white/70 hover:text-cyan-400 transition-colors duration-200"
-                  >
+                <div className="flex items-center gap-3">
+                  <Phone className="h-4 w-4 shrink-0 text-cyan-600" />
+                  <a href="tel:+632-123-4567" className="text-sm text-slate-500 transition hover:text-cyan-600">
                     +63 2 123 4567
                   </a>
                 </div>
@@ -317,50 +324,25 @@ const LandingPage = () => {
             </div>
           </div>
 
-          {/* Copyright */}
-          <div className="border-t border-white/10 mt-8 pt-8 text-center">
-            <p className="text-sm text-white/60">
-              © {new Date().getFullYear()} Bureau of Fisheries and Aquatic Resources. All rights reserved.
+          <div className="mt-10 border-t border-slate-100 pt-8 text-center">
+            <p className="text-sm text-slate-400">
+              © {new Date().getFullYear()} General Assessment e-Forms. All rights reserved.
             </p>
           </div>
         </div>
       </footer>
 
-      {/* Custom CSS for animations and button design tokens */}
+      {/* Custom CSS for animations */}
       <style jsx>{`
-        /* Button Design Tokens */
-        :root {
-          --button-primary-bg: #34d399;
-          --button-primary-hover: #6ee7b7;
-          --button-primary-text: #0a2540;
-          --button-secondary-bg: rgba(255, 255, 255, 0.1);
-          --button-secondary-hover: rgba(255, 255, 255, 0.2);
-          --button-secondary-text: #ffffff;
-          --button-padding-sm: 0.5rem 1.5rem;
-          --button-padding-lg: 1rem 2rem;
-          --button-radius-sm: 0.75rem;
-          --button-radius-lg: 1rem;
-          --button-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* Focus states for accessibility */
         button:focus-visible {
-          outline: 2px solid #34d399;
+          outline: 2px solid #06b6d4;
           outline-offset: 2px;
         }
 
-        /* Button hover and active states */
         button:active {
-          transform: scale(0.95);
+          transform: scale(0.96);
         }
 
-        /* Performance optimizations for buttons */
-        button {
-          transform: translateZ(0);
-          will-change: transform;
-        }
-
-        /* Reduced motion preferences */
         @media (prefers-reduced-motion: reduce) {
           button {
             transition: none !important;

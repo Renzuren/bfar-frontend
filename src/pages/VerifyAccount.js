@@ -18,7 +18,7 @@ const VerifyAccount = () => {
   useEffect(() => {
     const verifyEmail = async () => {
       const token = searchParams.get('token');
-      
+
       if (!token) {
         setStatus('error');
         setMessage('Invalid verification link');
@@ -43,29 +43,29 @@ const VerifyAccount = () => {
   }, [searchParams]);
 
   return (
-    <div className="min-h-screen bg-[#F8FDFF] flex items-center justify-center">
-      <div className="max-w-md w-full bg-white rounded-xl border border-slate-100 shadow-lg p-8 text-center">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-4">
+      <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-cyan-200/40 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-blue-200/40 blur-3xl" />
+
+      <div className="relative w-full max-w-md rounded-3xl border border-slate-200/80 bg-white p-8 text-center shadow-xl sm:p-10">
         {status === 'verifying' && (
           <>
-            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <div className="w-10 h-10 border-4 border-[#003366] border-t-transparent rounded-full animate-spin" />
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-cyan-50">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-cyan-200 border-t-cyan-600" />
             </div>
-            <h2 className="text-2xl font-bold text-[#003366] mb-4">Verifying your account...</h2>
-            <p className="text-slate-600">Please wait while we verify your email.</p>
+            <h2 className="mb-3 text-2xl font-bold text-slate-900">Verifying your account...</h2>
+            <p className="text-slate-500">Please wait while we verify your email.</p>
           </>
         )}
 
         {status === 'success' && (
           <>
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="w-10 h-10 text-green-600" />
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-500/30">
+              <CheckCircle className="h-10 w-10" />
             </div>
-            <h2 className="text-2xl font-bold text-[#003366] mb-4">Success!</h2>
-            <p className="text-slate-600 mb-6">{message}</p>
-            <Button
-              onClick={() => navigate('/login')}
-              className="bg-[#003366] hover:bg-[#002244] text-white"
-            >
+            <h2 className="mb-3 text-2xl font-bold text-slate-900">Success!</h2>
+            <p className="mb-8 text-slate-500">{message}</p>
+            <Button onClick={() => navigate('/login')} className="w-full bg-cyan-600 text-white shadow-lg shadow-cyan-600/20 hover:bg-cyan-700">
               Go to Login
             </Button>
           </>
@@ -73,15 +73,12 @@ const VerifyAccount = () => {
 
         {status === 'error' && (
           <>
-            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <XCircle className="w-10 h-10 text-red-600" />
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-rose-400 to-red-500 text-white shadow-lg shadow-rose-500/30">
+              <XCircle className="h-10 w-10" />
             </div>
-            <h2 className="text-2xl font-bold text-[#003366] mb-4">Verification Failed</h2>
-            <p className="text-slate-600 mb-6">{message}</p>
-            <Button
-              onClick={() => navigate('/')}
-              className="bg-[#003366] hover:bg-[#002244] text-white"
-            >
+            <h2 className="mb-3 text-2xl font-bold text-slate-900">Verification Failed</h2>
+            <p className="mb-8 text-slate-500">{message}</p>
+            <Button onClick={() => navigate('/')} className="w-full bg-slate-900 text-white hover:bg-slate-800">
               Back to Home
             </Button>
           </>

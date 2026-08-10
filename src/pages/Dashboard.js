@@ -10,10 +10,13 @@ import {
   Copy,
   Eye,
   Search,
-  Filter,
   Clock,
   CalendarDays,
-  Brain
+  Brain,
+  ChevronDown,
+  Inbox,
+  Users,
+  ClipboardList
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -30,6 +33,21 @@ import {
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/apiMiddleware';
+
+const STATUS_STYLES = {
+  active: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  draft: 'bg-slate-100 text-slate-600 ring-slate-200',
+  closed: 'bg-rose-50 text-rose-700 ring-rose-200'
+};
+
+const STATUS_LABELS = { active: 'Active', draft: 'Draft', closed: 'Closed', unknown: 'Unknown' };
+
+const FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'closed', label: 'Closed' }
+];
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -119,7 +137,7 @@ const Dashboard = () => {
           form.id === formId ? { ...form, status: payload.status } : form
         )
       );
-      toast.success(`Status updated to ${newStatus === 'unknown' ? 'Unknown' : newStatus}`);
+      toast.success(`Status updated to ${STATUS_LABELS[newStatus] || newStatus}`);
     } catch (error) {
       toast.error('Failed to update status');
     } finally {
@@ -133,57 +151,26 @@ const Dashboard = () => {
     toast.success('Logged out successfully');
   };
 
-  const getStatusStyles = (status) => {
-    if (status === 'active') {
-      return 'bg-emerald-100 text-emerald-700';
-    }
-    if (status === 'draft') {
-      return 'bg-slate-100 text-slate-700';
-    }
-    if (status === 'closed') {
-      return 'bg-rose-100 text-rose-700';
-    }
-    return 'bg-slate-100 text-slate-700';
-  };
+  const getStatusStyles = (status) => STATUS_STYLES[status] || STATUS_STYLES.draft;
 
   const getQuestionCount = (form) => {
     if (typeof form.questions === 'number') return form.questions;
     return Array.isArray(form.questions) ? form.questions.length : 0;
   };
 
-  const formatCreatedAtDate = (createdAt) => {
-    const date = createdAt ? new Date(createdAt) : new Date();
-    if (isNaN(date.getTime())) {
-      return new Date().toLocaleDateString([], {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
-    }
-    return date.toLocaleDateString([], {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  const formatCreatedAtTime = (createdAt) => {
-    const date = createdAt ? new Date(createdAt) : new Date();
-    if (isNaN(date.getTime())) {
-      return new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    }
-    return date.toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const formatDate = (value) => {
+    const date = value ? new Date(value) : new Date();
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   const getResponseCount = (form) => {
     return form.response_count ?? form.responses ?? 0;
   };
+
+  const totalResponses = forms.reduce((sum, form) => sum + getResponseCount(form), 0);
+  const activeCount = forms.filter((form) => form.status === 'active').length;
+  const draftCount = forms.filter((form) => form.status === 'draft').length;
 
   const filteredForms = forms.filter((form) => {
     const normalizedStatus = form.status?.toString().toLowerCase() || 'unknown';
@@ -194,292 +181,241 @@ const Dashboard = () => {
     return matchesSearch && matchesStatus;
   });
 
-  return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-50 via-cyan-50/80 to-blue-50">
-      <div className="pointer-events-none absolute top-0 right-0 w-[520px] h-[520px] bg-cyan-100/25 rounded-full blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 left-0 w-[520px] h-[520px] bg-blue-100/25 rounded-full blur-3xl" />
+  const initials = (user?.full_name || user?.email || 'U')
+    .split(/[\s@._]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join('') || 'U';
 
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-slate-200/70 shadow-sm w-full">
-        <div className="w-full px-2 sm:px-4 lg:px-6 py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+  const stats = [
+    { label: 'Total Forms', value: forms.length, icon: ClipboardList, tint: 'bg-cyan-50 text-cyan-600' },
+    { label: 'Total Responses', value: totalResponses, icon: Users, tint: 'bg-indigo-50 text-indigo-600' },
+    { label: 'Active', value: activeCount, icon: BarChart3, tint: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Drafts', value: draftCount, icon: FileText, tint: 'bg-amber-50 text-amber-600' }
+  ];
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 shadow-lg shadow-cyan-500/20 flex items-center justify-center">
-              <FileText className="w-6 h-6 text-white" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
+              <FileText className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-slate-500">General Assessment e-Forms</p>
-              <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">GA e-Forms</p>
+              <h1 className="text-lg font-bold text-slate-900">Dashboard</h1>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 justify-end">
-            <div className="hidden sm:flex flex-col text-right">
-              <span className="text-sm font-semibold text-slate-900">{user?.full_name || 'User'}</span>
-              <span className="text-xs text-slate-500">{user?.email || 'user@example.com'}</span>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden items-center gap-3 rounded-full border border-slate-200 bg-white py-1.5 pl-1.5 pr-3 shadow-sm sm:flex">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-xs font-bold text-white">
+                {initials}
+              </div>
+              <div className="leading-tight">
+                <p className="text-sm font-semibold text-slate-900">{user?.full_name || 'User'}</p>
+                <p className="text-xs text-slate-500">{user?.email || 'user@example.com'}</p>
+              </div>
             </div>
             <Button
               data-testid="logout-button"
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="text-slate-600 hover:text-slate-900"
+              className="text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50"
             >
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Logout</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="w-full px-2 sm:px-4 lg:px-6 py-6 space-y-6 relative z-10">
-        <section className="rounded-[2rem] border border-slate-200/70 bg-white/90 shadow-xl shadow-slate-900/5 p-6 overflow-hidden">
-          <div className="grid gap-6 lg:grid-cols-2 items-center">
-            <div>
-              <p className="text-sm uppercase tracking-[0.24em] text-cyan-600 mb-3">Welcome back</p>
-              <h2 className="text-4xl sm:text-5xl font-bold text-slate-900 leading-tight mb-4">
-                Manage your surveys with clean insights
+      <main className="px-4 py-8 sm:px-6 lg:px-8">
+        <div className="space-y-8">
+          <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
+            <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl" />
+            <div className="relative">
+              <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-cyan-300">Welcome back</p>
+              <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">
+                {user?.full_name ? `${user.full_name.split(' ')[0]}, let's collect great data` : 'Let\'s collect great data'}
               </h2>
-              <p className="max-w-2xl text-base text-slate-600 leading-8">
-                Quickly find forms, monitor response counts, and act on your most important surveys from a single control center.
+              <p className="max-w-2xl text-base text-slate-300">
+                Create, share, and analyze your assessment forms from a single control center.
               </p>
-            </div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-2">
-              <div className="rounded-3xl bg-slate-900/95 p-5 text-white shadow-lg shadow-cyan-500/10">
-                <p className="text-sm uppercase tracking-[0.2em] text-cyan-300 mb-3">Forms</p>
-                <p className="text-4xl font-bold">{forms.length}</p>
-                <p className="text-sm text-slate-200 mt-2">Active and draft forms</p>
-              </div>
-              <div className="rounded-3xl bg-cyan-50 p-5 shadow-lg shadow-cyan-500/10">
-                <p className="text-sm uppercase tracking-[0.2em] text-cyan-600 mb-3">Status</p>
-                <p className="text-4xl font-bold text-slate-900">{filterStatus === 'all' ? 'All' : filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)}</p>
-                <p className="text-sm text-slate-500 mt-2">Filter is currently active</p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button onClick={() => navigate('/forms/new')} className="bg-cyan-500 text-white shadow-lg shadow-cyan-500/30 hover:bg-cyan-400">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Form
+                </Button>
+                <Button onClick={() => navigate('/ml-upload')} className="bg-white/10 text-white ring-1 ring-white/20 backdrop-blur hover:bg-white/20">
+                  <Brain className="mr-2 h-4 w-4" />
+                  ML Analysis
+                </Button>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-3xl bg-white border border-slate-200/70 shadow-lg shadow-slate-900/5 p-4">
+          <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {stats.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <Card key={stat.label} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:shadow-md">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{stat.label}</p>
+                      <p className="mt-1.5 text-3xl font-bold text-slate-900">{stat.value}</p>
+                    </div>
+                    <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${stat.tint}`}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </section>
+
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="relative min-w-0 flex-1">
-                <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <div className="relative w-full lg:max-w-sm">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search forms..."
-                  className="w-full pl-11 pr-4 py-3.5 border border-slate-200 rounded-2xl shadow-sm focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 outline-none transition-all"
+                  placeholder="Search forms by title or description..."
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-cyan-400 focus:bg-white focus:ring-4 focus:ring-cyan-100"
                 />
               </div>
-              <div className="flex flex-wrap gap-3">
-                {['all', 'active', 'draft', 'closed'].map((status) => (
+              <div className="flex flex-wrap items-center gap-2">
+                {FILTERS.map((filter) => (
                   <button
-                    key={status}
+                    key={filter.value}
                     type="button"
-                    onClick={() => setFilterStatus(status)}
-                    className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${
-                      filterStatus === status
-                        ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/15'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    onClick={() => setFilterStatus(filter.value)}
+                    className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                      filterStatus === filter.value
+                        ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/20'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
-                    {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
+                    {filter.label}
                   </button>
                 ))}
               </div>
             </div>
+          </section>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {[
-                { label: 'Total Forms', value: forms.length, gradient: 'from-cyan-400 to-blue-500', icon: FileText },
-                { label: 'Responses', value: forms.reduce((sum, form) => sum + getResponseCount(form), 0), gradient: 'from-blue-400 to-indigo-500', icon: Eye },
-                { label: 'Active', value: forms.filter((form) => form.status === 'active').length, gradient: 'from-teal-400 to-cyan-500', icon: BarChart3 },
-                { label: 'Drafts', value: forms.filter((form) => form.status === 'draft').length, gradient: 'from-slate-400 to-slate-600', icon: Trash2 }
-              ].map((stat) => {
-                const Icon = stat.icon;
-                return (
-                  <div key={stat.label} className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm">
-                    <div className={`inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br ${stat.gradient} text-white shadow-lg shadow-slate-900/10 mb-4`}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <p className="text-sm uppercase tracking-[0.2em] text-slate-400 mb-2">{stat.label}</p>
-                    <p className="text-3xl font-semibold text-slate-900">{stat.value}</p>
+          <section>
+            {loading ? (
+              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="h-64 animate-pulse rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+                    <div className="h-full w-full rounded-2xl bg-slate-100" />
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="rounded-3xl bg-white border border-slate-200/70 shadow-lg shadow-slate-900/5 p-6">
-            <div className="mb-6">
-              <div>
-                <p className="text-sm text-slate-500">Quick actions</p>
-                <h3 className="text-xl font-semibold text-slate-900">Get started</h3>
+                ))}
               </div>
-            </div>
-            <div className="flex gap-3 mb-6">
-              <Button
-                onClick={() => navigate('/forms/new')}
-                className="flex-1 bg-gradient-to-r from-[#0a2540] to-[#1a5490] text-white hover:shadow-xl"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Form
-              </Button>
-              <Button
-                onClick={() => navigate('/ml-upload')}
-                className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:shadow-xl"
-              >
-                <Brain className="w-4 h-4 mr-2" />
-                ML Analysis
-              </Button>
-            </div>
-            <div className="space-y-4">
-              <div className="rounded-3xl bg-slate-50 p-4">
-                <p className="text-sm text-slate-500">Recommended</p>
-                <p className="mt-2 text-sm text-slate-700 leading-relaxed">
-                  Use the search and status filters to narrow down active surveys quickly.
+            ) : filteredForms.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
+                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 to-blue-100 text-cyan-600">
+                  <Inbox className="h-10 w-10" />
+                </div>
+                <h3 className="mb-2 text-xl font-bold text-slate-900">No forms found</h3>
+                <p className="mx-auto mb-6 max-w-md text-sm text-slate-500">
+                  {searchQuery
+                    ? 'No forms match your search. Try another keyword or reset the filters.'
+                    : 'You do not have any forms yet. Create your first form to start collecting responses.'}
                 </p>
+                {!searchQuery && (
+                  <Button onClick={() => navigate('/forms/new')} className="bg-cyan-600 text-white hover:bg-cyan-700">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Your First Form
+                  </Button>
+                )}
               </div>
-              <div className="rounded-3xl bg-slate-50 p-4">
-                <p className="text-sm text-slate-500">Tip</p>
-                <p className="mt-2 text-sm text-slate-700 leading-relaxed">
-                  Duplicate frequently used forms to keep your workflow moving.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
+            ) : (
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                {filteredForms.map((form) => (
+                  <Card
+                    key={form.id}
+                    className="group overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${getStatusStyles(form.status)}`}>
+                        <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                        {STATUS_LABELS[form.status] || 'Unknown'}
+                      </span>
+                      <select
+                        value={form.status || 'unknown'}
+                        onChange={(e) => handleUpdateStatus(form.id, e.target.value)}
+                        disabled={updatingStatus === form.id}
+                        aria-label="Change form status"
+                        className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700 outline-none transition focus:border-cyan-400 disabled:opacity-50"
+                      >
+                        {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
+                    </div>
 
-        <section>
-          {loading ? (
-            <div className="rounded-3xl bg-white border border-slate-200/70 shadow-lg shadow-slate-900/5 p-12 text-center">
-              <p className="text-base text-slate-500">Loading your dashboard...</p>
-            </div>
-          ) : filteredForms.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-slate-300 bg-white/90 p-12 text-center shadow-sm">
-              <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-cyan-100 to-blue-100 text-cyan-700">
-                <FileText className="w-12 h-12" />
-              </div>
-              <h3 className="text-2xl font-semibold text-slate-900 mb-2">No forms found</h3>
-              <p className="max-w-xl mx-auto text-slate-600 mb-6">
-                {searchQuery
-                  ? 'No forms match your search. Try another keyword or reset the filters.'
-                  : 'You do not have any forms yet. Create your first form to start collecting responses.'}
-              </p>
-              {!searchQuery && (
-                <Button onClick={() => navigate('/forms/new')} className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Your First Form
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-              {filteredForms.map((form) => (
-                <Card key={form.id} className="group overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white shadow-lg shadow-slate-900/5 transition hover:-translate-y-1 hover:shadow-xl">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.3em] text-cyan-600 mb-2">
-                          {(form.status?.toString().charAt(0).toUpperCase() + form.status?.toString().slice(1)) || 'Status'}
-                        </p>
-                        <h3 className="text-xl font-semibold text-slate-900 leading-tight mb-2 line-clamp-2">{form.title}</h3>
-                        <p className="text-sm text-slate-500 leading-relaxed line-clamp-2">{form.description}</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <div className={`rounded-2xl px-3 py-2 text-xs font-semibold ${getStatusStyles(form.status)}`}>
-                          {(form.status?.toString().charAt(0).toUpperCase() + form.status?.toString().slice(1)) || 'Unknown'}
+                    <div className="p-5">
+                      <h3 className="mb-1.5 line-clamp-2 text-lg font-bold text-slate-900">{form.title}</h3>
+                      <p className="mb-5 line-clamp-2 min-h-[2.5rem] text-sm leading-relaxed text-slate-500">
+                        {form.description || 'No description provided.'}
+                      </p>
+
+                      <div className="mb-5 grid grid-cols-2 gap-3">
+                        <div className="rounded-xl bg-slate-50 px-4 py-3">
+                          <p className="text-xs text-slate-400">Questions</p>
+                          <p className="text-xl font-bold text-slate-900">{getQuestionCount(form)}</p>
                         </div>
-                        <select
-                          value={form.status || 'unknown'}
-                          onChange={(e) => handleUpdateStatus(form.id, e.target.value)}
-                          disabled={updatingStatus === form.id}
-                          className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-900 outline-none transition focus:border-cyan-400"
+                        <div className="rounded-xl bg-cyan-50/70 px-4 py-3">
+                          <p className="text-xs text-cyan-500">Responses</p>
+                          <p className="text-xl font-bold text-cyan-700">{getResponseCount(form)}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <Button onClick={() => navigate(`/forms/${form.id}/edit`)} size="sm" variant="outline" className="w-full">
+                          <Edit className="mr-1.5 h-3.5 w-3.5" /> Edit
+                        </Button>
+                        <Button onClick={() => navigate(`/forms/${form.id}/analytics`)} size="sm" variant="outline" className="w-full">
+                          <BarChart3 className="mr-1.5 h-3.5 w-3.5" /> Analytics
+                        </Button>
+                        <Button onClick={() => navigate(`/forms/${form.id}/responses`)} size="sm" variant="outline" className="w-full">
+                          <Eye className="mr-1.5 h-3.5 w-3.5" /> View
+                        </Button>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <Button onClick={() => copyFormLink(form.id)} size="sm" variant="ghost" className="w-full text-slate-600">
+                          <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy Link
+                        </Button>
+                        <Button
+                          onClick={() => openDeleteDialog(form)}
+                          size="sm"
+                          variant="ghost"
+                          className="w-full text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                         >
-                          <option value="unknown">Unknown</option>
-                          <option value="active">Active</option>
-                          <option value="draft">Draft</option>
-                          <option value="closed">Closed</option>
-                        </select>
+                          <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
+                        </Button>
                       </div>
-                    </div>
 
-                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-3xl bg-slate-50 p-4">
-                        <p className="text-sm text-slate-500">Questions</p>
-                        <p className="text-2xl font-semibold text-slate-900">{getQuestionCount(form)}</p>
-                      </div>
-                      <div className="rounded-3xl bg-slate-50 p-4">
-                        <p className="text-sm text-slate-500">Responses</p>
-                        <p className="text-2xl font-semibold text-cyan-600">{getResponseCount(form)}</p>
+                      <div className="mt-4 flex items-center gap-3 text-xs text-slate-400">
+                        <span className="inline-flex items-center gap-1">
+                          <CalendarDays className="h-3.5 w-3.5" /> {formatDate(form.createdAt)}
+                        </span>
                       </div>
                     </div>
-
-                    <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                      <Button
-                        onClick={() => navigate(`/forms/${form.id}/edit`)}
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
-                      >
-                        <Edit className="w-4 h-4 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        onClick={() => navigate(`/forms/${form.id}/analytics`)}
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
-                      >
-                        <BarChart3 className="w-4 h-4 mr-1" />
-                        Analytics
-                      </Button>
-                      <Button
-                        onClick={() => navigate(`/forms/${form.id}/responses`)}
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        View
-                      </Button>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <Button
-                        onClick={() => copyFormLink(form.id)}
-                        size="sm"
-                        variant="outline"
-                        className="flex-1"
-                      >
-                        <Copy className="w-4 h-4 mr-1" />
-                        Copy Link
-                      </Button>
-                      <Button
-                        onClick={() => openDeleteDialog(form)}
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-                      >
-                        <Trash2 className="w-4 h-4 mr-1" />
-                        Delete
-                      </Button>
-                    </div>
-
-                    <div className="mt-5 grid gap-2 sm:grid-cols-2 text-xs text-slate-500">
-                      <div className="inline-flex items-center gap-2">
-                        <CalendarDays className="w-3 h-3" />
-                        {formatCreatedAtDate(form.createdAt)}
-                      </div>
-                      <div className="inline-flex items-center gap-2">
-                        <Clock className="w-3 h-3" />
-                        {formatCreatedAtTime(form.createdAt)}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </section>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
 
         <AlertDialog open={deleteDialogOpen} onOpenChange={handleDeleteDialogOpenChange}>
           <AlertDialogContent>
@@ -492,7 +428,7 @@ const Dashboard = () => {
             <AlertDialogFooter>
               <AlertDialogCancel>No</AlertDialogCancel>
               <AlertDialogAction className="bg-rose-600 text-white hover:bg-rose-700" onClick={handleDeleteConfirm}>
-                Yes
+                Yes, delete
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

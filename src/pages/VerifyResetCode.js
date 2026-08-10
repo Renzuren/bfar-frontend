@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { FileText, Mail, Key, ArrowLeft } from 'lucide-react';
+import { FileText, Mail, Key, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,7 +38,6 @@ const VerifyResetCode = () => {
         email: email.trim(),
       });
 
-      // If verification succeeds, use the same code as token for password reset
       toast.success('Code verified successfully! Set your new password now.');
       navigate(`/reset-password?token=${encodeURIComponent(code.trim())}`);
     } catch (error) {
@@ -49,24 +48,29 @@ const VerifyResetCode = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FDFF] flex items-center justify-center p-4">
-      <div className="relative max-w-md w-full bg-white rounded-3xl border border-slate-100 shadow-2xl p-8 md:p-10">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="w-14 h-14 bg-[#00AEEF] rounded-xl flex items-center justify-center">
-            <FileText className="w-7 h-7 text-white" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-4">
+      <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-cyan-200/40 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-blue-200/40 blur-3xl" />
+
+      <div className="relative w-full max-w-md rounded-3xl border border-slate-200/80 bg-white p-8 shadow-xl sm:p-10">
+        <div className="mb-8 flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
+            <FileText className="h-7 w-7" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-[#003366]">BFAR e-Forms</h1>
-            <p className="text-sm text-slate-600">Enter the code from your email</p>
+            <h1 className="text-2xl font-bold text-slate-900">General Assessment e-Forms</h1>
+            <p className="text-sm text-slate-500">Enter the code from your email</p>
           </div>
         </div>
 
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-[#003366] mb-2">Verification Code</h2>
-          <p className="text-slate-600">Enter the code we sent to your email to continue resetting your password.</p>
+        <div className="mb-6 flex items-start gap-3 rounded-2xl bg-cyan-50/70 p-4 ring-1 ring-cyan-100">
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-cyan-600" />
+          <p className="text-sm text-slate-600">
+            Enter the code we sent to your email to continue resetting your password.
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <Label htmlFor="email">Email Address</Label>
             <div className="relative mt-2">
@@ -99,12 +103,12 @@ const VerifyResetCode = () => {
             </div>
           </div>
 
-          <Button type="submit" className="w-full bg-[#003366] hover:bg-[#002244] text-white" disabled={loading}>
+          <Button type="submit" className="w-full bg-cyan-600 text-white shadow-lg shadow-cyan-600/20 hover:bg-cyan-700" disabled={loading}>
             {loading ? 'Verifying...' : 'Verify Code'}
           </Button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-slate-600">
+        <div className="mt-6 text-center text-sm text-slate-500">
           <p>
             Didn&apos;t receive a code?{' '}
             <Link to="/forgot-password" className="font-semibold text-cyan-600 hover:text-cyan-700">
@@ -114,8 +118,8 @@ const VerifyResetCode = () => {
         </div>
 
         <div className="mt-4 text-center">
-          <Link to="/login" className="inline-flex items-center gap-2 text-cyan-500 hover:text-cyan-600 font-medium">
-            <ArrowLeft className="w-4 h-4" /> Back to Login
+          <Link to="/login" className="inline-flex items-center gap-2 font-medium text-cyan-600 hover:text-cyan-700">
+            <ArrowLeft className="h-4 w-4" /> Back to Login
           </Link>
         </div>
       </div>

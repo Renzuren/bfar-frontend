@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { FileText, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Check, ChevronLeft, ChevronRight, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,11 +30,8 @@ const FormFill = () => {
       let formSections = [];
 
       if (fetchedForm.sections && fetchedForm.sections.length > 0) {
-        // Use stored sections if available
         formSections = fetchedForm.sections;
-        console.log('Using stored sections:', formSections);
       } else if (fetchedForm.questions && fetchedForm.questions.length > 0) {
-        // Group by each question's 'section' property
         const sectionMap = new Map();
         fetchedForm.questions.forEach(q => {
           const secName = q.section && q.section.trim() ? q.section : 'Section 1';
@@ -46,9 +43,7 @@ const FormFill = () => {
           title,
           questions
         }));
-        console.log('Built sections from question.section:', formSections);
       } else {
-        // No questions – create one empty section
         formSections = [{ id: 'default', title: 'Section 1', questions: [] }];
       }
 
@@ -152,17 +147,18 @@ const FormFill = () => {
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-[#F8FDFF] flex items-center justify-center">Loading form...</div>;
-  if (!form) return <div className="min-h-screen bg-[#F8FDFF] flex items-center justify-center">Form not found</div>;
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">Loading form...</div>;
+  if (!form) return <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">Form not found</div>;
+
   if (submitted) return (
-    <div className="min-h-screen bg-[#F8FDFF] flex items-center justify-center">
-      <div className="text-center max-w-md">
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Check className="w-10 h-10 text-green-600" />
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <div className="w-full max-w-md rounded-3xl border border-slate-200/80 bg-white p-10 text-center shadow-xl">
+        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-500/30">
+          <Check className="h-10 w-10" />
         </div>
-        <h2 className="text-3xl font-bold text-[#003366] mb-4">Thank You!</h2>
-        <p className="text-lg text-slate-600 mb-2">Your response has been submitted successfully.</p>
-        <p className="text-sm text-slate-500">You can close this page now.</p>
+        <h2 className="mb-3 text-3xl font-bold text-slate-900">Thank You!</h2>
+        <p className="mb-2 text-lg text-slate-600">Your response has been submitted successfully.</p>
+        <p className="text-sm text-slate-400">You can close this page now.</p>
       </div>
     </div>
   );
@@ -170,33 +166,48 @@ const FormFill = () => {
   const current = sections[currentSectionIndex];
   const isFirst = currentSectionIndex === 0;
   const isLast = currentSectionIndex === sections.length - 1;
+  const progress = ((currentSectionIndex + 1) / sections.length) * 100;
 
   return (
-    <div className="min-h-screen bg-[#F8FDFF] py-12">
-      <div className="max-w-3xl mx-auto px-4">
-        <div className="bg-white rounded-xl border border-slate-100 shadow-lg p-8 mb-6">
-          <div className="flex items-center space-x-3 mb-6">
-            <div className="w-12 h-12 bg-[#00AEEF] rounded-lg flex items-center justify-center">
-              <FileText className="w-7 h-7 text-white" />
+    <div className="min-h-screen bg-gradient-to-b from-cyan-50/60 via-slate-50 to-slate-50 py-12">
+      <div className="mx-auto max-w-3xl px-4">
+        <div className="mb-6 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-lg">
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white sm:p-10">
+            <div className="relative">
+              <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-cyan-400/20 blur-3xl" />
+              <div className="relative mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/20 backdrop-blur">
+                <FileText className="h-6 w-6 text-cyan-300" />
+              </div>
+              <h1 className="mb-1 text-xl font-bold text-white">General Assessment e-Forms</h1>
+              <h2 className="text-3xl font-bold leading-tight text-white sm:text-4xl">{form.title}</h2>
             </div>
-            <h1 className="text-xl font-bold text-[#003366]">General Assessment e-Forms</h1>
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-[#003366] mb-3">{form.title}</h2>
-          {form.description && <p className="text-base text-slate-600 leading-relaxed">{form.description}</p>}
+          {form.description && (
+            <div className="border-b border-slate-100 px-8 py-4">
+              <p className="text-base leading-relaxed text-slate-600">{form.description}</p>
+            </div>
+          )}
+          <div className="px-8 py-5">
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="font-semibold text-slate-700">
+                Section {currentSectionIndex + 1} of {sections.length}: {current.title}
+              </span>
+              <span className="font-medium text-cyan-600">{Math.round(progress)}% complete</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-600 transition-all duration-500" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
         </div>
 
-        <div className="mb-4 text-sm text-slate-500">
-          Section {currentSectionIndex + 1} of {sections.length}: <span className="font-semibold text-[#003366]">{current.title}</span>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {current.questions.map((question, idx) => (
-            <div key={question.id} className="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
-              <Label className="text-lg font-semibold text-[#003366] mb-2 block">
+            <div key={question.id} className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition hover:shadow-md sm:p-7">
+              <Label className="mb-2 block text-lg font-bold text-slate-900">
                 {idx + 1}. {question.title}
-                {question.required && <span className="text-red-500 ml-1">*</span>}
+                {question.required && <span className="ml-1 text-rose-500">*</span>}
               </Label>
-              {question.description && <p className="text-sm text-slate-600 mb-4">{question.description}</p>}
+              {question.description && <p className="mb-4 text-sm text-slate-500">{question.description}</p>}
 
               {question.type === 'short_text' && (
                 <Input value={answers[question.id] || ''} onChange={e => setAnswers({ ...answers, [question.id]: e.target.value })} required={question.required} />
@@ -206,20 +217,22 @@ const FormFill = () => {
               )}
               {question.type === 'multiple_choice' && (
                 <RadioGroup value={answers[question.id] || ''} onValueChange={v => setAnswers({ ...answers, [question.id]: v })} required={question.required}>
-                  {question.options?.map((opt, oi) => (
-                    <div key={oi} className="flex items-center space-x-2 mb-2">
-                      <RadioGroupItem value={opt} id={`${question.id}-${oi}`} />
-                      <Label htmlFor={`${question.id}-${oi}`} className="text-base font-normal cursor-pointer">{opt}</Label>
-                    </div>
-                  ))}
+                  <div className="space-y-2">
+                    {question.options?.map((opt, oi) => (
+                      <div key={oi} className={`flex items-center gap-3 rounded-xl border p-3 transition ${answers[question.id] === opt ? 'border-cyan-400 bg-cyan-50/60 ring-2 ring-cyan-100' : 'border-slate-200 hover:border-slate-300'}`}>
+                        <RadioGroupItem value={opt} id={`${question.id}-${oi}`} />
+                        <Label htmlFor={`${question.id}-${oi}`} className="cursor-pointer text-base font-normal text-slate-800">{opt}</Label>
+                      </div>
+                    ))}
+                  </div>
                 </RadioGroup>
               )}
               {question.type === 'checkboxes' && (
                 <div className="space-y-2">
                   {question.options?.map((opt, oi) => (
-                    <div key={oi} className="flex items-center space-x-2">
+                    <div key={oi} className={`flex items-center gap-3 rounded-xl border p-3 transition ${answers[question.id]?.includes(opt) ? 'border-cyan-400 bg-cyan-50/60 ring-2 ring-cyan-100' : 'border-slate-200 hover:border-slate-300'}`}>
                       <Checkbox id={`${question.id}-${oi}`} checked={answers[question.id]?.includes(opt)} onCheckedChange={c => handleCheckboxChange(question.id, opt, c)} />
-                      <Label htmlFor={`${question.id}-${oi}`} className="text-base font-normal cursor-pointer">{opt}</Label>
+                      <Label htmlFor={`${question.id}-${oi}`} className="cursor-pointer text-base font-normal text-slate-800">{opt}</Label>
                     </div>
                   ))}
                 </div>
@@ -236,9 +249,18 @@ const FormFill = () => {
                 <Input type="date" value={answers[question.id] || ''} onChange={e => setAnswers({ ...answers, [question.id]: e.target.value })} required={question.required} />
               )}
               {question.type === 'rating' && (
-                <div className="flex space-x-4">
-                  {[1,2,3,4,5].map(r => (
-                    <button key={r} type="button" onClick={() => setAnswers({ ...answers, [question.id]: r })} className={`w-12 h-12 rounded-lg border-2 font-semibold transition-all ${answers[question.id] === r ? 'bg-[#003366] text-white border-[#003366]' : 'bg-white text-slate-600 border-slate-300 hover:border-[#00AEEF]'}`}>
+                <div className="flex flex-wrap gap-3">
+                  {[1, 2, 3, 4, 5].map(r => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setAnswers({ ...answers, [question.id]: r })}
+                      className={`h-12 w-12 rounded-xl border-2 text-lg font-bold transition-all ${
+                        answers[question.id] === r
+                          ? 'border-cyan-500 bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/30 scale-105'
+                          : 'border-slate-300 bg-white text-slate-600 hover:border-cyan-400 hover:text-cyan-600'
+                      }`}
+                    >
                       {r}
                     </button>
                   ))}
@@ -246,9 +268,20 @@ const FormFill = () => {
               )}
             </div>
           ))}
-          <div className="flex justify-between pt-4">
-            <Button type="button" onClick={handlePrevious} disabled={isFirst} variant="outline" className="text-[#003366]"><ChevronLeft className="w-4 h-4 mr-2" /> Previous</Button>
-            {!isLast ? <Button type="button" onClick={handleNext} className="bg-[#003366] hover:bg-[#002244] text-white">Next <ChevronRight className="w-4 h-4 ml-2" /></Button> : <Button type="submit" disabled={submitting} className="bg-green-600 hover:bg-green-700 text-white px-8 py-2 text-lg shadow-lg">{submitting ? 'Submitting...' : 'Submit Response'}</Button>}
+
+          <div className="flex items-center justify-between pt-2 pb-10">
+            <Button type="button" onClick={handlePrevious} disabled={isFirst} variant="outline" className="text-slate-700">
+              <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+            </Button>
+            {!isLast ? (
+              <Button type="button" onClick={handleNext} className="bg-slate-900 text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800">
+                Next <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button type="submit" disabled={submitting} className="bg-emerald-600 px-8 text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700">
+                <Send className="mr-2 h-4 w-4" /> {submitting ? 'Submitting...' : 'Submit Response'}
+              </Button>
+            )}
           </div>
         </form>
       </div>

@@ -704,7 +704,7 @@ export const sanitizeHtml = (html) => {
  * @param {Array} questions - Form questions with code field
  * @returns {Array} Array of column header strings
  */
-export const generateBFARHeaders = (questions) => {
+export const generateAssessmentHeaders = (questions) => {
   const headers = ['RESPONDENT_ID', 'A01:CONSENT'];
   
   questions.forEach(question => {
@@ -734,14 +734,14 @@ export const generateBFARHeaders = (questions) => {
 };
 
 /**
- * Maps response data to BFAR CSV columns
+ * Maps response data to General Assessment CSV columns
  * @param {Object} response - Response object
  * @param {Array} questions - Form questions
  * @param {Array} headers - Generated headers array
  * @param {number} index - Response index (0-based)
  * @returns {Array} Array of values matching header order
  */
-export const mapResponseToBFARColumns = (response, questions, headers, index) => {
+export const mapResponseToAssessmentColumns = (response, questions, headers, index) => {
   const row = [];
   
   // Helper: Get raw answer by question code
