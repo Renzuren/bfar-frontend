@@ -11,7 +11,6 @@ import {
   Eye,
   Search,
   Filter,
-  Fish,
   Clock,
   CalendarDays,
   Brain
@@ -199,8 +198,6 @@ const Dashboard = () => {
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-50 via-cyan-50/80 to-blue-50">
       <div className="pointer-events-none absolute top-0 right-0 w-[520px] h-[520px] bg-cyan-100/25 rounded-full blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 left-0 w-[520px] h-[520px] bg-blue-100/25 rounded-full blur-3xl" />
-      <Fish className="pointer-events-none absolute top-28 right-28 w-10 h-10 text-cyan-300/20 animate-fish1" />
-      <Fish className="pointer-events-none absolute bottom-28 left-28 w-8 h-8 text-blue-300/15 transform -scale-x-100 animate-fish2" />
 
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-slate-200/70 shadow-sm w-full">
         <div className="w-full px-2 sm:px-4 lg:px-6 py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

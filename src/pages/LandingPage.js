@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, BarChart3, Share2, Shield, ArrowRight, Mail, MapPin, Phone, Fish } from 'lucide-react';
+import { FileText, BarChart3, Share2, Shield, ArrowRight, Mail, MapPin, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const LandingPage = () => {
@@ -80,12 +80,6 @@ const LandingPage = () => {
         <svg className="absolute bottom-0 left-0 w-full h-80 opacity-15" viewBox="0 0 1200 320" preserveAspectRatio="none">
           <path d="M0,192 C300,250 600,140 900,192 C1100,230 1150,170 1200,192 L1200,320 L0,320 Z" fill="rgba(96,165,250,0.25)" className="animate-wave2" />
         </svg>
-
-        {/* Swimming Fish */}
-        <Fish className="absolute top-1/4 left-1/4 w-10 h-10 text-cyan-300/40 animate-fish1" />
-        <Fish className="absolute top-1/2 right-1/4 w-12 h-12 text-blue-200/30 transform scale-x-[-1] animate-fish2" />
-        <Fish className="absolute bottom-1/3 left-1/3 w-7 h-7 text-cyan-400/35 animate-fish3" />
-        <Fish className="absolute top-1/3 right-1/3 w-9 h-9 text-teal-300/35 transform scale-x-[-1] animate-fish4" />
 
         {/* Rising Bubbles */}
         {[...Array(12)].map((_, i) => (

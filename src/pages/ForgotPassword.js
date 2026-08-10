@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Mail, ArrowLeft, Fish } from 'lucide-react';
+import { FileText, Mail, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,8 +49,6 @@ const ForgotPassword = () => {
             className="animate-wave1"
           />
         </svg>
-        <Fish className="absolute top-1/4 left-1/4 w-8 h-8 text-cyan-300/30 animate-fish1" />
-        <Fish className="absolute bottom-1/4 right-1/4 w-10 h-10 text-blue-300/25 transform scale-x-[-1] animate-fish2" />
         {[...Array(6)].map((_, i) => (
           <div
             key={i}
@@ -124,8 +122,6 @@ const ForgotPassword = () => {
           className="animate-wave1"
         />
       </svg>
-      <Fish className="absolute top-1/4 left-1/4 w-8 h-8 text-cyan-300/30 animate-fish1" />
-      <Fish className="absolute bottom-1/4 right-1/4 w-10 h-10 text-blue-300/25 transform scale-x-[-1] animate-fish2" />
       {[...Array(6)].map((_, i) => (
         <div
           key={i}

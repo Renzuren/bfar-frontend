@@ -86,34 +86,6 @@ module.exports = {
   				'80%': { transform: 'translateY(-4px) scaleY(1.01)' },
   				'100%': { transform: 'translateY(0px) scaleY(1)' }
   			},
-  			'fish1': {
-  				'0%': { transform: 'translateX(0px) translateY(0px)' },
-  				'25%': { transform: 'translateX(120px) translateY(-60px)' },
-  				'50%': { transform: 'translateX(120px) translateY(0px)' },
-  				'75%': { transform: 'translateX(0px) translateY(60px)' },
-  				'100%': { transform: 'translateX(0px) translateY(0px)' }
-  			},
-  			'fish2': {
-  				'0%': { transform: 'translateX(0px) translateY(0px) scaleX(-1)' },
-  				'25%': { transform: 'translateX(-100px) translateY(50px) scaleX(-1)' },
-  				'50%': { transform: 'translateX(-100px) translateY(0px) scaleX(-1)' },
-  				'75%': { transform: 'translateX(0px) translateY(-50px) scaleX(-1)' },
-  				'100%': { transform: 'translateX(0px) translateY(0px) scaleX(-1)' }
-  			},
-  			'fish3': {
-  				'0%': { transform: 'translateX(0px) translateY(0px)' },
-  				'25%': { transform: 'translateX(80px) translateY(-40px)' },
-  				'50%': { transform: 'translateX(80px) translateY(0px)' },
-  				'75%': { transform: 'translateX(0px) translateY(40px)' },
-  				'100%': { transform: 'translateX(0px) translateY(0px)' }
-  			},
-  			'fish4': {
-  				'0%': { transform: 'translateX(0px) translateY(0px) scaleX(-1)' },
-  				'25%': { transform: 'translateX(-90px) translateY(60px) scaleX(-1)' },
-  				'50%': { transform: 'translateX(-90px) translateY(0px) scaleX(-1)' },
-  				'75%': { transform: 'translateX(0px) translateY(-60px) scaleX(-1)' },
-  				'100%': { transform: 'translateX(0px) translateY(0px) scaleX(-1)' }
-  			},
   			'bubble': {
   				'0%': { transform: 'translateY(-20px)', opacity: '0' },
   				'10%': { opacity: '0.5' },
@@ -131,16 +103,6 @@ module.exports = {
   			'scaleIn': {
   				'0%': { transform: 'scale(0)' },
   				'100%': { transform: 'scale(1)' }
-  			},
-  			'fish-dashboard-1': {
-  				'0%': { transform: 'translateX(0px) translateY(0px)' },
-  				'50%': { transform: 'translateX(80px) translateY(-40px)' },
-  				'100%': { transform: 'translateX(0px) translateY(0px)' }
-  			},
-  			'fish-dashboard-2': {
-  				'0%': { transform: 'translateX(0px) translateY(0px) scaleX(-1)' },
-  				'50%': { transform: 'translateX(-60px) translateY(30px) scaleX(-1)' },
-  				'100%': { transform: 'translateX(0px) translateY(0px) scaleX(-1)' }
   			}
   		},
   		animation: {
@@ -148,16 +110,10 @@ module.exports = {
   			'accordion-up': 'accordion-up 0.2s ease-out',
   			'wave1': 'wave1 6s ease-in-out infinite',
   			'wave2': 'wave2 8s ease-in-out infinite',
-  			'fish1': 'fish1 10s ease-in-out infinite',
-  			'fish2': 'fish2 12s ease-in-out infinite 1s',
-  			'fish3': 'fish3 9s ease-in-out infinite 2s',
-  			'fish4': 'fish4 11s ease-in-out infinite 1.5s',
   			'bubble': 'bubble 10s ease-out infinite',
   			'fadeInUp': 'fadeInUp 0.6s ease-out',
   			'fadeInLeft': 'fadeInLeft 0.8s ease-out',
-			'scaleIn': 'scaleIn 0.5s ease-out 0.3s both',
-			'fish-dashboard-1': 'fish-dashboard-1 15s ease-in-out infinite',
-			'fish-dashboard-2': 'fish-dashboard-2 18s ease-in-out infinite 2s'
+			'scaleIn': 'scaleIn 0.5s ease-out 0.3s both'
   		}
   	}
   },
