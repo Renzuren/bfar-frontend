@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Download, ChevronLeft, ChevronRight, FileSpreadsheet, Inbox } from 'lucide-react';
+import { ArrowLeft, Download, ChevronLeft, ChevronRight, FileSpreadsheet, Inbox, Users, UserCheck, UserX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
@@ -9,6 +10,10 @@ import { generateAssessmentHeaders, mapResponseToAssessmentColumns } from '../li
 
 // ==================== UTILITY FUNCTIONS ====================
 const isNoAnswer = (val) => !val || val === '' || val === '--' || (Array.isArray(val) && val.length === 0);
+
+const isBeneficiaryQuestion = (question) =>
+  String(question.code || '').trim().toUpperCase() === 'BENE' ||
+  String(question.title || '').toLowerCase().includes('beneficiary');
 
 const getNumericAnswer = (answer, question) => {
   if (isNoAnswer(answer)) return '—';
@@ -41,6 +46,7 @@ const FormResponses = () => {
   const [sections, setSections] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [filterStatus, setFilterStatus] = useState('all');
 
   const fetchData = useCallback(async () => {
     try {
@@ -99,16 +105,38 @@ const FormResponses = () => {
 
   const formatAnswerForTable = (ans) => isNoAnswer(ans) ? '—' : (Array.isArray(ans) ? ans.join(', ') : String(ans));
 
+  const getBeneficiaryStatus = (response) => {
+    if (response.beneficiary_status === 'Yes' || response.beneficiary_status === 'No') return response.beneficiary_status;
+    const id = response.respondent_id || '';
+    if (/^B-/i.test(id)) return 'Yes';
+    if (/^NB-/i.test(id)) return 'No';
+    const beneQuestion = sections.flatMap(s => s.questions).find(isBeneficiaryQuestion);
+    if (beneQuestion) {
+      const ans = getAnswerForQuestion(response, beneQuestion);
+      if (ans === 'Yes') return 'Yes';
+      if (ans === 'No') return 'No';
+    }
+    return null;
+  };
+
+  const getRespondentIdForRow = (response, index) => {
+    if (response.respondent_id) return response.respondent_id;
+    const status = getBeneficiaryStatus(response);
+    const prefix = status === 'Yes' ? 'B-' : status === 'No' ? 'NB-' : '';
+    const fallback = response.id || `R-${index}`;
+    return prefix ? `${prefix}${index}` : fallback;
+  };
+
   const downloadCSV = () => {
-    if (responses.length === 0) {
+    if (filteredResponses.length === 0) {
       toast.error('No responses to download');
       return;
     }
 
     const allQuestions = sections.flatMap(s => s.questions);
-    const beneQuestion = allQuestions.find(q => q.code === 'BENE');
+    const beneQuestion = allQuestions.find(isBeneficiaryQuestion);
     const validQuestions = allQuestions.filter(q =>
-      q.code && q.code.trim() && q !== beneQuestion
+      q.code && q.code.trim() && !isBeneficiaryQuestion(q)
     );
 
     if (validQuestions.length === 0 && !beneQuestion) {
@@ -121,16 +149,8 @@ const FormResponses = () => {
       return `${q.code}:${title}`;
     })];
 
-    const rows = responses.map((response, idx) => {
-      let prefix = '';
-      if (beneQuestion) {
-        const beneAnswer = getAnswerForQuestion(response, beneQuestion);
-        const isBene = beneAnswer && (beneAnswer === 'Yes' || beneAnswer === 'Bene' || beneAnswer === beneQuestion.options?.[0]);
-        prefix = isBene ? 'B-' : 'NB-';
-      }
-
-      const rawRespondent = response.respondent_id || response.id || `R-${idx + 1}`;
-      const respondentId = prefix ? `${prefix}${rawRespondent}` : rawRespondent;
+    const rows = filteredResponses.map((response, idx) => {
+      const respondentId = getRespondentIdForRow(response, idx + 1);
 
       const rowValues = validQuestions.map(q => {
         const rawAns = getAnswerForQuestion(response, q);
@@ -160,9 +180,19 @@ const FormResponses = () => {
   if (!form) return null;
 
   const allQuestions = sections.flatMap(s => s.questions);
-  const totalPages = Math.ceil(responses.length / rowsPerPage);
+
+  const beneficiaryCount = responses.filter(r => getBeneficiaryStatus(r) === 'Yes').length;
+  const nonBeneficiaryCount = responses.filter(r => getBeneficiaryStatus(r) === 'No').length;
+
+  const filteredResponses = responses.filter(r => {
+    if (filterStatus === 'all') return true;
+    const status = getBeneficiaryStatus(r);
+    return filterStatus === 'yes' ? status === 'Yes' : status === 'No';
+  });
+
+  const totalPages = Math.ceil(filteredResponses.length / rowsPerPage);
   const start = (currentPage - 1) * rowsPerPage;
-  const paginated = responses.slice(start, start + rowsPerPage);
+  const paginated = filteredResponses.slice(start, start + rowsPerPage);
   const goToPage = (page) => setCurrentPage(Math.max(1, Math.min(page, totalPages)));
 
   let colIdx = 0;
@@ -184,7 +214,7 @@ const FormResponses = () => {
               <FileSpreadsheet className="h-3.5 w-3.5" />
               {responses.length} responses
             </span>
-            <Button variant="outline" onClick={downloadCSV} disabled={responses.length === 0} className="border-cyan-300 text-cyan-700 hover:bg-cyan-50">
+            <Button variant="outline" onClick={downloadCSV} disabled={filteredResponses.length === 0} className="border-cyan-300 text-cyan-700 hover:bg-cyan-50">
               <Download className="mr-2 h-4 w-4" /> Export CSV
             </Button>
           </div>
@@ -196,7 +226,72 @@ const FormResponses = () => {
           <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
           <p className="mb-1 text-sm font-medium uppercase tracking-[0.2em] text-cyan-300">Form responses</p>
           <h2 className="mb-1 text-2xl font-bold sm:text-3xl">{form.title}</h2>
-          <p className="text-sm text-slate-300">Responses grouped by section — answers are converted to numeric values when exporting to CSV.</p>
+          <p className="text-sm text-slate-300">Respondents grouped by section — answers are converted to numeric values when exporting to CSV.</p>
+        </section>
+
+        <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Total Respondents</p>
+                <p className="mt-1.5 text-3xl font-bold text-slate-900">{responses.length}</p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
+                <Users className="h-5 w-5" />
+              </div>
+            </div>
+          </Card>
+          <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Beneficiaries</p>
+                <p className="mt-1.5 text-3xl font-bold text-emerald-600">{beneficiaryCount}</p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <UserCheck className="h-5 w-5" />
+              </div>
+            </div>
+          </Card>
+          <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Non-Beneficiaries</p>
+                <p className="mt-1.5 text-3xl font-bold text-amber-600">{nonBeneficiaryCount}</p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                <UserX className="h-5 w-5" />
+              </div>
+            </div>
+          </Card>
+        </section>
+
+        <section className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { setFilterStatus('all'); setCurrentPage(1); }}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${filterStatus === 'all' ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/20' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            >
+              All: {responses.length}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setFilterStatus('yes'); setCurrentPage(1); }}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${filterStatus === 'yes' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}
+            >
+              Beneficiaries: {beneficiaryCount}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setFilterStatus('no'); setCurrentPage(1); }}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${filterStatus === 'no' ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}
+            >
+              Non-Beneficiaries: {nonBeneficiaryCount}
+            </button>
+          </div>
+          <span className="text-sm text-slate-500">
+            Showing <span className="font-semibold text-slate-900">{filteredResponses.length}</span> of {responses.length} respondents
+          </span>
         </section>
 
         {responses.length === 0 ? (
@@ -221,7 +316,7 @@ const FormResponses = () => {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-slate-500">
-                  <span className="font-semibold text-slate-900">{responses.length}</span> total
+                  <span className="font-semibold text-slate-900">{filteredResponses.length}</span> total
                   <span className="mx-2 text-slate-300">|</span>
                   Page <span className="font-semibold text-slate-900">{currentPage}</span> of {totalPages}
                 </span>
@@ -239,6 +334,8 @@ const FormResponses = () => {
                     <tr>
                       <th rowSpan={2} className="sticky left-0 z-10 border-r border-slate-200 bg-slate-50 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">#</th>
                       <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Submitted At</th>
+                      <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Respondent ID</th>
+                      <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
                       {sections.map(section => (
                         <th key={section.id} colSpan={section.questions.length} className="border-b border-slate-200 bg-slate-100 px-6 py-2 text-center text-sm font-bold text-slate-700">
                           {section.title}
@@ -264,10 +361,26 @@ const FormResponses = () => {
                     {paginated.map((resp, idx) => {
                       const submittedAt = resp.submitted_at?._seconds ? new Date(resp.submitted_at._seconds * 1000).toLocaleString() : 'No date';
                       const globalIdx = start + idx + 1;
+                      const status = getBeneficiaryStatus(resp);
+                      const respondentId = getRespondentIdForRow(resp, globalIdx);
                       return (
                         <tr key={resp.id} className="transition hover:bg-cyan-50/30">
                           <td className="sticky left-0 z-10 border-r border-slate-200 bg-white px-6 py-4 text-sm font-medium text-slate-400">{globalIdx}</td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{submittedAt}</td>
+                          <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-900">{respondentId}</td>
+                          <td className="whitespace-nowrap px-6 py-4">
+                            {status === 'Yes' ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Beneficiary
+                              </span>
+                            ) : status === 'No' ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
+                                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Non-Beneficiary
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 ring-1 ring-slate-200">—</span>
+                            )}
+                          </td>
                           {allQuestions.map((q, colIdx) => {
                             const ans = getAnswerForQuestion(resp, q);
                             const hasRightBorder = sectionLastIndices.includes(colIdx);

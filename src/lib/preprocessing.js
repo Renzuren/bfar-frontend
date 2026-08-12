@@ -19,11 +19,6 @@ export const preprocessFormAnswers = (answers, questions) => {
     }
 
     switch (question.type) {
-      case 'short_text':
-      case 'long_text':
-        processed[question.id] = preprocessText(answer);
-        break;
-
       case 'multiple_choice':
       case 'dropdown':
         processed[question.id] = preprocessSingleChoice(answer);
@@ -629,18 +624,6 @@ export const validatePreprocessedData = (answers, questions) => {
     // Type-specific validation
     if (answer !== null && answer !== undefined) {
       switch (question.type) {
-        case 'short_text':
-          if (typeof answer !== 'string' || answer.length > 500) {
-            errors.push(`Answer for "${question.title}" is too long`);
-          }
-          break;
-
-        case 'long_text':
-          if (typeof answer !== 'string' || answer.length > 10000) {
-            errors.push(`Answer for "${question.title}" is too long`);
-          }
-          break;
-
         case 'multiple_choice':
         case 'dropdown':
           if (question.options && !question.options.includes(answer)) {

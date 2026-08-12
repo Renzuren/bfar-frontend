@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { FileText, Check, ChevronLeft, ChevronRight, Send } from 'lucide-react';
+import { FileText, Check, ChevronLeft, ChevronRight, Send, Fingerprint } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 
+const pad4 = (n) => String(n).padStart(4, '0');
+
+const isBeneficiaryQuestion = (question) =>
+  String(question.code || '').trim().toUpperCase() === 'BENE' ||
+  String(question.title || '').toLowerCase().includes('beneficiary');
+
+const computeNextRespondentId = (status, responses) => {
+  const prefix = status === 'Yes' ? 'B' : status === 'No' ? 'NB' : null;
+  if (!prefix) return null;
+  let maxNum = 0;
+  (responses || []).forEach((r) => {
+    const id = r.respondent_id || '';
+    const m = id.match(new RegExp(`^${prefix}-(\\d+)$`, 'i'));
+    if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
+  });
+  return `${prefix}-${pad4(maxNum + 1)}`;
+};
+
 const FormFill = () => {
   const { id } = useParams();
   const [form, setForm] = useState(null);
@@ -20,6 +38,8 @@ const FormFill = () => {
   const [answers, setAnswers] = useState({});
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [sections, setSections] = useState([]);
+  const [existingResponses, setExistingResponses] = useState([]);
+  const [submittedRespondentId, setSubmittedRespondentId] = useState(null);
 
   const fetchForm = useCallback(async () => {
     try {
@@ -57,6 +77,13 @@ const FormFill = () => {
         else initialAnswers[q.id] = '';
       });
       setAnswers(initialAnswers);
+
+      try {
+        const res = await api.get(`/forms/public/${id}/responses`);
+        setExistingResponses(res.data || []);
+      } catch (e) {
+        setExistingResponses([]);
+      }
     } catch (error) {
       console.error(error);
       toast.error('Form not found');
@@ -114,8 +141,8 @@ const FormFill = () => {
     if (!validateCurrentSection()) return;
 
     try {
-      const existingResponses = await api.get(`/forms/public/${id}/responses`);
-      const duplicate = (existingResponses.data || []).some(r =>
+      const res = await api.get(`/forms/public/${id}/responses`);
+      const duplicate = (res.data || []).some(r =>
         (r.email || r.user?.email || r.full_name) === answers.email
       );
       if (duplicate) {
@@ -131,17 +158,18 @@ const FormFill = () => {
         question_id: q.id,
         answer: answers[q.id]
       }));
-      await api.post(`/forms/public/${id}/responses`, {
+      const response = await api.post(`/forms/public/${id}/responses`, {
         email: answers.email,
         full_name: answers.full_name,
         age: answers.age,
         gender: answers.gender,
         answers: formattedAnswers
       });
+      setSubmittedRespondentId(response.data?.respondent_id || null);
       setSubmitted(true);
       toast.success('Response submitted successfully!');
     } catch (error) {
-      toast.error('Failed to submit response');
+      toast.error(error.response?.data?.error || 'Failed to submit response');
     } finally {
       setSubmitting(false);
     }
@@ -158,6 +186,12 @@ const FormFill = () => {
         </div>
         <h2 className="mb-3 text-3xl font-bold text-slate-900">Thank You!</h2>
         <p className="mb-2 text-lg text-slate-600">Your response has been submitted successfully.</p>
+        {submittedRespondentId && (
+          <div className="mx-auto mb-3 mt-5 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2">
+            <Fingerprint className="h-4 w-4 text-emerald-600" />
+            <span className="text-sm font-semibold text-emerald-700">Respondent ID: {submittedRespondentId}</span>
+          </div>
+        )}
         <p className="text-sm text-slate-400">You can close this page now.</p>
       </div>
     </div>
@@ -216,16 +250,32 @@ const FormFill = () => {
                 <Textarea value={answers[question.id] || ''} onChange={e => setAnswers({ ...answers, [question.id]: e.target.value })} rows={4} required={question.required} />
               )}
               {question.type === 'multiple_choice' && (
-                <RadioGroup value={answers[question.id] || ''} onValueChange={v => setAnswers({ ...answers, [question.id]: v })} required={question.required}>
-                  <div className="space-y-2">
-                    {question.options?.map((opt, oi) => (
-                      <div key={oi} className={`flex items-center gap-3 rounded-xl border p-3 transition ${answers[question.id] === opt ? 'border-cyan-400 bg-cyan-50/60 ring-2 ring-cyan-100' : 'border-slate-200 hover:border-slate-300'}`}>
-                        <RadioGroupItem value={opt} id={`${question.id}-${oi}`} />
-                        <Label htmlFor={`${question.id}-${oi}`} className="cursor-pointer text-base font-normal text-slate-800">{opt}</Label>
-                      </div>
-                    ))}
-                  </div>
-                </RadioGroup>
+                <>
+                  <RadioGroup value={answers[question.id] || ''} onValueChange={v => setAnswers({ ...answers, [question.id]: v })} required={question.required}>
+                    <div className="space-y-2">
+                      {question.options?.map((opt, oi) => (
+                        <div key={oi} className={`flex items-center gap-3 rounded-xl border p-3 transition ${answers[question.id] === opt ? 'border-cyan-400 bg-cyan-50/60 ring-2 ring-cyan-100' : 'border-slate-200 hover:border-slate-300'}`}>
+                          <RadioGroupItem value={opt} id={`${question.id}-${oi}`} />
+                          <Label htmlFor={`${question.id}-${oi}`} className="cursor-pointer text-base font-normal text-slate-800">
+                            {opt}
+                            {isBeneficiaryQuestion(question) && (opt === 'Yes' ? ' — Beneficiary' : opt === 'No' ? ' — Non-Beneficiary' : '')}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </RadioGroup>
+                  {isBeneficiaryQuestion(question) && (answers[question.id] === 'Yes' || answers[question.id] === 'No') && (
+                    <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3">
+                      <span className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700">
+                        <Fingerprint className="h-4 w-4" />
+                        Respondent ID
+                      </span>
+                      <span className="text-lg font-bold tracking-wide text-emerald-900">
+                        {computeNextRespondentId(answers[question.id], existingResponses) || '—'}
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
               {question.type === 'checkboxes' && (
                 <div className="space-y-2">

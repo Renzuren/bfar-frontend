@@ -17,8 +17,6 @@ export const usePreprocessedInput = (initialValue = '', type = 'text', options =
   const preprocessValue = useCallback((rawValue) => {
     switch (type) {
       case 'text':
-      case 'short_text':
-      case 'long_text':
         return preprocessText(rawValue);
 
       case 'date':

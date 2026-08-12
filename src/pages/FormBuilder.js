@@ -12,8 +12,6 @@ import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 
 const QUESTION_TYPES = [
-  { value: 'short_text', label: 'Short Text' },
-  { value: 'long_text', label: 'Long Text' },
   { value: 'multiple_choice', label: 'Multiple Choice' },
   { value: 'checkboxes', label: 'Checkboxes' },
   { value: 'dropdown', label: 'Dropdown' },
@@ -23,9 +21,7 @@ const QUESTION_TYPES = [
 
 const generateCSVHeaders = (questions) => {
   const shouldSkipQuestion = (questionType, title = '') => {
-    const skipTypes = ['short_text', 'long_text'];
     const skipKeywords = ['name', 'address', 'comment', 'specify', 'consent', 'text'];
-    if (skipTypes.includes(questionType)) return true;
     const lowerTitle = title.toLowerCase();
     return skipKeywords.some(keyword => lowerTitle.includes(keyword));
   };
@@ -63,9 +59,10 @@ const FormBuilder = () => {
         questions: importedData.fields.map((field, index) => ({
           id: field.id,
           title: field.label,
-          type: 'short_text',
+          type: 'multiple_choice',
           required: field.required || false,
           placeholder: field.placeholder || '',
+          options: ['Option 1', 'Option 2'],
           code: field.label.toLowerCase().replace(/\s+/g, '_'),
           section: 'Imported Fields'
         }))
@@ -198,9 +195,9 @@ const FormBuilder = () => {
     const beneQuestion = {
       id: `q_${Date.now()}`,
       type: 'multiple_choice',
-      title: 'Are you a beneficiary?',
+      title: 'Are you a beneficiary of the livelihood program?',
       code: 'BENE',
-      description: '',
+      description: 'Yes — Beneficiary · No — Non-Beneficiary',
       required: true,
       options: ['Yes', 'No'],
       section: current.title
