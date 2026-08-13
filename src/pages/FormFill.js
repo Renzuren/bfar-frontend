@@ -17,6 +17,38 @@ const isBeneficiaryQuestion = (question) =>
   String(question.code || '').trim().toUpperCase() === 'BENE' ||
   String(question.title || '').toLowerCase().includes('beneficiary');
 
+const normalizeQuestionCode = (question) => String(question.code || '').replace(/[\s:]/g, '').toUpperCase();
+
+const REQUIRED_LOCATION_FIELDS = [
+  {
+    key: 'municipality',
+    label: 'Municipality',
+    matches: (question) => {
+      const code = normalizeQuestionCode(question);
+      const title = String(question.title || '').toLowerCase();
+      return code === 'A1' || code === 'A1AREA' || title === 'area' || title.includes('municipal');
+    }
+  },
+  {
+    key: 'barangay',
+    label: 'Barangay',
+    matches: (question) => {
+      const code = normalizeQuestionCode(question);
+      const title = String(question.title || '').toLowerCase();
+      return code === 'A2' || title.includes('barangay');
+    }
+  },
+  {
+    key: 'province',
+    label: 'Province',
+    matches: (question) => {
+      const code = normalizeQuestionCode(question);
+      const title = String(question.title || '').toLowerCase();
+      return code === 'A3' || title.includes('province');
+    }
+  }
+];
+
 const computeNextRespondentId = (status, responses) => {
   const prefix = status === 'Yes' ? 'B' : status === 'No' ? 'NB' : null;
   if (!prefix) return null;
@@ -30,6 +62,7 @@ const computeNextRespondentId = (status, responses) => {
 };
 
 const RESPONDENT_NAME_REQUIRED_MESSAGE = 'Respondent Name is required before you can proceed.';
+const locationRequiredMessage = (label) => `${label} is required before you can proceed.`;
 
 const FormFill = () => {
   const { id } = useParams();
@@ -40,12 +73,21 @@ const FormFill = () => {
   const [answers, setAnswers] = useState({});
   const [respondentName, setRespondentName] = useState('');
   const [nameAttempted, setNameAttempted] = useState(false);
+  const [locationAttempted, setLocationAttempted] = useState({});
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [sections, setSections] = useState([]);
   const [existingResponses, setExistingResponses] = useState([]);
   const [submittedRespondentId, setSubmittedRespondentId] = useState(null);
 
+  const allQuestions = sections.flatMap(s => s.questions);
+  const locationFields = REQUIRED_LOCATION_FIELDS
+    .map(field => ({ ...field, question: allQuestions.find(field.matches) }))
+    .filter(field => field.question);
+  const locationQuestionIds = locationFields.map(field => field.question.id);
+
   const hasRespondentName = String(respondentName || '').trim().length > 0;
+  const hasLocationValue = (field) => String(answers[field.question.id] || '').trim().length > 0;
+  const allLocationsFilled = locationFields.every(hasLocationValue);
 
   const validateRespondentName = () => {
     if (!hasRespondentName) {
@@ -54,6 +96,18 @@ const FormFill = () => {
       return false;
     }
     return true;
+  };
+
+  const validateLocations = () => {
+    let valid = true;
+    locationFields.forEach(field => {
+      if (!hasLocationValue(field)) {
+        setLocationAttempted(prev => ({ ...prev, [field.key]: true }));
+        toast.error(locationRequiredMessage(field.label));
+        valid = false;
+      }
+    });
+    return valid;
   };
 
   const fetchForm = useCallback(async () => {
@@ -136,6 +190,7 @@ const FormFill = () => {
     e.preventDefault();
     e.stopPropagation();
     if (!validateRespondentName()) return;
+    if (!validateLocations()) return;
     if (!validateCurrentSection()) return;
     if (currentSectionIndex < sections.length - 1) {
       setCurrentSectionIndex(currentSectionIndex + 1);
@@ -155,6 +210,7 @@ const FormFill = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateRespondentName()) return;
+    if (!validateLocations()) return;
     if (!validateCurrentSection()) return;
 
     const respondentEmail = String(answers.email || '').trim();
@@ -280,9 +336,50 @@ const FormFill = () => {
                 {RESPONDENT_NAME_REQUIRED_MESSAGE}
               </p>
             )}
+
+            {locationFields.map(field => (
+              <div key={field.key} className="mt-6 border-t border-slate-100 pt-6">
+                <Label htmlFor={`respondent-${field.key}`} className="mb-2 block text-lg font-bold text-slate-900">
+                  {field.label} <span className="ml-1 text-rose-500">*</span>
+                </Label>
+                <p className="mb-4 text-sm text-slate-500">
+                  Enter the {field.label.toLowerCase()} you belong to. This is required before you can continue the assessment.
+                </p>
+                {['dropdown', 'multiple_choice'].includes(field.question.type) ? (
+                  <Select value={answers[field.question.id] || ''} onValueChange={v => setAnswers({ ...answers, [field.question.id]: v })}>
+                    <SelectTrigger id={`respondent-${field.key}`} className={locationAttempted[field.key] && !hasLocationValue(field) ? 'border-rose-400 ring-2 ring-rose-100' : ''}>
+                      <SelectValue placeholder={`Select your ${field.label.toLowerCase()}`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {field.question.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    id={`respondent-${field.key}`}
+                    type="text"
+                    placeholder={`e.g. ${field.label}`}
+                    value={answers[field.question.id] || ''}
+                    onChange={(e) => {
+                      setAnswers({ ...answers, [field.question.id]: e.target.value });
+                      if (locationAttempted[field.key] && String(e.target.value || '').trim()) {
+                        setLocationAttempted(prev => ({ ...prev, [field.key]: false }));
+                      }
+                    }}
+                    required
+                    className={locationAttempted[field.key] && !hasLocationValue(field) ? 'border-rose-400 ring-2 ring-rose-100' : ''}
+                  />
+                )}
+                {locationAttempted[field.key] && !hasLocationValue(field) && (
+                  <p role="alert" className="mt-2 text-sm font-medium text-rose-500">
+                    {locationRequiredMessage(field.label)}
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
 
-          {current.questions.map((question, idx) => (
+          {current.questions.filter(q => !locationQuestionIds.includes(q.id)).map((question, idx) => (
             <div key={question.id} className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition hover:shadow-md sm:p-7">
               <Label className="mb-2 block text-lg font-bold text-slate-900">
                 {idx + 1}. {question.title}
@@ -374,7 +471,7 @@ const FormFill = () => {
               <Button
                 type="button"
                 onClick={handleNext}
-                disabled={!hasRespondentName}
+                disabled={!hasRespondentName || !allLocationsFilled}
                 className="bg-slate-900 text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Next <ChevronRight className="ml-2 h-4 w-4" />
@@ -382,7 +479,7 @@ const FormFill = () => {
             ) : (
               <Button
                 type="submit"
-                disabled={!hasRespondentName || submitting}
+                disabled={!hasRespondentName || !allLocationsFilled || submitting}
                 className="bg-emerald-600 px-8 text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Send className="mr-2 h-4 w-4" /> {submitting ? 'Submitting...' : 'Submit Response'}
