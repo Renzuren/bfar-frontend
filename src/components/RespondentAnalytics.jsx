@@ -239,14 +239,15 @@ const RespondentAnalytics = ({ columns, rows, analysis = null }) => {
   const dataset = useMemo(() => buildRecords(columns, rows), [columns, rows]);
   const allRecords = useMemo(() => dataset.records, [dataset]);
 
+  const { region: filterRegion, province: filterProvince } = filters;
+
   const options = useMemo(() => {
-    const { region, province } = filters;
     const regions = Array.from(new Set(allRecords.map((r) => r.region).filter(Boolean))).sort((a, b) => a.localeCompare(b));
     const provinces = Array.from(new Set(
-      allRecords.filter((r) => !region || region === 'All' || r.region === region).map((r) => r.province).filter((v) => v && v !== 'Unknown'),
+      allRecords.filter((r) => !filterRegion || filterRegion === 'All' || r.region === filterRegion).map((r) => r.province).filter((v) => v && v !== 'Unknown'),
     )).sort((a, b) => a.localeCompare(b));
     const municipalities = Array.from(new Set(
-      allRecords.filter((r) => (!region || region === 'All' || r.region === region) && (!province || province === 'All' || r.province === province))
+      allRecords.filter((r) => (!filterRegion || filterRegion === 'All' || r.region === filterRegion) && (!filterProvince || filterProvince === 'All' || r.province === filterProvince))
         .map((r) => r.municipality).filter(Boolean),
     )).sort((a, b) => a.localeCompare(b));
     const sexes = Array.from(new Set(allRecords.map((r) => r.sex).filter(Boolean))).sort((a, b) => a.localeCompare(b));
@@ -257,7 +258,7 @@ const RespondentAnalytics = ({ columns, rows, analysis = null }) => {
     const programTypes = Array.from(new Set(allRecords.map((r) => r.programType).filter(Boolean))).sort((a, b) => a.localeCompare(b));
     const years = Array.from(new Set(allRecords.map((r) => r.yearReceived).filter((y) => y !== null))).sort((a, b) => a - b);
     return { regions, provinces, municipalities, sexes, educations, maritals, livelihoods, incomeGroups, programTypes, years };
-  }, [allRecords, filters.region, filters.province]);
+  }, [allRecords, filterRegion, filterProvince]);
 
   const filtered = useMemo(() => applyFilters(allRecords, filters), [allRecords, filters]);
 

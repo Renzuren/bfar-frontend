@@ -2,6 +2,7 @@
 // API middleware for preprocessing requests and responses
 import axios from 'axios';
 import { preprocessFormData, preprocessFormAnswers, sanitizeHtml } from './preprocessing';
+import { getAuthItem, clearAuthStorage } from './authStorage';
 
 /**
  * Enhanced axios instance with preprocessing middleware
@@ -31,7 +32,7 @@ class ApiClient {
    */
   preprocessRequest(config) {
     // Add authorization header if token exists
-    const token = localStorage.getItem('token');
+    const token = getAuthItem('token');
     if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -98,9 +99,9 @@ class ApiClient {
 
     // Handle authentication errors
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      // Could trigger logout here
+      clearAuthStorage();
+      // Notify AuthContext so the live UI session is cleared too
+      window.dispatchEvent(new Event('bfar:unauthorized'));
     }
 
     return Promise.reject(error);

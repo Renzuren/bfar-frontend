@@ -125,8 +125,10 @@ const Dashboard = () => {
       return;
     }
 
+    // Send only the field being changed. The backend whitelists allowed fields
+    // and merges them, so sending the whole (possibly stale) form object here
+    // could revert question/section edits made elsewhere.
     const payload = {
-      ...currentForm,
       status: newStatus === 'unknown' ? null : newStatus
     };
 

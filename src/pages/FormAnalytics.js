@@ -19,7 +19,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { preprocessAnalyticsData } from '../lib/preprocessing';
+import { preprocessAnalyticsData, getQuestionLabel, normalizeLocationCodes } from '../lib/preprocessing';
 import { api } from '../lib/apiMiddleware';
 
 const CHART_COLORS = ['#0ea5e9', '#2563eb', '#14b8a6', '#22c55e', '#f97316', '#ef4444', '#8b5cf6', '#ec4899', '#ddb02b', '#94a3b8'];
@@ -155,6 +155,22 @@ const FormAnalytics = () => {
     );
   };
 
+  // Question definitions by id so analytics entries (which may lack a code)
+  // can still render the "{code}: {title}" label consistently.
+  const questionCodeMap = useMemo(() => {
+    const map = new Map();
+    const questions = form?.questions?.length
+      ? form.questions
+      : form?.sections
+        ? form.sections.flatMap((s) => s.questions || [])
+        : [];
+    normalizeLocationCodes(questions).forEach((q) => map.set(q.id, q));
+    return map;
+  }, [form]);
+
+  const getQuestionAnalyticsLabel = (questionData, index) =>
+    getQuestionLabel(questionCodeMap.get(questionData?.question_id) || questionData, index);
+
   const escapeCsvValue = (value) => `"${String(value).replace(/"/g, '""')}"`;
 
   const downloadAnalyticsCSV = () => {
@@ -163,8 +179,8 @@ const FormAnalytics = () => {
     rows.push(['Total Submissions', totalResponses]);
     rows.push([]);
 
-    questionsData.forEach((question) => {
-      rows.push([question.title]);
+    questionsData.forEach((question, index) => {
+      rows.push([getQuestionAnalyticsLabel(question, index)]);
       rows.push(['Total answered', question.totalAnswered || 0]);
       rows.push(['Not answered', question.totalNoAnswer || 0]);
       rows.push([]);
@@ -224,13 +240,13 @@ const FormAnalytics = () => {
     </Card>
   );
 
-  const QuestionHeader = ({ questionData, badgeText }) => (
+  const QuestionHeader = ({ questionData, badgeText, index }) => (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <span className="inline-flex rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cyan-700 ring-1 ring-cyan-100">
           {badgeText}
         </span>
-        <h3 className="text-lg font-bold text-slate-900">{questionData.title}</h3>
+        <h3 className="text-lg font-bold text-slate-900">{getQuestionAnalyticsLabel(questionData, index)}</h3>
       </div>
       <div className="text-sm text-slate-500">
         <span className="font-semibold text-emerald-600">{questionData.totalAnswered || 0} answered</span>
@@ -375,7 +391,7 @@ const FormAnalytics = () => {
                 if (chartData.length === 0) return null;
                 return (
                   <Card key={index} className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-                    <QuestionHeader questionData={questionData} badgeText={questionData.type.replace('_', ' ')} />
+                    <QuestionHeader questionData={questionData} badgeText={questionData.type.replace('_', ' ')} index={index} />
                     <ChoiceChart data={chartData} />
                     <ChartFooter chartData={chartData} />
                   </Card>
@@ -392,7 +408,7 @@ const FormAnalytics = () => {
                 if (chartData.length === 0) return null;
                 return (
                   <Card key={index} className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-                    <QuestionHeader questionData={questionData} badgeText="Rating" />
+                    <QuestionHeader questionData={questionData} badgeText="Rating" index={index} />
                     <div className="mb-4 flex items-center gap-2">
                       <span className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-sm font-bold text-amber-700 ring-1 ring-amber-200">
                         Avg {avgRating} / 5
@@ -408,7 +424,7 @@ const FormAnalytics = () => {
               if ((questionData.responses || []).length === 0 && (questionData.totalNoAnswer || 0) > 0) {
                 return (
                   <Card key={index} className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-                    <QuestionHeader questionData={questionData} badgeText={questionData.type.replace('_', ' ')} />
+                    <QuestionHeader questionData={questionData} badgeText={questionData.type.replace('_', ' ')} index={index} />
                     <p className="text-sm italic text-slate-400">No responses provided.</p>
                   </Card>
                 );
@@ -416,7 +432,7 @@ const FormAnalytics = () => {
 
               return (
                 <Card key={index} className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-                  <QuestionHeader questionData={questionData} badgeText={questionData.type.replace('_', ' ')} />
+                  <QuestionHeader questionData={questionData} badgeText={questionData.type.replace('_', ' ')} index={index} />
                   <div className="grid gap-2 sm:grid-cols-2">
                     {(questionData.responses || []).map((response, idx) => (
                       <div key={idx} className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">

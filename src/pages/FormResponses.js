@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
-import { generateAssessmentHeaders, mapResponseToAssessmentColumns } from '../lib/preprocessing';
+import { generateAssessmentHeaders, mapResponseToAssessmentColumns, normalizeLocationCodes, getQuestionLabel } from '../lib/preprocessing';
 
 // ==================== UTILITY FUNCTIONS ====================
 const isNoAnswer = (val) => !val || val === '' || val === '--' || (Array.isArray(val) && val.length === 0);
@@ -155,6 +155,16 @@ const FormResponses = () => {
     return null;
   };
 
+  useEffect(() => {
+    const filtered = responses.filter(r => {
+      if (filterStatus === 'all') return true;
+      const status = getBeneficiaryStatus(r);
+      return filterStatus === 'yes' ? status === 'Yes' : status === 'No';
+    });
+    const pages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+    setCurrentPage((page) => Math.min(page, pages));
+  }, [responses, filterStatus, rowsPerPage]);
+
   const getRespondentIdForRow = (response) => {
     if (response.respondent_id) return response.respondent_id;
     return response.id || '—';
@@ -166,48 +176,47 @@ const FormResponses = () => {
       return;
     }
 
-    const validQuestions = allQuestions.filter(q =>
-      q.code && q.code.trim() && !isBeneficiaryQuestion(q)
-    );
+    const questionCols = normalizeLocationCodes(sections.flatMap(s => s.questions));
 
     const headers = [
-      'RESPONDENT_ID',
-      'RESPONDENT_NAME',
-      'RESPONDENT_EMAIL',
-      'MUNICIPALITY',
-      'BARANGAY',
-      'PROVINCE',
-      'BENEFICIARY_STATUS',
-      ...validQuestions.map(q => {
-        const title = q.title.replace(/,/g, '').replace(/:/g, '').trim();
-        return `${q.code}:${title}`;
-      })
+      '#',
+      'Submitted At',
+      'Respondent ID',
+      'Respondent Name',
+      'Municipality',
+      'Barangay',
+      'Province',
+      'Status',
+      ...questionCols.map((q, idx) => getQuestionLabel(q, idx))
     ];
 
-    const rows = filteredResponses.map(response => {
+    const rows = filteredResponses.map((response, rowIdx) => {
+      const submittedAt = response.submitted_at?._seconds
+        ? new Date(response.submitted_at._seconds * 1000).toLocaleString()
+        : 'No date';
       const status = getBeneficiaryStatus(response);
 
-      const rowValues = validQuestions.map(q => {
-        const rawAns = getAnswerForQuestion(response, q);
-        const numericAns = getNumericAnswer(rawAns, q);
-        return String(numericAns);
-      });
-
       return [
-        response.respondent_id || '',
+        rowIdx + 1,
+        submittedAt,
+        getRespondentIdForRow(response),
         response.full_name || '',
-        response.email || '',
         getLocationForRow(response, 'municipality') === '—' ? '' : getLocationForRow(response, 'municipality'),
         getLocationForRow(response, 'barangay') === '—' ? '' : getLocationForRow(response, 'barangay'),
         getLocationForRow(response, 'province') === '—' ? '' : getLocationForRow(response, 'province'),
         status || '',
-        ...rowValues
+        ...questionCols.map(q => {
+          const rawAns = getAnswerForQuestion(response, q);
+          const numericAns = getNumericAnswer(rawAns, q);
+          return String(numericAns);
+        })
       ];
     });
 
+    const escapeCell = (cell) => `"${String(cell).replace(/"/g, '""')}"`;
     const csvLines = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
+      headers.map(escapeCell).join(','),
+      ...rows.map(row => row.map(escapeCell).join(','))
     ];
     const csv = csvLines.join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -223,7 +232,7 @@ const FormResponses = () => {
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">Loading responses...</div>;
   if (!form) return null;
 
-  const allQuestions = sections.flatMap(s => s.questions);
+  const allQuestions = normalizeLocationCodes(sections.flatMap(s => s.questions));
 
   const getLocationForRow = (response, key) => {
     if (!isNoAnswer(response[key])) return String(response[key]);
@@ -247,7 +256,7 @@ const FormResponses = () => {
     return filterStatus === 'yes' ? status === 'Yes' : status === 'No';
   });
 
-  const totalPages = Math.ceil(filteredResponses.length / rowsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredResponses.length / rowsPerPage));
   const start = (currentPage - 1) * rowsPerPage;
   const paginated = filteredResponses.slice(start, start + rowsPerPage);
   const goToPage = (page) => setCurrentPage(Math.max(1, Math.min(page, totalPages)));
@@ -398,7 +407,7 @@ const FormResponses = () => {
                       <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Province</th>
                       <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
                       {sections.map(section => (
-                        <th key={section.id} colSpan={section.questions.length} className="border-b border-slate-200 bg-slate-100 px-6 py-2 text-center text-sm font-bold text-slate-700">
+                        <th key={section.id} colSpan={Math.max(1, section.questions.length)} className="border-b border-slate-200 bg-slate-100 px-6 py-2 text-center text-sm font-bold text-slate-700">
                           {section.title}
                         </th>
                       ))}
@@ -409,8 +418,8 @@ const FormResponses = () => {
                           const isLastCol = (secIdx === sections.length - 1 && qIdx === section.questions.length - 1);
                           return (
                             <th key={q.id} className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 ${!isLastCol ? 'border-r border-slate-200' : ''}`}>
-                              <div className="max-w-xs truncate" title={q.title}>
-                                <span className="text-cyan-600">Q{allQuestions.findIndex(qq => qq.id === q.id) + 1}</span>: {q.title}
+                              <div className="max-w-xs truncate" title={getQuestionLabel(q, allQuestions.findIndex(qq => qq.id === q.id))}>
+                                {getQuestionLabel(q, allQuestions.findIndex(qq => qq.id === q.id))}
                               </div>
                             </th>
                           );

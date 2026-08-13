@@ -458,7 +458,7 @@ export const buildComparison = (allRecords) => {
     const m = mean(values);
     return m === null ? '—' : Number(m.toFixed(digits)).toLocaleString();
   };
-  const formatMoney = (v) => (v === '—' ? '—' : `₱${Number(v).toLocaleString()}`);
+  const formatMoney = (v) => (v === '—' || v === null || v === undefined ? '—' : `₱${Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 })}`);
   const livelihoodB = buildLivelihoodDistribution(b);
   const livelihoodNB = buildLivelihoodDistribution(nb);
   const topLivelihoodB = livelihoodB[0]?.name || '—';
@@ -467,7 +467,7 @@ export const buildComparison = (allRecords) => {
     { metric: 'Respondents', beneficiary: b.length.toLocaleString(), nonBeneficiary: nb.length.toLocaleString() },
     { metric: 'Average Age', beneficiary: num(b.map((r) => r.age), 1), nonBeneficiary: num(nb.map((r) => r.age), 1) },
     { metric: 'Average Household Size', beneficiary: num(b.map((r) => r.householdSize), 2), nonBeneficiary: num(nb.map((r) => r.householdSize), 2) },
-    { metric: 'Average Monthly Income', beneficiary: formatMoney(num(b.map((r) => r.income))), nonBeneficiary: formatMoney(num(nb.map((r) => r.income))) },
+    { metric: 'Average Monthly Income', beneficiary: formatMoney(mean(b.map((r) => r.income))), nonBeneficiary: formatMoney(mean(nb.map((r) => r.income))) },
     { metric: 'DOI', beneficiary: num(b.map((r) => r.doi), 1), nonBeneficiary: num(nb.map((r) => r.doi), 1) },
     { metric: 'LCI', beneficiary: num(b.map((r) => r.lci), 1), nonBeneficiary: num(nb.map((r) => r.lci), 1) },
     { metric: 'RPI', beneficiary: num(b.map((r) => r.rpi), 1), nonBeneficiary: num(nb.map((r) => r.rpi), 1) },

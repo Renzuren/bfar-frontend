@@ -23,7 +23,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(formData.email, formData.password);
+      await login(formData.email, formData.password, rememberMe);
       toast.success('Login successful!');
       navigate('/dashboard');
     } catch (error) {

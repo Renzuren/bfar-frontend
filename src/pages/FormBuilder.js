@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import useDragAutoScroll from '../hooks/useDragAutoScroll';
+import { normalizeLocationCodes } from '../lib/preprocessing';
 
 const QUESTION_TYPES = [
   { value: 'multiple_choice', label: 'Multiple Choice' },
@@ -71,7 +72,17 @@ const FormBuilder = () => {
         }))
       }];
     } else if (!isEditMode) {
-      return [{ id: `section_${Date.now()}`, title: 'Untitled Section', questions: [] }];
+      const now = Date.now();
+      const sectionTitle = 'Untitled Section';
+      return [{
+        id: `section_${now}`,
+        title: sectionTitle,
+        questions: [
+          { id: `q_municipality_${now}`, type: 'short_text', title: 'Municipality', code: 'A1', description: '', required: true, options: [], section: sectionTitle },
+          { id: `q_barangay_${now}`, type: 'short_text', title: 'Barangay', code: 'A2', description: '', required: true, options: [], section: sectionTitle },
+          { id: `q_province_${now}`, type: 'short_text', title: 'Province', code: 'A3', description: '', required: true, options: [], section: sectionTitle }
+        ]
+      }];
     }
     return [];
   });
@@ -115,11 +126,11 @@ const FormBuilder = () => {
       if (fetchedForm.sections && fetchedForm.sections.length > 0) {
         loadedSections = fetchedForm.sections.map(sec => ({
           ...sec,
-          questions: sec.questions.map(q => ({ ...q, section: q.section || sec.title }))
+          questions: normalizeLocationCodes(sec.questions.map(q => ({ ...q, section: q.section || sec.title })))
         }));
       } else if (fetchedForm.questions && fetchedForm.questions.length > 0) {
         const sectionMap = new Map();
-        fetchedForm.questions.forEach(q => {
+        normalizeLocationCodes(fetchedForm.questions).forEach(q => {
           const secName = q.section && q.section.trim() ? q.section : 'Section 1';
           if (!sectionMap.has(secName)) sectionMap.set(secName, []);
           sectionMap.get(secName).push(q);

@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 import { api } from '../lib/apiMiddleware';
+import { getAuthItem, setAuthItem, clearAuthStorage } from '../lib/authStorage';
 
 const AuthContext = createContext();
 
@@ -11,10 +12,10 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Load user from localStorage on refresh
+  // Load user from storage on refresh
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
+    const token = getAuthItem('token');
+    const savedUser = getAuthItem('user');
 
     if (token && savedUser) {
       try {
@@ -23,16 +24,27 @@ export const AuthProvider = ({ children }) => {
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       } catch (e) {
         // console.error('Failed to parse user from localStorage');
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
+        clearAuthStorage();
       }
     }
 
     setLoading(false);
   }, []);
 
+  // When any API call returns 401, force-logout the live session so the UI
+  // stops behaving as authenticated even though the token is gone.
+  useEffect(() => {
+    const onUnauthorized = () => {
+      clearAuthStorage();
+      delete axios.defaults.headers.common['Authorization'];
+      setUser(null);
+    };
+    window.addEventListener('bfar:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('bfar:unauthorized', onUnauthorized);
+  }, []);
+
   // ✅ UPDATED LOGIN FUNCTION
-  const login = async (email, password) => {
+  const login = async (email, password, rememberMe = false) => {
     try {
       const response = await api.post(`/auth/login`, {
         email,
@@ -46,10 +58,13 @@ export const AuthProvider = ({ children }) => {
         user: userData
       } = response.data;
 
-      // Store tokens
-      localStorage.setItem('token', access_token);
-      localStorage.setItem('refreshToken', refreshToken);
-      localStorage.setItem('expiresIn', expiresIn);
+      // A non-persistent login must not leave an old persistent session behind
+      if (!rememberMe) clearAuthStorage();
+
+      // Store tokens (persist in localStorage only when "remember me" is set)
+      setAuthItem('token', access_token, rememberMe);
+      setAuthItem('refreshToken', refreshToken, rememberMe);
+      setAuthItem('expiresIn', expiresIn, rememberMe);
 
       axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
 
@@ -60,7 +75,7 @@ export const AuthProvider = ({ children }) => {
         full_name: userData.full_name
       };
 
-      localStorage.setItem('user', JSON.stringify(userInfo));
+      setAuthItem('user', JSON.stringify(userInfo), rememberMe);
       setUser(userInfo);
 
       return userInfo;
@@ -90,10 +105,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('expiresIn');
-    localStorage.removeItem('user');
+    clearAuthStorage();
 
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);

@@ -228,20 +228,6 @@ const FormFill = () => {
     if (!validateLocations()) return;
     if (!validateCurrentSection()) return;
 
-    const respondentEmail = String(answers.email || '').trim();
-    if (respondentEmail) {
-      try {
-        const res = await api.get(`/forms/public/${id}/responses`);
-        const duplicate = (res.data || []).some(r =>
-          (r.email || r.user?.email || '') === respondentEmail
-        );
-        if (duplicate) {
-          toast.error('This email has already submitted a response for this survey.');
-          return;
-        }
-      } catch (err) {}
-    }
-
     setSubmitting(true);
     try {
       const allQuestions = sections.flatMap(s => s.questions);

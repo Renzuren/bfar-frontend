@@ -2,6 +2,64 @@
 // Data preprocessing utilities for form responses and inputs
 
 /**
+ * Default question codes for the built-in location fields.
+ * Used to auto-assign codes on new forms and to backfill legacy forms.
+ */
+export const LOCATION_CODE_DEFAULTS = [
+  { code: 'A1', title: 'Municipality', keywords: ['municipal', 'area'] },
+  { code: 'A2', title: 'Barangay', keywords: ['barangay', 'brgy'] },
+  { code: 'A3', title: 'Province', keywords: ['province', 'prov'] }
+];
+
+export const normalizeQuestionCode = (question) =>
+  String(question?.code || '')
+    .replace(/[^A-Z0-9]/gi, '')
+    .toUpperCase()
+    .replace(/^([A-Z])0+/, '$1');
+
+/**
+ * Returns the default location code (A1/A2/A3) for a question whose title
+ * identifies it as a built-in location field, or null otherwise.
+ */
+export const getDefaultLocationCode = (question) => {
+  if (!question) return null;
+  const title = String(question.title || '').toLowerCase().trim();
+  const code = normalizeQuestionCode(question);
+  const def = LOCATION_CODE_DEFAULTS.find(
+    (d) =>
+      d.code === code ||
+      d.code === code.replace(/AREA$/, '') ||
+      d.keywords.some((k) => title.includes(k)) ||
+      d.code.toLowerCase() === title
+  );
+  return def ? def.code : null;
+};
+
+/**
+ * Assigns default location codes (A1/A2/A3) to questions that are missing a
+ * code. Existing codes are preserved so admin-set codes stay editable.
+ */
+export const normalizeLocationCodes = (questions = []) =>
+  questions.map((q) => {
+    if (!q || normalizeQuestionCode(q)) return q;
+    const defaultCode = getDefaultLocationCode(q);
+    if (defaultCode) return { ...q, code: defaultCode };
+    return q;
+  });
+
+/**
+ * Returns the display label for a question using the "{code}: {title}" format
+ * (e.g. "A1: Municipality"). Falls back to "Q{n}: {title}" when no code exists.
+ */
+export const getQuestionLabel = (question, index = 0) => {
+  const code = String(question?.code || '').trim();
+  const title = String(question?.title || '').trim();
+  const fallback = `Q${index + 1}${title ? `: ${title}` : ''}`;
+  if (!code) return fallback;
+  return title ? `${code}: ${title}` : code;
+};
+
+/**
  * Preprocesses form answers before submission
  * @param {Object} answers - Raw answers object
  * @param {Array} questions - Form questions array
@@ -58,8 +116,10 @@ export const preprocessText = (text) => {
   // Remove excessive whitespace
   processed = processed.replace(/\s+/g, ' ');
 
-  // Basic sanitization - remove potentially harmful characters
-  processed = processed.replace(/[<>\"'&]/g, '');
+  // Basic sanitization - strip control characters only.
+  // Quotes/ampersands/angle brackets are legitimate text content and are
+  // safely escaped by React on render, so they must NOT be deleted here.
+  processed = processed.replace(/[\u0000-\u001F\u007F]/g, ' ');
 
   // Limit length to prevent abuse
   if (processed.length > 10000) {
@@ -463,7 +523,8 @@ export const analyzeSentiment = (responses) => {
     return mlData ? mlData.features.sentimentScore : 0;
   });
 
-  const avgSentiment = sentiments.length > 0 ? sentiments.reduce((a, b) => a + b, 0) / sentiments.length : 0;
+  const total = sentiments.length;
+  const avgSentiment = total > 0 ? sentiments.reduce((a, b) => a + b, 0) / total : 0;
   const positiveCount = sentiments.filter(s => s > 0).length;
   const negativeCount = sentiments.filter(s => s < 0).length;
   const neutralCount = sentiments.filter(s => s === 0).length;
@@ -473,11 +534,11 @@ export const analyzeSentiment = (responses) => {
     positiveResponses: positiveCount,
     negativeResponses: negativeCount,
     neutralResponses: neutralCount,
-    totalResponses: sentiments.length,
+    totalResponses: total,
     sentimentDistribution: {
-      positive: positiveCount / sentiments.length,
-      negative: negativeCount / sentiments.length,
-      neutral: neutralCount / sentiments.length
+      positive: total > 0 ? positiveCount / total : 0,
+      negative: total > 0 ? negativeCount / total : 0,
+      neutral: total > 0 ? neutralCount / total : 0
     }
   };
 };
