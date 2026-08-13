@@ -166,20 +166,6 @@ const FormResponses = () => {
       return;
     }
 
-  const allQuestions = sections.flatMap(s => s.questions);
-
-  const getLocationForRow = (response, key) => {
-    if (!isNoAnswer(response[key])) return String(response[key]);
-    const field = LOCATION_KEYS.find(f => f.key === key);
-    if (field) {
-      const question = allQuestions.find(field.matches);
-      if (question) {
-        const ans = getAnswerForQuestion(response, question);
-        if (!isNoAnswer(ans)) return formatAnswerForTable(ans);
-      }
-    }
-    return '—';
-  };
     const validQuestions = allQuestions.filter(q =>
       q.code && q.code.trim() && !isBeneficiaryQuestion(q)
     );
@@ -238,6 +224,19 @@ const FormResponses = () => {
   if (!form) return null;
 
   const allQuestions = sections.flatMap(s => s.questions);
+
+  const getLocationForRow = (response, key) => {
+    if (!isNoAnswer(response[key])) return String(response[key]);
+    const field = LOCATION_KEYS.find(f => f.key === key);
+    if (field) {
+      const question = allQuestions.find(field.matches);
+      if (question) {
+        const ans = getAnswerForQuestion(response, question);
+        if (!isNoAnswer(ans)) return formatAnswerForTable(ans);
+      }
+    }
+    return '—';
+  };
 
   const beneficiaryCount = responses.filter(r => getBeneficiaryStatus(r) === 'Yes').length;
   const nonBeneficiaryCount = responses.filter(r => getBeneficiaryStatus(r) === 'No').length;
