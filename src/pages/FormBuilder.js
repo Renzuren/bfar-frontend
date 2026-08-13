@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Plus, Trash2, ArrowLeft, Save, ChevronLeft, ChevronRight, Layers, Pencil, GripVertical, UserPlus } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Save, ChevronLeft, ChevronRight, Layers, Pencil, GripVertical, UserPlus, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
+import useDragAutoScroll from '../hooks/useDragAutoScroll';
 
 const QUESTION_TYPES = [
   { value: 'multiple_choice', label: 'Multiple Choice' },
@@ -81,6 +82,28 @@ const FormBuilder = () => {
   const [editingTabValue, setEditingTabValue] = useState('');
   const [dragItem, setDragItem] = useState(null);
   const [dragOver, setDragOver] = useState(null);
+
+  const handleDragHover = (target) => {
+    if (!dragItem) {
+      if (dragOver) setDragOver(null);
+      return;
+    }
+    if (!target) {
+      if (dragOver) setDragOver(null);
+      return;
+    }
+    const type = target.dataset.dragType;
+    const index = Number(target.dataset.dragIndex);
+    if (type !== dragItem.type || index === dragItem.fromIndex) {
+      if (dragOver) setDragOver(null);
+      return;
+    }
+    if (!dragOver || dragOver.type !== type || dragOver.index !== index) {
+      setDragOver({ type, index });
+    }
+  };
+
+  const autoScroll = useDragAutoScroll({ edgeSize: 140, maxSpeed: 18, onHoverChange: handleDragHover });
 
   const fetchForm = useCallback(async () => {
     try {
@@ -266,6 +289,7 @@ const FormBuilder = () => {
   const resetDrag = () => {
     setDragItem(null);
     setDragOver(null);
+    autoScroll.stopAutoScroll();
   };
 
   const handleSectionDragStart = (e, fromIndex) => {
@@ -273,29 +297,17 @@ const FormBuilder = () => {
       e.preventDefault();
       return;
     }
+    setDragOver(null);
     setDragItem({ type: 'section', fromIndex });
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(fromIndex));
+    autoScroll.startAutoScroll(e);
   };
 
   const handleSectionDragOver = (e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleSectionDrop = (e, toIndex) => {
-    e.preventDefault();
-    if (!dragItem || dragItem.type !== 'section') {
-      resetDrag();
-      return;
-    }
-    const fromIndex = dragItem.fromIndex;
-    const currentId = sections[currentSectionIndex]?.id;
-    const next = reorderArray(sections, fromIndex, toIndex);
-    setSections(next);
-    const newIdx = next.findIndex(s => s.id === currentId);
-    if (newIdx !== -1) setCurrentSectionIndex(newIdx);
-    resetDrag();
+    autoScroll.updateAutoScroll(e);
   };
 
   const handleQuestionDragStart = (e, fromIndex) => {
@@ -304,35 +316,86 @@ const FormBuilder = () => {
       e.preventDefault();
       return;
     }
+    setDragOver(null);
     setDragItem({ type: 'question', fromIndex });
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(fromIndex));
+    autoScroll.startAutoScroll(e);
   };
 
   const handleQuestionDragOver = (e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    autoScroll.updateAutoScroll(e);
   };
 
-  const handleQuestionDrop = (e, toIndex) => {
-    e.preventDefault();
-    if (!dragItem || dragItem.type !== 'question') {
+  useEffect(() => {
+    if (!dragItem) return undefined;
+
+    const handleDocumentDragOver = (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    };
+
+    const handleDocumentDrop = (e) => {
+      e.preventDefault();
+      const element = document.elementFromPoint(e.clientX, e.clientY);
+      const target = element && element.closest('[data-drag-target]');
+      const fromIndex = dragItem.fromIndex;
+
+      if (target && target.dataset.dragType === dragItem.type) {
+        const toIndex = Number(target.dataset.dragIndex);
+        if (toIndex !== fromIndex) {
+          if (dragItem.type === 'section') {
+            const currentId = sections[currentSectionIndex]?.id;
+            const next = reorderArray(sections, fromIndex, toIndex);
+            setSections(next);
+            const newIdx = next.findIndex(s => s.id === currentId);
+            if (newIdx !== -1) setCurrentSectionIndex(newIdx);
+          } else if (dragItem.type === 'question') {
+            const updated = [...sections];
+            updated[currentSectionIndex].questions = reorderArray(
+              updated[currentSectionIndex].questions,
+              fromIndex,
+              toIndex
+            );
+            setSections(updated);
+          }
+        }
+      }
       resetDrag();
-      return;
-    }
-    const fromIndex = dragItem.fromIndex;
-    if (fromIndex === toIndex) {
-      resetDrag();
-      return;
-    }
-    const updated = [...sections];
-    updated[currentSectionIndex].questions = reorderArray(
-      updated[currentSectionIndex].questions,
-      fromIndex,
-      toIndex
-    );
-    setSections(updated);
-    resetDrag();
+    };
+
+    document.addEventListener('dragover', handleDocumentDragOver);
+    document.addEventListener('drop', handleDocumentDrop);
+    return () => {
+      document.removeEventListener('dragover', handleDocumentDragOver);
+      document.removeEventListener('drop', handleDocumentDrop);
+    };
+  }, [dragItem, sections, currentSectionIndex]);
+
+  const seedTestData = () => {
+    const now = Date.now();
+    const seededSections = Array.from({ length: 20 }, (_, sIdx) => {
+      const title = `Test Section ${sIdx + 1}`;
+      return {
+        id: `seed_section_${now}_${sIdx}`,
+        title,
+        questions: Array.from({ length: 5 }, (_, qIdx) => ({
+          id: `seed_q_${now}_${sIdx}_${qIdx}`,
+          type: 'multiple_choice',
+          title: `${title} — Question ${qIdx + 1}`,
+          code: `S${sIdx + 1}Q${qIdx + 1}`,
+          description: '',
+          required: false,
+          options: ['Option 1', 'Option 2'],
+          section: title
+        }))
+      };
+    });
+    setSections(seededSections);
+    setCurrentSectionIndex(0);
+    toast.success('Seeded 20 sections × 5 questions (100 questions). Drag to test auto-scroll.');
   };
 
   const validateForm = () => {
@@ -445,6 +508,11 @@ const FormBuilder = () => {
             Sections <span className="hidden text-slate-400 sm:inline">(drag tabs to reorder · double-click to rename)</span>
           </div>
           <div className="flex flex-wrap gap-2">
+            {process.env.NODE_ENV !== 'production' && (
+              <Button onClick={seedTestData} variant="outline" size="sm" className="border-amber-300 text-amber-700 hover:bg-amber-50" title="Dev tool: create 20 sections and 100 questions to test drag & auto-scroll">
+                <FlaskConical className="mr-1.5 h-4 w-4" /> Seed 20×100
+              </Button>
+            )}
             <Button onClick={addBeneficiaryQuestion} variant="outline" size="sm" className="border-cyan-300 text-cyan-700 hover:bg-cyan-50">
               <UserPlus className="mr-1.5 h-4 w-4" /> Beneficiary Q
             </Button>
@@ -463,15 +531,11 @@ const FormBuilder = () => {
               <button
                 key={sec.id}
                 draggable
+                data-drag-target="section"
+                data-drag-type="section"
+                data-drag-index={idx}
                 onDragStart={(e) => handleSectionDragStart(e, idx)}
                 onDragOver={handleSectionDragOver}
-                onDragEnter={() => {
-                  if (dragItem?.type === 'section' && dragItem.fromIndex !== idx) setDragOver({ type: 'section', index: idx });
-                }}
-                onDragLeave={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null);
-                }}
-                onDrop={(e) => handleSectionDrop(e, idx)}
                 onDragEnd={resetDrag}
                 onClick={() => setCurrentSectionIndex(idx)}
                 onDoubleClick={() => { setEditingTabValue(sec.title); setEditingTabIndex(idx); }}
@@ -514,15 +578,11 @@ const FormBuilder = () => {
               <div
                 key={q.id}
                 draggable
+                data-drag-target="question"
+                data-drag-type="question"
+                data-drag-index={qIdx}
                 onDragStart={(e) => handleQuestionDragStart(e, qIdx)}
                 onDragOver={handleQuestionDragOver}
-                onDragEnter={() => {
-                  if (dragItem?.type === 'question' && dragItem.fromIndex !== qIdx) setDragOver({ type: 'question', index: qIdx });
-                }}
-                onDragLeave={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null);
-                }}
-                onDrop={(e) => handleQuestionDrop(e, qIdx)}
                 onDragEnd={resetDrag}
                 className={`py-6 transition ${
                   dragItem?.type === 'question' && dragItem.fromIndex === qIdx ? 'opacity-50' : ''
