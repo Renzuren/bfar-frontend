@@ -142,7 +142,10 @@ const FormResponses = () => {
   const formatAnswerForTable = (ans) => isNoAnswer(ans) ? '—' : (Array.isArray(ans) ? ans.join(', ') : String(ans));
 
   const getBeneficiaryStatus = (response) => {
-    if (response.beneficiary_status === 'Yes' || response.beneficiary_status === 'No') return response.beneficiary_status;
+    const status = response.beneficiary_status;
+    if (status === true) return 'Yes';
+    if (status === false) return 'No';
+    if (status === 'Yes' || status === 'No') return status;
     const id = response.respondent_id || '';
     if (/^B-/i.test(id)) return 'Yes';
     if (/^NB-/i.test(id)) return 'No';
@@ -223,7 +226,7 @@ const FormResponses = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${form.title.replace(/\s+/g, '_')}-responses.csv`;
+    a.download = `${(form.title || 'form').replace(/\s+/g, '_')}-responses.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success('CSV downloaded successfully');

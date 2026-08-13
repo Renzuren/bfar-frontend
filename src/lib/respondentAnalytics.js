@@ -58,6 +58,8 @@ export const normalizeGroupStatus = (value) => {
   if (!v) return 'Unknown';
   if (['1', 'b', 'bene', 'beneficiary', 'beneficiaries', 'fb', 'fisherfolk beneficiary', 'fisherfolk beneficiary (fb)'].includes(v)) return 'Beneficiary';
   if (['0', '2', 'nb', 'non', 'nonbeneficiary', 'non beneficiary', 'beneficiary - no', 'no', 'control', 'comparison', 'comparison group', 'non-fisherfolk'].includes(v)) return 'Non-Beneficiary';
+  if (/^nb\b/.test(v)) return 'Non-Beneficiary';
+  if (/^b\b/.test(v)) return 'Beneficiary';
   if (v.includes('beneficiar') && !v.includes('non')) return 'Beneficiary';
   if (v.includes('non') && v.includes('beneficiar')) return 'Non-Beneficiary';
   return 'Unknown';

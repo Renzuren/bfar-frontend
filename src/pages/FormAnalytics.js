@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -175,7 +175,7 @@ const FormAnalytics = () => {
 
   const downloadAnalyticsCSV = () => {
     const rows = [];
-    rows.push(['Form Title', form.title]);
+    rows.push(['Form Title', form.title || '']);
     rows.push(['Total Submissions', totalResponses]);
     rows.push([]);
 
@@ -214,7 +214,7 @@ const FormAnalytics = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${form.title.replace(/\s+/g, '_')}-analytics.csv`;
+    a.download = `${(form.title || 'form').replace(/\s+/g, '_')}-analytics.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
     toast.success('CSV downloaded successfully');

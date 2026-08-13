@@ -161,7 +161,7 @@ const FormFill = () => {
       const allQuestions = formSections.flatMap(s => s.questions);
       allQuestions.forEach(q => {
         if (q.type === 'checkboxes') initialAnswers[q.id] = [];
-        else if (q.type === 'rating') initialAnswers[q.id] = 3;
+        else if (q.type === 'rating') initialAnswers[q.id] = '';
         else initialAnswers[q.id] = '';
       });
       setAnswers(initialAnswers);

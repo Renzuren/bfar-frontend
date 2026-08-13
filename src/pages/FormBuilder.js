@@ -447,7 +447,7 @@ const FormBuilder = () => {
       questions: allQuestions,
       sections,
       csvHeaders,
-      csvColumnCount: csvHeaders.split(',').length,
+      csvColumnCount: csvHeaders ? csvHeaders.split(',').length : 0,
       updatedAt: new Date().toISOString()
     };
     if (!payload.createdAt) payload.createdAt = new Date().toISOString();

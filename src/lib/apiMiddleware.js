@@ -97,8 +97,10 @@ class ApiClient {
       error.response.data.message = sanitizeHtml(error.response.data.message);
     }
 
-    // Handle authentication errors
-    if (error.response?.status === 401) {
+    // Handle authentication errors. Only treat a 401 as session expiry when the
+    // failing request actually carried a token (otherwise a failed login attempt
+    // would silently log out an existing session).
+    if (error.response?.status === 401 && error.config?.headers?.Authorization) {
       clearAuthStorage();
       // Notify AuthContext so the live UI session is cleared too
       window.dispatchEvent(new Event('bfar:unauthorized'));
@@ -128,7 +130,7 @@ class ApiClient {
 }
 
 // Create and export the API client instance
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 const API_BASE = `${BACKEND_URL}/api`;
 
 export const apiClient = new ApiClient(API_BASE);

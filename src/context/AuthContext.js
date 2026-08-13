@@ -5,7 +5,7 @@ import { getAuthItem, setAuthItem, clearAuthStorage } from '../lib/authStorage';
 
 const AuthContext = createContext();
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 const API = `${BACKEND_URL}/api`;
 
 export const AuthProvider = ({ children }) => {
@@ -56,24 +56,27 @@ export const AuthProvider = ({ children }) => {
         refreshToken,
         expiresIn,
         user: userData
-      } = response.data;
+      } = response.data || {};
 
       // A non-persistent login must not leave an old persistent session behind
       if (!rememberMe) clearAuthStorage();
 
       // Store tokens (persist in localStorage only when "remember me" is set)
       setAuthItem('token', access_token, rememberMe);
-      setAuthItem('refreshToken', refreshToken, rememberMe);
+      setAuthItem('refreshToken', refreshToken ?? response.data?.refresh_token, rememberMe);
       setAuthItem('expiresIn', expiresIn, rememberMe);
 
       axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
 
-      // Store full user object including status
-      const userInfo = {
-        email: userData.email,
-        status: userData.status,
-        full_name: userData.full_name
-      };
+      // Store full user object including status (with defensive defaults so a
+      // missing user payload can never crash the login flow).
+      const userInfo = userData
+        ? {
+            email: userData.email || '',
+            status: userData.status || 'active',
+            full_name: userData.full_name || ''
+          }
+        : { email: email.toLowerCase().trim(), status: 'active', full_name: '' };
 
       setAuthItem('user', JSON.stringify(userInfo), rememberMe);
       setUser(userInfo);

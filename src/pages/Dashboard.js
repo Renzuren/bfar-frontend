@@ -172,7 +172,9 @@ const Dashboard = () => {
   };
 
   const getResponseCount = (form) => {
-    return form.response_count ?? form.responses ?? 0;
+    if (Number.isFinite(form.response_count)) return form.response_count;
+    if (Array.isArray(form.responses)) return form.responses.length;
+    return Number(form.responses) || 0;
   };
 
   const totalResponses = forms.reduce((sum, form) => sum + getResponseCount(form), 0);
