@@ -99,13 +99,13 @@ const FormFill = () => {
 
   const hasRespondentName = String(respondentName || '').trim().length > 0;
   const getLocationValue = (field) => field.question
-    ? String(answers[field.question.id] || '').trim()
-    : String(locationValues[field.key] || '').trim();
+    ? String(answers[field.question.id] || '')
+    : String(locationValues[field.key] || '');
   const locationValueFor = (key) => {
     const field = locationFields.find(f => f.key === key);
-    return field ? getLocationValue(field) : '';
+    return field ? getLocationValue(field).trim() : '';
   };
-  const hasLocationValue = (field) => getLocationValue(field).length > 0;
+  const hasLocationValue = (field) => getLocationValue(field).trim().length > 0;
   const allLocationsFilled = locationFields.every(hasLocationValue);
 
   const validateRespondentName = () => {
