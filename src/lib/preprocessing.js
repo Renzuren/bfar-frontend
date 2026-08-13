@@ -314,6 +314,18 @@ export const preprocessRating = (rating) => {
 };
 
 // ================================
+// LOCATION TEXT VALIDATION
+// ================================
+
+// Municipality / Barangay / Province fields accept letters and spaces.
+// Unicode-aware so accented names like "Los Baños" pass. Whitespace is
+// preserved - nothing is stripped while the user types.
+export const LOCATION_TEXT_PATTERN = /^[\p{L}\s]+$/u;
+
+export const isValidLocationText = (value) =>
+  typeof value === 'string' && LOCATION_TEXT_PATTERN.test(value.trim());
+
+// ================================
 // MACHINE LEARNING PREPROCESSING
 // ================================
 
