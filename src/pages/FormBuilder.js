@@ -77,6 +77,8 @@ const FormBuilder = () => {
   const [fetching, setFetching] = useState(isEditMode);
   const [editingTabIndex, setEditingTabIndex] = useState(null);
   const [editingTabValue, setEditingTabValue] = useState('');
+  const [dragItem, setDragItem] = useState(null);
+  const [dragOver, setDragOver] = useState(null);
 
   const fetchForm = useCallback(async () => {
     try {
@@ -251,6 +253,86 @@ const FormBuilder = () => {
     setSections(updated);
   };
 
+  const reorderArray = (arr, from, to) => {
+    if (from === to) return arr;
+    const next = [...arr];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    return next;
+  };
+
+  const resetDrag = () => {
+    setDragItem(null);
+    setDragOver(null);
+  };
+
+  const handleSectionDragStart = (e, fromIndex) => {
+    if (editingTabIndex === fromIndex) {
+      e.preventDefault();
+      return;
+    }
+    setDragItem({ type: 'section', fromIndex });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(fromIndex));
+  };
+
+  const handleSectionDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleSectionDrop = (e, toIndex) => {
+    e.preventDefault();
+    if (!dragItem || dragItem.type !== 'section') {
+      resetDrag();
+      return;
+    }
+    const fromIndex = dragItem.fromIndex;
+    const currentId = sections[currentSectionIndex]?.id;
+    const next = reorderArray(sections, fromIndex, toIndex);
+    setSections(next);
+    const newIdx = next.findIndex(s => s.id === currentId);
+    if (newIdx !== -1) setCurrentSectionIndex(newIdx);
+    resetDrag();
+  };
+
+  const handleQuestionDragStart = (e, fromIndex) => {
+    const tag = (e.target.tagName || '').toUpperCase();
+    if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'OPTION', 'LABEL', 'A'].includes(tag)) {
+      e.preventDefault();
+      return;
+    }
+    setDragItem({ type: 'question', fromIndex });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(fromIndex));
+  };
+
+  const handleQuestionDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleQuestionDrop = (e, toIndex) => {
+    e.preventDefault();
+    if (!dragItem || dragItem.type !== 'question') {
+      resetDrag();
+      return;
+    }
+    const fromIndex = dragItem.fromIndex;
+    if (fromIndex === toIndex) {
+      resetDrag();
+      return;
+    }
+    const updated = [...sections];
+    updated[currentSectionIndex].questions = reorderArray(
+      updated[currentSectionIndex].questions,
+      fromIndex,
+      toIndex
+    );
+    setSections(updated);
+    resetDrag();
+  };
+
   const validateForm = () => {
     if (!formData.title.trim()) {
       toast.error('Please enter a form title');
@@ -358,7 +440,7 @@ const FormBuilder = () => {
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <Layers className="h-4 w-4 text-cyan-600" />
-            Sections <span className="hidden text-slate-400 sm:inline">(double-click a tab to rename)</span>
+            Sections <span className="hidden text-slate-400 sm:inline">(drag tabs to reorder · double-click to rename)</span>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={addBeneficiaryQuestion} variant="outline" size="sm" className="border-cyan-300 text-cyan-700 hover:bg-cyan-50">
@@ -378,16 +460,33 @@ const FormBuilder = () => {
             return (
               <button
                 key={sec.id}
+                draggable
+                onDragStart={(e) => handleSectionDragStart(e, idx)}
+                onDragOver={handleSectionDragOver}
+                onDragEnter={() => {
+                  if (dragItem?.type === 'section' && dragItem.fromIndex !== idx) setDragOver({ type: 'section', index: idx });
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null);
+                }}
+                onDrop={(e) => handleSectionDrop(e, idx)}
+                onDragEnd={resetDrag}
                 onClick={() => setCurrentSectionIndex(idx)}
                 onDoubleClick={() => { setEditingTabValue(sec.title); setEditingTabIndex(idx); }}
-                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium transition ${
                   idx === currentSectionIndex
                     ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20'
                     : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
+                } ${
+                  dragItem?.type === 'section' && dragItem.fromIndex === idx ? 'opacity-50' : ''
+                } ${
+                  dragOver?.type === 'section' && dragOver.index === idx ? 'ring-2 ring-cyan-400 bg-cyan-50 text-slate-900' : ''
                 }`}
+                title="Drag to reorder sections"
               >
-                {sec.title}
-                <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${idx === currentSectionIndex ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                <span className={`font-bold ${idx === currentSectionIndex ? 'text-cyan-300' : 'text-slate-400'}`}>{idx + 1}.</span>
+                <span className="max-w-[160px] truncate">{sec.title}</span>
+                <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${idx === currentSectionIndex ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
                   {sec.questions.length}
                 </span>
               </button>
@@ -402,6 +501,7 @@ const FormBuilder = () => {
               <Input value={current.title} onChange={e => renameSection(currentSectionIndex, e.target.value)} className="border-0 bg-transparent text-lg font-bold text-slate-900 shadow-none focus:ring-0" />
               <Pencil className="h-4 w-4 shrink-0 text-slate-300" />
             </div>
+            <span className="hidden shrink-0 text-xs text-slate-400 md:inline">Drag questions to reorder</span>
             <Button variant="ghost" size="sm" onClick={() => deleteSection(currentSectionIndex)} disabled={sections.length === 1} className="text-rose-500 hover:bg-rose-50 hover:text-rose-600">
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -409,8 +509,29 @@ const FormBuilder = () => {
 
           <div className="divide-y divide-slate-100 px-6 py-2">
             {current.questions.map((q, qIdx) => (
-              <div key={q.id} className="py-6">
+              <div
+                key={q.id}
+                draggable
+                onDragStart={(e) => handleQuestionDragStart(e, qIdx)}
+                onDragOver={handleQuestionDragOver}
+                onDragEnter={() => {
+                  if (dragItem?.type === 'question' && dragItem.fromIndex !== qIdx) setDragOver({ type: 'question', index: qIdx });
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null);
+                }}
+                onDrop={(e) => handleQuestionDrop(e, qIdx)}
+                onDragEnd={resetDrag}
+                className={`py-6 transition ${
+                  dragItem?.type === 'question' && dragItem.fromIndex === qIdx ? 'opacity-50' : ''
+                } ${
+                  dragOver?.type === 'question' && dragOver.index === qIdx ? 'rounded-xl bg-cyan-50/60' : ''
+                }`}
+              >
                 <div className="flex gap-4">
+                  <div className="flex cursor-grab items-start pt-2 text-slate-300 active:cursor-grabbing" title="Drag to reorder questions">
+                    <GripVertical className="h-5 w-5" />
+                  </div>
                   <div className="flex-1 space-y-4">
                     <div className="flex items-center gap-2">
                       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-50 text-xs font-bold text-cyan-700 ring-1 ring-cyan-100">
