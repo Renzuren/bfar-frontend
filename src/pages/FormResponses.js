@@ -127,7 +127,7 @@ const FormResponses = () => {
 
   const getAnswerForQuestion = (response, question) => {
     const answersArray = response.answers || [];
-    const matched = answersArray.find(a => a.question_id === question.id);
+    const matched = answersArray.find(a => a.question_id === question.id || a.qid === question.id);
     if (matched && !isNoAnswer(matched.answer)) return matched.answer;
     const byTitle = answersArray.find(a => a.question_title === question.title);
     if (byTitle && !isNoAnswer(byTitle.answer)) return byTitle.answer;
