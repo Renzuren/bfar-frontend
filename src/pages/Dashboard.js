@@ -159,7 +159,12 @@ const Dashboard = () => {
   };
 
   const formatDate = (value) => {
-    const date = value ? new Date(value) : new Date();
+    let date = new Date();
+    if (value && typeof value === 'object' && typeof value._seconds === 'number') {
+      date = new Date(value._seconds * 1000);
+    } else if (typeof value === 'string' || typeof value === 'number') {
+      date = new Date(value);
+    }
     if (isNaN(date.getTime())) return '';
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
   };
@@ -406,7 +411,7 @@ const Dashboard = () => {
 
                       <div className="mt-4 flex items-center gap-3 text-xs text-slate-400">
                         <span className="inline-flex items-center gap-1">
-                          <CalendarDays className="h-3.5 w-3.5" /> {formatDate(form.createdAt)}
+                          <CalendarDays className="h-3.5 w-3.5" /> {formatDate(form.created_at ?? form.createdAt)}
                         </span>
                       </div>
                     </div>
