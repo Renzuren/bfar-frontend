@@ -125,7 +125,11 @@ const FormAnalytics = () => {
         } catch (analyticsError) {
           console.warn('Analytics endpoint fetch failed, using local fallback analytics', analyticsError);
           toast.error('Analytics endpoint unavailable. Using local fallback analytics.');
-          analyticsPayload = computeFallbackAnalytics(responsesRes.data || [], formRes.data.questions || []);
+          const fetchedForm = formRes.data;
+          const allQuestions = Array.isArray(fetchedForm.questions) && fetchedForm.questions.length > 0
+            ? fetchedForm.questions
+            : (Array.isArray(fetchedForm.sections) ? fetchedForm.sections.flatMap(s => s.questions || []) : []);
+          analyticsPayload = computeFallbackAnalytics(responsesRes.data || [], allQuestions);
         }
 
         setAnalytics(analyticsPayload);
