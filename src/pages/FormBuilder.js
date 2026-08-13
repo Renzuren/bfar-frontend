@@ -103,7 +103,7 @@ const FormBuilder = () => {
     }
   };
 
-  const autoScroll = useDragAutoScroll({ edgeSize: 140, maxSpeed: 18, onHoverChange: handleDragHover });
+  const { startAutoScroll, updateAutoScroll, stopAutoScroll } = useDragAutoScroll({ edgeSize: 140, maxSpeed: 18, onHoverChange: handleDragHover });
 
   const fetchForm = useCallback(async () => {
     try {
@@ -278,19 +278,19 @@ const FormBuilder = () => {
     setSections(updated);
   };
 
-  const reorderArray = (arr, from, to) => {
+  const reorderArray = useCallback((arr, from, to) => {
     if (from === to) return arr;
     const next = [...arr];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     return next;
-  };
+  }, []);
 
-  const resetDrag = () => {
+  const resetDrag = useCallback(() => {
     setDragItem(null);
     setDragOver(null);
-    autoScroll.stopAutoScroll();
-  };
+    stopAutoScroll();
+  }, [stopAutoScroll]);
 
   const handleSectionDragStart = (e, fromIndex) => {
     if (editingTabIndex === fromIndex) {
@@ -301,13 +301,13 @@ const FormBuilder = () => {
     setDragItem({ type: 'section', fromIndex });
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(fromIndex));
-    autoScroll.startAutoScroll(e);
+    startAutoScroll(e);
   };
 
   const handleSectionDragOver = (e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    autoScroll.updateAutoScroll(e);
+    updateAutoScroll(e);
   };
 
   const handleQuestionDragStart = (e, fromIndex) => {
@@ -320,13 +320,13 @@ const FormBuilder = () => {
     setDragItem({ type: 'question', fromIndex });
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(fromIndex));
-    autoScroll.startAutoScroll(e);
+    startAutoScroll(e);
   };
 
   const handleQuestionDragOver = (e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    autoScroll.updateAutoScroll(e);
+    updateAutoScroll(e);
   };
 
   useEffect(() => {
@@ -372,7 +372,7 @@ const FormBuilder = () => {
       document.removeEventListener('dragover', handleDocumentDragOver);
       document.removeEventListener('drop', handleDocumentDrop);
     };
-  }, [dragItem, sections, currentSectionIndex]);
+  }, [dragItem, sections, currentSectionIndex, reorderArray, resetDrag]);
 
   const seedTestData = () => {
     const now = Date.now();
