@@ -17,7 +17,11 @@ const isBeneficiaryQuestion = (question) =>
   String(question.code || '').trim().toUpperCase() === 'BENE' ||
   String(question.title || '').toLowerCase().includes('beneficiary');
 
-const normalizeQuestionCode = (question) => String(question.code || '').replace(/[\s:]/g, '').toUpperCase();
+const normalizeQuestionCode = (question) =>
+  String(question.code || '')
+    .replace(/[^A-Z0-9]/gi, '')
+    .toUpperCase()
+    .replace(/^([A-Z])0+/, '$1');
 
 const REQUIRED_LOCATION_FIELDS = [
   {
@@ -35,7 +39,7 @@ const REQUIRED_LOCATION_FIELDS = [
     matches: (question) => {
       const code = normalizeQuestionCode(question);
       const title = String(question.title || '').toLowerCase();
-      return code === 'A2' || title.includes('barangay');
+      return code === 'A2' || title.includes('barangay') || title.includes('brgy');
     }
   },
   {
@@ -44,7 +48,7 @@ const REQUIRED_LOCATION_FIELDS = [
     matches: (question) => {
       const code = normalizeQuestionCode(question);
       const title = String(question.title || '').toLowerCase();
-      return code === 'A3' || title.includes('province');
+      return code === 'A3' || title.includes('province') || title.includes('prov');
     }
   }
 ];
@@ -74,19 +78,30 @@ const FormFill = () => {
   const [respondentName, setRespondentName] = useState('');
   const [nameAttempted, setNameAttempted] = useState(false);
   const [locationAttempted, setLocationAttempted] = useState({});
+  const [locationValues, setLocationValues] = useState({ municipality: '', barangay: '', province: '' });
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [sections, setSections] = useState([]);
   const [existingResponses, setExistingResponses] = useState([]);
   const [submittedRespondentId, setSubmittedRespondentId] = useState(null);
 
   const allQuestions = sections.flatMap(s => s.questions);
-  const locationFields = REQUIRED_LOCATION_FIELDS
-    .map(field => ({ ...field, question: allQuestions.find(field.matches) }))
-    .filter(field => field.question);
-  const locationQuestionIds = locationFields.map(field => field.question.id);
+  const locationFields = REQUIRED_LOCATION_FIELDS.map(field => ({
+    ...field,
+    question: allQuestions.find(field.matches)
+  }));
+  const locationQuestionIds = locationFields
+    .filter(field => field.question)
+    .map(field => field.question.id);
 
   const hasRespondentName = String(respondentName || '').trim().length > 0;
-  const hasLocationValue = (field) => String(answers[field.question.id] || '').trim().length > 0;
+  const getLocationValue = (field) => field.question
+    ? String(answers[field.question.id] || '').trim()
+    : String(locationValues[field.key] || '').trim();
+  const locationValueFor = (key) => {
+    const field = locationFields.find(f => f.key === key);
+    return field ? getLocationValue(field) : '';
+  };
+  const hasLocationValue = (field) => getLocationValue(field).length > 0;
   const allLocationsFilled = locationFields.every(hasLocationValue);
 
   const validateRespondentName = () => {
@@ -239,6 +254,9 @@ const FormFill = () => {
         full_name: respondentName.trim(),
         age: answers.age,
         gender: answers.gender,
+        municipality: locationValueFor('municipality'),
+        barangay: locationValueFor('barangay'),
+        province: locationValueFor('province'),
         answers: formattedAnswers
       });
       setSubmittedRespondentId(response.data?.respondent_id || null);
@@ -345,7 +363,7 @@ const FormFill = () => {
                 <p className="mb-4 text-sm text-slate-500">
                   Enter the {field.label.toLowerCase()} you belong to. This is required before you can continue the assessment.
                 </p>
-                {['dropdown', 'multiple_choice'].includes(field.question.type) ? (
+                {['dropdown', 'multiple_choice'].includes(field.question?.type) ? (
                   <Select value={answers[field.question.id] || ''} onValueChange={v => setAnswers({ ...answers, [field.question.id]: v })}>
                     <SelectTrigger id={`respondent-${field.key}`} className={locationAttempted[field.key] && !hasLocationValue(field) ? 'border-rose-400 ring-2 ring-rose-100' : ''}>
                       <SelectValue placeholder={`Select your ${field.label.toLowerCase()}`} />
@@ -359,10 +377,15 @@ const FormFill = () => {
                     id={`respondent-${field.key}`}
                     type="text"
                     placeholder={`e.g. ${field.label}`}
-                    value={answers[field.question.id] || ''}
+                    value={getLocationValue(field)}
                     onChange={(e) => {
-                      setAnswers({ ...answers, [field.question.id]: e.target.value });
-                      if (locationAttempted[field.key] && String(e.target.value || '').trim()) {
+                      const v = e.target.value;
+                      if (field.question) {
+                        setAnswers({ ...answers, [field.question.id]: v });
+                      } else {
+                        setLocationValues(prev => ({ ...prev, [field.key]: v }));
+                      }
+                      if (locationAttempted[field.key] && String(v || '').trim()) {
                         setLocationAttempted(prev => ({ ...prev, [field.key]: false }));
                       }
                     }}
