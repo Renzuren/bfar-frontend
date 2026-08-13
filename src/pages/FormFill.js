@@ -29,6 +29,8 @@ const computeNextRespondentId = (status, responses) => {
   return `${prefix}-${pad4(maxNum + 1)}`;
 };
 
+const RESPONDENT_NAME_REQUIRED_MESSAGE = 'Respondent Name is required before you can proceed.';
+
 const FormFill = () => {
   const { id } = useParams();
   const [form, setForm] = useState(null);
@@ -36,10 +38,23 @@ const FormFill = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [answers, setAnswers] = useState({});
+  const [respondentName, setRespondentName] = useState('');
+  const [nameAttempted, setNameAttempted] = useState(false);
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [sections, setSections] = useState([]);
   const [existingResponses, setExistingResponses] = useState([]);
   const [submittedRespondentId, setSubmittedRespondentId] = useState(null);
+
+  const hasRespondentName = String(respondentName || '').trim().length > 0;
+
+  const validateRespondentName = () => {
+    if (!hasRespondentName) {
+      setNameAttempted(true);
+      toast.error(RESPONDENT_NAME_REQUIRED_MESSAGE);
+      return false;
+    }
+    return true;
+  };
 
   const fetchForm = useCallback(async () => {
     try {
@@ -120,6 +135,7 @@ const FormFill = () => {
   const handleNext = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!validateRespondentName()) return;
     if (!validateCurrentSection()) return;
     if (currentSectionIndex < sections.length - 1) {
       setCurrentSectionIndex(currentSectionIndex + 1);
@@ -138,18 +154,22 @@ const FormFill = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateRespondentName()) return;
     if (!validateCurrentSection()) return;
 
-    try {
-      const res = await api.get(`/forms/public/${id}/responses`);
-      const duplicate = (res.data || []).some(r =>
-        (r.email || r.user?.email || r.full_name) === answers.email
-      );
-      if (duplicate) {
-        toast.error('This email has already submitted a response for this survey.');
-        return;
-      }
-    } catch (err) {}
+    const respondentEmail = String(answers.email || '').trim();
+    if (respondentEmail) {
+      try {
+        const res = await api.get(`/forms/public/${id}/responses`);
+        const duplicate = (res.data || []).some(r =>
+          (r.email || r.user?.email || '') === respondentEmail
+        );
+        if (duplicate) {
+          toast.error('This email has already submitted a response for this survey.');
+          return;
+        }
+      } catch (err) {}
+    }
 
     setSubmitting(true);
     try {
@@ -160,7 +180,7 @@ const FormFill = () => {
       }));
       const response = await api.post(`/forms/public/${id}/responses`, {
         email: answers.email,
-        full_name: answers.full_name,
+        full_name: respondentName.trim(),
         age: answers.age,
         gender: answers.gender,
         answers: formattedAnswers
@@ -235,6 +255,33 @@ const FormFill = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-7">
+            <Label htmlFor="respondent-name" className="mb-2 block text-lg font-bold text-slate-900">
+              Respondent Name <span className="ml-1 text-rose-500">*</span>
+            </Label>
+            <p className="mb-4 text-sm text-slate-500">
+              Enter your full name. This is required before you can continue the assessment.
+            </p>
+            <Input
+              id="respondent-name"
+              type="text"
+              placeholder="e.g. Juan Dela Cruz"
+              value={respondentName}
+              onChange={(e) => {
+                setRespondentName(e.target.value);
+                if (nameAttempted && String(e.target.value || '').trim()) setNameAttempted(false);
+              }}
+              required
+              autoComplete="name"
+              className={nameAttempted && !hasRespondentName ? 'border-rose-400 ring-2 ring-rose-100' : ''}
+            />
+            {nameAttempted && !hasRespondentName && (
+              <p role="alert" className="mt-2 text-sm font-medium text-rose-500">
+                {RESPONDENT_NAME_REQUIRED_MESSAGE}
+              </p>
+            )}
+          </div>
+
           {current.questions.map((question, idx) => (
             <div key={question.id} className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition hover:shadow-md sm:p-7">
               <Label className="mb-2 block text-lg font-bold text-slate-900">
@@ -324,11 +371,20 @@ const FormFill = () => {
               <ChevronLeft className="mr-2 h-4 w-4" /> Previous
             </Button>
             {!isLast ? (
-              <Button type="button" onClick={handleNext} className="bg-slate-900 text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800">
+              <Button
+                type="button"
+                onClick={handleNext}
+                disabled={!hasRespondentName}
+                className="bg-slate-900 text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
                 Next <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             ) : (
-              <Button type="submit" disabled={submitting} className="bg-emerald-600 px-8 text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700">
+              <Button
+                type="submit"
+                disabled={!hasRespondentName || submitting}
+                className="bg-emerald-600 px-8 text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
                 <Send className="mr-2 h-4 w-4" /> {submitting ? 'Submitting...' : 'Submit Response'}
               </Button>
             )}

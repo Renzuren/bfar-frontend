@@ -119,12 +119,9 @@ const FormResponses = () => {
     return null;
   };
 
-  const getRespondentIdForRow = (response, index) => {
+  const getRespondentIdForRow = (response) => {
     if (response.respondent_id) return response.respondent_id;
-    const status = getBeneficiaryStatus(response);
-    const prefix = status === 'Yes' ? 'B-' : status === 'No' ? 'NB-' : '';
-    const fallback = response.id || `R-${index}`;
-    return prefix ? `${prefix}${index}` : fallback;
+    return response.id || '—';
   };
 
   const downloadCSV = () => {
@@ -134,23 +131,23 @@ const FormResponses = () => {
     }
 
     const allQuestions = sections.flatMap(s => s.questions);
-    const beneQuestion = allQuestions.find(isBeneficiaryQuestion);
     const validQuestions = allQuestions.filter(q =>
       q.code && q.code.trim() && !isBeneficiaryQuestion(q)
     );
 
-    if (validQuestions.length === 0 && !beneQuestion) {
-      toast.error('No questions with a valid Question Code – cannot generate CSV');
-      return;
-    }
+    const headers = [
+      'RESPONDENT_ID',
+      'RESPONDENT_NAME',
+      'RESPONDENT_EMAIL',
+      'BENEFICIARY_STATUS',
+      ...validQuestions.map(q => {
+        const title = q.title.replace(/,/g, '').replace(/:/g, '').trim();
+        return `${q.code}:${title}`;
+      })
+    ];
 
-    const headers = ['RESPONDENT', ...validQuestions.map(q => {
-      const title = q.title.replace(/,/g, '').replace(/:/g, '').trim();
-      return `${q.code}:${title}`;
-    })];
-
-    const rows = filteredResponses.map((response, idx) => {
-      const respondentId = getRespondentIdForRow(response, idx + 1);
+    const rows = filteredResponses.map(response => {
+      const status = getBeneficiaryStatus(response);
 
       const rowValues = validQuestions.map(q => {
         const rawAns = getAnswerForQuestion(response, q);
@@ -158,7 +155,13 @@ const FormResponses = () => {
         return String(numericAns);
       });
 
-      return [respondentId, ...rowValues];
+      return [
+        response.respondent_id || '',
+        response.full_name || '',
+        response.email || '',
+        status || '',
+        ...rowValues
+      ];
     });
 
     const csvLines = [
@@ -335,6 +338,7 @@ const FormResponses = () => {
                       <th rowSpan={2} className="sticky left-0 z-10 border-r border-slate-200 bg-slate-50 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">#</th>
                       <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Submitted At</th>
                       <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Respondent ID</th>
+                      <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Respondent Name</th>
                       <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
                       {sections.map(section => (
                         <th key={section.id} colSpan={section.questions.length} className="border-b border-slate-200 bg-slate-100 px-6 py-2 text-center text-sm font-bold text-slate-700">
@@ -362,12 +366,13 @@ const FormResponses = () => {
                       const submittedAt = resp.submitted_at?._seconds ? new Date(resp.submitted_at._seconds * 1000).toLocaleString() : 'No date';
                       const globalIdx = start + idx + 1;
                       const status = getBeneficiaryStatus(resp);
-                      const respondentId = getRespondentIdForRow(resp, globalIdx);
+                      const respondentId = getRespondentIdForRow(resp);
                       return (
                         <tr key={resp.id} className="transition hover:bg-cyan-50/30">
                           <td className="sticky left-0 z-10 border-r border-slate-200 bg-white px-6 py-4 text-sm font-medium text-slate-400">{globalIdx}</td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{submittedAt}</td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-900">{respondentId}</td>
+                          <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-900">{resp.full_name || '—'}</td>
                           <td className="whitespace-nowrap px-6 py-4">
                             {status === 'Yes' ? (
                               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">

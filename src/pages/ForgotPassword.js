@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FileText, Mail, ArrowLeft, MailCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 
 const ForgotPassword = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -84,6 +85,13 @@ const ForgotPassword = () => {
                     Back to Login
                   </Button>
                 </Link>
+                <Button
+                  type="button"
+                  onClick={() => navigate(`/verify-reset-code?email=${encodeURIComponent(email)}`)}
+                  className="h-12 w-full rounded-xl border border-cyan-200 bg-cyan-50 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-100"
+                >
+                  I have the verification code
+                </Button>
                 <Button
                   type="button"
                   onClick={handleTryAgain}

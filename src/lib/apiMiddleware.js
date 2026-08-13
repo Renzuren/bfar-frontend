@@ -48,15 +48,14 @@ class ApiClient {
    * Preprocess request data based on endpoint
    */
   preprocessRequestData(url, data) {
+    // Form responses - pass through as-is (data built by the component)
+    if (url.includes('/responses')) {
+      return data;
+    }
+
     // Form creation/update
     if (url.includes('/forms') && (url.includes('/forms/') || !url.includes('/responses'))) {
       return preprocessFormData(data);
-    }
-
-    // Form responses
-    if (url.includes('/responses')) {
-      // Data should already be preprocessed by the component
-      return data;
     }
 
     // Auth requests - basic sanitization
