@@ -60,6 +60,116 @@ export const getQuestionLabel = (question, index = 0) => {
 };
 
 /**
+ * Predefined system fields that are prepended to every survey. These are
+ * locked in the Form Builder and always collected during data entry.
+ * RESP-01 is auto-generated server-side; the rest map to the fixed columns
+ * shown in the response table and CSV export.
+ */
+export const SYSTEM_FIELD_DEFINITIONS = [
+  { code: 'RESP-01', title: 'Respondent ID', type: 'respondent_id', required: false },
+  { code: 'RESP-02', title: 'Respondent Name', type: 'respondent_name', required: true },
+  { code: 'A1', title: 'Municipality', type: 'location_text', required: true },
+  { code: 'A2', title: 'Barangay', type: 'location_text', required: true },
+  { code: 'A3', title: 'Province', type: 'location_text', required: true }
+];
+
+/**
+ * Normalizes a system-field code the same way question codes are normalized,
+ * so definitions (e.g. "RESP-01") compare equal to stored codes ("RESP01").
+ */
+const canonicalSystemCode = (code) =>
+  String(code || '').replace(/[^A-Z0-9]/gi, '').toUpperCase().replace(/^([A-Z])0+/, '$1');
+
+export const SYSTEM_FIELD_CODES = SYSTEM_FIELD_DEFINITIONS.map((def) => canonicalSystemCode(def.code));
+
+/**
+ * True when a question is one of the predefined system fields (matched by
+ * code so legacy forms that were seeded before locking are handled too).
+ */
+export const isSystemField = (question) =>
+  SYSTEM_FIELD_CODES.includes(normalizeQuestionCode(question));
+
+/**
+ * True when a question title identifies it as a manually duplicated
+ * "Respondent ID" / "Respondent Name" question. These are hidden from the
+ * survey question list and stripped from saved forms.
+ */
+export const isRespondentField = (question) => {
+  const title = String(question?.title || '').toLowerCase().replace(/[\s_-]/g, '');
+  return title === 'respondentid' || title === 'respondentname';
+};
+
+/**
+ * True for any built-in/reserved field that must never appear as a regular
+ * survey question: the system fields (RESP-01, RESP-02, A1, A2, A3) and any
+ * manually added respondent duplicates.
+ */
+export const isReservedField = (question) => isSystemField(question) || isRespondentField(question);
+
+/**
+ * Creates a system field question object. The id is stable per code+timestamp.
+ */
+export const createSystemField = (code, sectionTitle = 'Untitled Section', timestamp = Date.now()) => {
+  const def = SYSTEM_FIELD_DEFINITIONS.find((d) => canonicalSystemCode(d.code) === canonicalSystemCode(code)) || SYSTEM_FIELD_DEFINITIONS[0];
+  const key = canonicalSystemCode(def.code).toLowerCase();
+  return {
+    id: `sys_${key}_${timestamp}`,
+    type: def.type,
+    title: def.title,
+    code: def.code,
+    description: '',
+    required: def.required,
+    options: [],
+    section: sectionTitle,
+    system: true,
+    locked: true
+  };
+};
+
+/**
+ * Prepends any missing system fields (RESP-01, RESP-02, A1, A2, A3) to the
+ * front of a question list. Existing fields are kept in place, so this is safe
+ * to run on every fetch and save.
+ */
+export const ensureSystemFields = (questions = [], sectionTitle = 'Untitled Section', timestamp = Date.now()) => {
+  const existing = new Set(questions.map((q) => normalizeQuestionCode(q)));
+  const missing = SYSTEM_FIELD_DEFINITIONS.filter((def) => !existing.has(canonicalSystemCode(def.code)));
+  return [
+    ...missing.map((def) => createSystemField(def.code, sectionTitle, timestamp)),
+    ...questions
+  ];
+};
+
+/**
+ * Forces questions carrying a system-field code to their canonical title,
+ * type and required flag. Used when loading legacy forms so old location
+ * questions (previously 'short_text') match the new system fields.
+ */
+export const canonicalizeSystemFields = (questions = []) =>
+  questions.map((q) => {
+    const def = SYSTEM_FIELD_DEFINITIONS.find((d) => normalizeQuestionCode(q) === canonicalSystemCode(d.code));
+    if (!def) return q;
+    return {
+      ...q,
+      type: def.type,
+      title: def.title,
+      required: def.required,
+      system: true,
+      locked: true
+    };
+  });
+
+/**
+ * A question is treated as free-text when its type is not one of the known
+ * structured types. Used by the ML/text analysis helpers as a defensive
+ * fallback for legacy text questions and any unknown types.
+ */
+export const isTextQuestionType = (type) => {
+  const known = ['multiple_choice', 'checkboxes', 'dropdown', 'rating', 'date', 'respondent_id', 'respondent_name', 'location_text'];
+  return !known.includes(type);
+};
+
+/**
  * Preprocesses form answers before submission
  * @param {Object} answers - Raw answers object
  * @param {Array} questions - Form questions array
@@ -453,7 +563,7 @@ export const preprocessResponsesForML = (responses, questions) => {
     questions.forEach(question => {
       const answer = response.answers?.find(a => a.question_id === question.id);
 
-      if (answer && (question.type === 'short_text' || question.type === 'long_text')) {
+      if (answer && isTextQuestionType(question.type)) {
         const mlProcessed = preprocessTextForML(answer.answer);
         processedResponse[`${question.id}_ml`] = mlProcessed;
       }
@@ -574,7 +684,7 @@ export const extractKeywords = (responses, topN = 10) => {
  * @returns {Object} Complete ML analysis results
  */
 export const performMLAnalysis = (responses, questions) => {
-  const textQuestions = questions.filter(q => q.type === 'short_text' || q.type === 'long_text');
+  const textQuestions = questions.filter(q => isTextQuestionType(q.type));
 
   if (textQuestions.length === 0) {
     return {

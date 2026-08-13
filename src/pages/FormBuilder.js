@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Plus, Trash2, ArrowLeft, Save, ChevronLeft, ChevronRight, Layers, Pencil, GripVertical, UserPlus, FlaskConical } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Save, ChevronLeft, ChevronRight, Layers, Pencil, GripVertical, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,14 +11,12 @@ import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import useDragAutoScroll from '../hooks/useDragAutoScroll';
-import { normalizeLocationCodes } from '../lib/preprocessing';
+import { normalizeLocationCodes, ensureSystemFields, canonicalizeSystemFields, isSystemField, isReservedField } from '../lib/preprocessing';
 
 const QUESTION_TYPES = [
   { value: 'multiple_choice', label: 'Multiple Choice' },
   { value: 'checkboxes', label: 'Checkboxes' },
   { value: 'dropdown', label: 'Dropdown' },
-  { value: 'short_text', label: 'Short Text' },
-  { value: 'long_text', label: 'Long Text' },
   { value: 'date', label: 'Date' },
   { value: 'rating', label: 'Rating Scale (1-5)' }
 ];
@@ -77,11 +75,7 @@ const FormBuilder = () => {
       return [{
         id: `section_${now}`,
         title: sectionTitle,
-        questions: [
-          { id: `q_municipality_${now}`, type: 'short_text', title: 'Municipality', code: 'A1', description: '', required: true, options: [], section: sectionTitle },
-          { id: `q_barangay_${now}`, type: 'short_text', title: 'Barangay', code: 'A2', description: '', required: true, options: [], section: sectionTitle },
-          { id: `q_province_${now}`, type: 'short_text', title: 'Province', code: 'A3', description: '', required: true, options: [], section: sectionTitle }
-        ]
+        questions: ensureSystemFields([], sectionTitle, now)
       }];
     }
     return [];
@@ -144,6 +138,16 @@ const FormBuilder = () => {
         loadedSections = [{ id: `section_${Date.now()}`, title: 'Section 1', questions: [] }];
       }
 
+      loadedSections = loadedSections.map((sec, idx) => {
+        const questions = canonicalizeSystemFields(
+          normalizeLocationCodes((sec.questions || []).map(q => ({ ...q, section: q.section || sec.title })))
+        );
+        return {
+          ...sec,
+          questions: idx === 0 ? ensureSystemFields(questions, sec.title || 'Untitled Section') : questions
+        };
+      });
+
       setSections(loadedSections);
       setFormData({
         title: fetchedForm.title,
@@ -176,6 +180,10 @@ const FormBuilder = () => {
   const deleteSection = (index) => {
     if (sections.length === 1) {
       toast.error('You must keep at least one section');
+      return;
+    }
+    if ((sections[index]?.questions || []).some(isSystemField)) {
+      toast.error('The section containing system fields cannot be deleted');
       return;
     }
     const newSections = [...sections];
@@ -308,6 +316,10 @@ const FormBuilder = () => {
       e.preventDefault();
       return;
     }
+    if ((sections[fromIndex]?.questions || []).some(isSystemField)) {
+      e.preventDefault();
+      return;
+    }
     setDragOver(null);
     setDragItem({ type: 'section', fromIndex });
     e.dataTransfer.effectAllowed = 'move';
@@ -324,6 +336,11 @@ const FormBuilder = () => {
   const handleQuestionDragStart = (e, fromIndex) => {
     const tag = (e.target.tagName || '').toUpperCase();
     if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'OPTION', 'LABEL', 'A'].includes(tag)) {
+      e.preventDefault();
+      return;
+    }
+    const question = sections[currentSectionIndex]?.questions[fromIndex];
+    if (question && isSystemField(question)) {
       e.preventDefault();
       return;
     }
@@ -358,19 +375,29 @@ const FormBuilder = () => {
         const toIndex = Number(target.dataset.dragIndex);
         if (toIndex !== fromIndex) {
           if (dragItem.type === 'section') {
-            const currentId = sections[currentSectionIndex]?.id;
-            const next = reorderArray(sections, fromIndex, toIndex);
-            setSections(next);
-            const newIdx = next.findIndex(s => s.id === currentId);
-            if (newIdx !== -1) setCurrentSectionIndex(newIdx);
+            const systemSection = sections.findIndex(sec => (sec.questions || []).some(isSystemField));
+            if (systemSection !== -1 && (toIndex === 0 || fromIndex === systemSection || toIndex === systemSection)) {
+              toast.warning('The section containing system fields must stay first');
+            } else {
+              const currentId = sections[currentSectionIndex]?.id;
+              const next = reorderArray(sections, fromIndex, toIndex);
+              setSections(next);
+              const newIdx = next.findIndex(s => s.id === currentId);
+              if (newIdx !== -1) setCurrentSectionIndex(newIdx);
+            }
           } else if (dragItem.type === 'question') {
-            const updated = [...sections];
-            updated[currentSectionIndex].questions = reorderArray(
-              updated[currentSectionIndex].questions,
-              fromIndex,
-              toIndex
-            );
-            setSections(updated);
+            const systemCount = sections[currentSectionIndex]?.questions.filter(isSystemField).length || 0;
+            if (systemCount > 0 && toIndex < systemCount) {
+              toast.warning('System fields must stay at the beginning of the section');
+            } else {
+              const updated = [...sections];
+              updated[currentSectionIndex].questions = reorderArray(
+                updated[currentSectionIndex].questions,
+                fromIndex,
+                toIndex
+              );
+              setSections(updated);
+            }
           }
         }
       }
@@ -384,30 +411,6 @@ const FormBuilder = () => {
       document.removeEventListener('drop', handleDocumentDrop);
     };
   }, [dragItem, sections, currentSectionIndex, reorderArray, resetDrag]);
-
-  const seedTestData = () => {
-    const now = Date.now();
-    const seededSections = Array.from({ length: 20 }, (_, sIdx) => {
-      const title = `Test Section ${sIdx + 1}`;
-      return {
-        id: `seed_section_${now}_${sIdx}`,
-        title,
-        questions: Array.from({ length: 5 }, (_, qIdx) => ({
-          id: `seed_q_${now}_${sIdx}_${qIdx}`,
-          type: 'multiple_choice',
-          title: `${title} — Question ${qIdx + 1}`,
-          code: `S${sIdx + 1}Q${qIdx + 1}`,
-          description: '',
-          required: false,
-          options: ['Option 1', 'Option 2'],
-          section: title
-        }))
-      };
-    });
-    setSections(seededSections);
-    setCurrentSectionIndex(0);
-    toast.success('Seeded 20 sections × 5 questions (100 questions). Drag to test auto-scroll.');
-  };
 
   const validateForm = () => {
     if (!formData.title.trim()) {
@@ -519,11 +522,6 @@ const FormBuilder = () => {
             Sections <span className="hidden text-slate-400 sm:inline">(drag tabs to reorder · double-click to rename)</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {process.env.NODE_ENV !== 'production' && (
-              <Button onClick={seedTestData} variant="outline" size="sm" className="border-amber-300 text-amber-700 hover:bg-amber-50" title="Dev tool: create 20 sections and 100 questions to test drag & auto-scroll">
-                <FlaskConical className="mr-1.5 h-4 w-4" /> Seed 20×100
-              </Button>
-            )}
             <Button onClick={addBeneficiaryQuestion} variant="outline" size="sm" className="border-cyan-300 text-cyan-700 hover:bg-cyan-50">
               <UserPlus className="mr-1.5 h-4 w-4" /> Beneficiary Q
             </Button>
@@ -564,7 +562,7 @@ const FormBuilder = () => {
                 <span className={`font-bold ${idx === currentSectionIndex ? 'text-cyan-300' : 'text-slate-400'}`}>{idx + 1}.</span>
                 <span className="max-w-[160px] truncate">{sec.title}</span>
                 <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${idx === currentSectionIndex ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                  {sec.questions.length}
+                  {sec.questions.filter(q => !isReservedField(q)).length}
                 </span>
               </button>
             );
@@ -585,10 +583,18 @@ const FormBuilder = () => {
           </div>
 
           <div className="divide-y divide-slate-100 px-6 py-2">
-            {current.questions.map((q, qIdx) => (
+            {(() => {
+              const surveyNumbers = new Map();
+              let surveyCount = 0;
+              current.questions.forEach(question => {
+                if (!isReservedField(question)) surveyNumbers.set(question.id, ++surveyCount);
+              });
+              return current.questions.map((q, qIdx) => {
+              const isSys = isSystemField(q);
+              return (
               <div
                 key={q.id}
-                draggable
+                draggable={!isSys}
                 data-drag-target="question"
                 data-drag-type="question"
                 data-drag-index={qIdx}
@@ -602,20 +608,31 @@ const FormBuilder = () => {
                 }`}
               >
                 <div className="flex gap-4">
-                  <div className="flex cursor-grab items-start pt-2 text-slate-300 active:cursor-grabbing" title="Drag to reorder questions">
-                    <GripVertical className="h-5 w-5" />
-                  </div>
+                  {!isSys && (
+                    <div className="flex cursor-grab items-start pt-2 text-slate-300 active:cursor-grabbing" title="Drag to reorder questions">
+                      <GripVertical className="h-5 w-5" />
+                    </div>
+                  )}
                   <div className="flex-1 space-y-4">
                     <div className="flex items-center gap-2">
                       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-50 text-xs font-bold text-cyan-700 ring-1 ring-cyan-100">
-                        {qIdx + 1}
+                        {isSys ? 'S' : surveyNumbers.get(q.id)}
                       </span>
-                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Question</span>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">{isSys ? 'System Field' : 'Question'}</span>
+                      {isSys && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600 ring-1 ring-indigo-100">Always included</span>}
                       {q.required && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-600 ring-1 ring-rose-100">Required</span>}
                     </div>
+                    {isSys ? (
+                      <div className="grid gap-3 lg:grid-cols-3">
+                        <div><Label>Field</Label><Input value={q.title} disabled className="bg-slate-50 text-slate-600" /></div>
+                        <div><Label>Type</Label><Input value={q.type} disabled className="bg-slate-50 text-slate-600" /></div>
+                        <div><Label>Code</Label><Input value={q.code || ''} disabled className="bg-slate-50 text-slate-600" /></div>
+                      </div>
+                    ) : (
+                      <>
                     <div className="grid gap-3 lg:grid-cols-2">
                       <div className="lg:col-span-2"><Label>Question text</Label><Input value={q.title} onChange={e => updateQuestion(currentSectionIndex, qIdx, 'title', e.target.value)} placeholder="Enter your question" /></div>
-                      <div><Label>Type</Label><Select value={q.type} onValueChange={v => handleTypeChange(currentSectionIndex, qIdx, v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{QUESTION_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
+                      <div><Label>Type</Label><Select value={q.type} onValueChange={v => handleTypeChange(currentSectionIndex, qIdx, v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{QUESTION_TYPES.some(t => t.value === q.type) ? null : <SelectItem value={q.type} disabled>Text (legacy)</SelectItem>}{QUESTION_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
                       <div><Label>Question code</Label><Input value={q.code || ''} onChange={e => updateQuestion(currentSectionIndex, qIdx, 'code', e.target.value)} placeholder="e.g., A1" /></div>
                       <div className="lg:col-span-2"><Label>Description (optional)</Label><Input value={q.description || ''} onChange={e => updateQuestion(currentSectionIndex, qIdx, 'description', e.target.value)} placeholder="Add helper text" /></div>
                     </div>
@@ -657,10 +674,14 @@ const FormBuilder = () => {
                         </Button>
                       </div>
                     </div>
+                    </>
+                    )}
                   </div>
                 </div>
               </div>
-            ))}
+              );
+              });
+            })()}
           </div>
 
           <div className="border-t border-slate-100 px-6 py-5">

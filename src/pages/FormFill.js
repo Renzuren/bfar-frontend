@@ -4,12 +4,12 @@ import { FileText, Check, ChevronLeft, ChevronRight, Send, Fingerprint } from 'l
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
+import { isReservedField, isTextQuestionType } from '../lib/preprocessing';
 
 const pad4 = (n) => String(n).padStart(4, '0');
 
@@ -92,6 +92,10 @@ const FormFill = () => {
   const locationQuestionIds = locationFields
     .filter(field => field.question)
     .map(field => field.question.id);
+  const respondentIdQuestion = allQuestions.find(q => normalizeQuestionCode(q) === normalizeQuestionCode({ code: 'RESP-02' }));
+  const beneficiaryQuestion = allQuestions.find(isBeneficiaryQuestion);
+  const beneficiaryAnswer = beneficiaryQuestion ? answers[beneficiaryQuestion.id] : null;
+  const nextRespondentId = computeNextRespondentId(beneficiaryAnswer, existingResponses);
 
   const hasRespondentName = String(respondentName || '').trim().length > 0;
   const getLocationValue = (field) => field.question
@@ -316,6 +320,22 @@ const FormFill = () => {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-7">
+            <div className="mb-6 border-b border-slate-100 pb-6">
+              <Label className="mb-2 flex items-center gap-2 text-lg font-bold text-slate-900">
+                <Fingerprint className="h-4 w-4 text-emerald-600" />
+                Respondent ID
+              </Label>
+              <p className="mb-4 text-sm text-slate-500">
+                This is generated automatically once you submit. It will be shown after submission.
+              </p>
+              <Input
+                readOnly
+                value={nextRespondentId || ''}
+                placeholder="Assigned after submission"
+                className="cursor-not-allowed bg-slate-50 text-slate-700"
+              />
+            </div>
+
             <Label htmlFor="respondent-name" className="mb-2 block text-lg font-bold text-slate-900">
               Respondent Name <span className="ml-1 text-rose-500">*</span>
             </Label>
@@ -328,8 +348,10 @@ const FormFill = () => {
               placeholder="e.g. Juan Dela Cruz"
               value={respondentName}
               onChange={(e) => {
-                setRespondentName(e.target.value);
-                if (nameAttempted && String(e.target.value || '').trim()) setNameAttempted(false);
+                const v = e.target.value;
+                setRespondentName(v);
+                if (respondentIdQuestion) setAnswers({ ...answers, [respondentIdQuestion.id]: v });
+                if (nameAttempted && String(v || '').trim()) setNameAttempted(false);
               }}
               required
               autoComplete="name"
@@ -388,7 +410,7 @@ const FormFill = () => {
             ))}
           </div>
 
-          {current.questions.filter(q => !locationQuestionIds.includes(q.id)).map((question, idx) => (
+          {current.questions.filter(q => !locationQuestionIds.includes(q.id) && !isReservedField(q)).map((question, idx) => (
             <div key={question.id} className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition hover:shadow-md sm:p-7">
               <Label className="mb-2 block text-lg font-bold text-slate-900">
                 {idx + 1}. {question.title}
@@ -396,11 +418,8 @@ const FormFill = () => {
               </Label>
               {question.description && <p className="mb-4 text-sm text-slate-500">{question.description}</p>}
 
-              {question.type === 'short_text' && (
+              {isTextQuestionType(question.type) && (
                 <Input value={answers[question.id] || ''} onChange={e => setAnswers({ ...answers, [question.id]: e.target.value })} required={question.required} />
-              )}
-              {question.type === 'long_text' && (
-                <Textarea value={answers[question.id] || ''} onChange={e => setAnswers({ ...answers, [question.id]: e.target.value })} rows={4} required={question.required} />
               )}
               {question.type === 'multiple_choice' && (
                 <>

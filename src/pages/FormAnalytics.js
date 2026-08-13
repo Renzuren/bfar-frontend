@@ -19,7 +19,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { preprocessAnalyticsData, getQuestionLabel, normalizeLocationCodes } from '../lib/preprocessing';
+import { preprocessAnalyticsData, getQuestionLabel, normalizeLocationCodes, isReservedField } from '../lib/preprocessing';
 import { api } from '../lib/apiMiddleware';
 
 const CHART_COLORS = ['#0ea5e9', '#2563eb', '#14b8a6', '#22c55e', '#f97316', '#ef4444', '#8b5cf6', '#ec4899', '#ddb02b', '#94a3b8'];
@@ -231,7 +231,11 @@ const FormAnalytics = () => {
   }
 
   const totalResponses = analytics.total_responses || 0;
-  const questionsData = analytics.questions || [];
+  const questionsData = (analytics.questions || []).filter(questionData => {
+    if (!questionData) return false;
+    const mapped = questionCodeMap.get(questionData.question_id) || questionData;
+    return !isReservedField(mapped);
+  });
 
   const StatCard = ({ label, value, tint }) => (
     <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
