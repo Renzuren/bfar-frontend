@@ -15,6 +15,8 @@ const QUESTION_TYPES = [
   { value: 'multiple_choice', label: 'Multiple Choice' },
   { value: 'checkboxes', label: 'Checkboxes' },
   { value: 'dropdown', label: 'Dropdown' },
+  { value: 'short_text', label: 'Short Text' },
+  { value: 'long_text', label: 'Long Text' },
   { value: 'date', label: 'Date' },
   { value: 'rating', label: 'Rating Scale (1-5)' }
 ];
