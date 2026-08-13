@@ -15,6 +15,42 @@ const isBeneficiaryQuestion = (question) =>
   String(question.code || '').trim().toUpperCase() === 'BENE' ||
   String(question.title || '').toLowerCase().includes('beneficiary');
 
+const normalizeQuestionCode = (question) =>
+  String(question.code || '')
+    .replace(/[^A-Z0-9]/gi, '')
+    .toUpperCase()
+    .replace(/^([A-Z])0+/, '$1');
+
+const LOCATION_KEYS = [
+  {
+    key: 'municipality',
+    label: 'Municipality',
+    matches: (question) => {
+      const code = normalizeQuestionCode(question);
+      const title = String(question.title || '').toLowerCase();
+      return code === 'A1' || code === 'A1AREA' || title === 'area' || title.includes('municipal');
+    }
+  },
+  {
+    key: 'barangay',
+    label: 'Barangay',
+    matches: (question) => {
+      const code = normalizeQuestionCode(question);
+      const title = String(question.title || '').toLowerCase();
+      return code === 'A2' || title.includes('barangay') || title.includes('brgy');
+    }
+  },
+  {
+    key: 'province',
+    label: 'Province',
+    matches: (question) => {
+      const code = normalizeQuestionCode(question);
+      const title = String(question.title || '').toLowerCase();
+      return code === 'A3' || title.includes('province') || title.includes('prov');
+    }
+  }
+];
+
 const getNumericAnswer = (answer, question) => {
   if (isNoAnswer(answer)) return '—';
 
@@ -130,7 +166,20 @@ const FormResponses = () => {
       return;
     }
 
-    const allQuestions = sections.flatMap(s => s.questions);
+  const allQuestions = sections.flatMap(s => s.questions);
+
+  const getLocationForRow = (response, key) => {
+    if (!isNoAnswer(response[key])) return String(response[key]);
+    const field = LOCATION_KEYS.find(f => f.key === key);
+    if (field) {
+      const question = allQuestions.find(field.matches);
+      if (question) {
+        const ans = getAnswerForQuestion(response, question);
+        if (!isNoAnswer(ans)) return formatAnswerForTable(ans);
+      }
+    }
+    return '—';
+  };
     const validQuestions = allQuestions.filter(q =>
       q.code && q.code.trim() && !isBeneficiaryQuestion(q)
     );
@@ -139,6 +188,9 @@ const FormResponses = () => {
       'RESPONDENT_ID',
       'RESPONDENT_NAME',
       'RESPONDENT_EMAIL',
+      'MUNICIPALITY',
+      'BARANGAY',
+      'PROVINCE',
       'BENEFICIARY_STATUS',
       ...validQuestions.map(q => {
         const title = q.title.replace(/,/g, '').replace(/:/g, '').trim();
@@ -159,6 +211,9 @@ const FormResponses = () => {
         response.respondent_id || '',
         response.full_name || '',
         response.email || '',
+        getLocationForRow(response, 'municipality') === '—' ? '' : getLocationForRow(response, 'municipality'),
+        getLocationForRow(response, 'barangay') === '—' ? '' : getLocationForRow(response, 'barangay'),
+        getLocationForRow(response, 'province') === '—' ? '' : getLocationForRow(response, 'province'),
         status || '',
         ...rowValues
       ];
@@ -339,6 +394,9 @@ const FormResponses = () => {
                       <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Submitted At</th>
                       <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Respondent ID</th>
                       <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Respondent Name</th>
+                      <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Municipality</th>
+                      <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Barangay</th>
+                      <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Province</th>
                       <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
                       {sections.map(section => (
                         <th key={section.id} colSpan={section.questions.length} className="border-b border-slate-200 bg-slate-100 px-6 py-2 text-center text-sm font-bold text-slate-700">
@@ -373,6 +431,9 @@ const FormResponses = () => {
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{submittedAt}</td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-900">{respondentId}</td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-900">{resp.full_name || '—'}</td>
+                          <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{getLocationForRow(resp, 'municipality')}</td>
+                          <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{getLocationForRow(resp, 'barangay')}</td>
+                          <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{getLocationForRow(resp, 'province')}</td>
                           <td className="whitespace-nowrap px-6 py-4">
                             {status === 'Yes' ? (
                               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
