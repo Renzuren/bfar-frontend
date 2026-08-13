@@ -586,14 +586,25 @@ export const preprocessFormData = (formData) => {
     processed.description = preprocessText(processed.description);
   }
 
+  const preprocessQuestion = (question) => ({
+    ...question,
+    code: question.code || '', // PRESERVE CODE FIELD
+    title: preprocessText(question.title || ''),
+    description: question.description ? preprocessText(question.description) : '',
+    options: question.options ? question.options.map(opt => preprocessText(opt)) : []
+  });
+
   // Preprocess questions
   if (processed.questions && Array.isArray(processed.questions)) {
-    processed.questions = processed.questions.map(question => ({
-      ...question,
-      code: question.code || '', // PRESERVE CODE FIELD
-      title: preprocessText(question.title || ''),
-      description: question.description ? preprocessText(question.description) : '',
-      options: question.options ? question.options.map(opt => preprocessText(opt)) : []
+    processed.questions = processed.questions.map(preprocessQuestion);
+  }
+
+  // Preprocess questions nested inside sections
+  if (processed.sections && Array.isArray(processed.sections)) {
+    processed.sections = processed.sections.map(section => ({
+      ...section,
+      title: preprocessText(section.title || ''),
+      questions: Array.isArray(section.questions) ? section.questions.map(preprocessQuestion) : section.questions
     }));
   }
 
@@ -817,13 +828,55 @@ export const preprocessAnalyticsData = (analyticsData) => {
     processed.total_responses = Number(processed.total_responses) || 0;
   }
 
+  const total = processed.total_responses || 0;
+
   if (processed.questions && Array.isArray(processed.questions)) {
-    processed.questions = processed.questions.map(question => ({
-      ...question,
-      type: question.type || 'unknown',
-      title: preprocessText(question.title || ''),
-      responses: Array.isArray(question.responses) ? question.responses : []
-    }));
+    processed.questions = processed.questions.map(question => {
+      const q = {
+        ...question,
+        type: question.type || 'unknown',
+        title: preprocessText(question.title || ''),
+        responses: Array.isArray(question.responses) ? question.responses : []
+      };
+
+      // Derive answered / not-answered counts and rating distributions so the
+      // backend analytics shape matches the client-side fallback shape.
+      if (['multiple_choice', 'checkboxes', 'dropdown'].includes(q.type)) {
+        const counts = {};
+        q.responses.forEach(({ option, count }) => {
+          if (option && option !== 'Not answered') {
+            counts[option] = (counts[option] || 0) + (Number(count) || 0);
+          }
+        });
+        const answered = Object.values(counts).reduce((sum, count) => sum + count, 0);
+        q.totalAnswered = answered;
+        q.totalNoAnswer = Math.max(0, total - answered);
+      } else if (q.type === 'rating') {
+        const ratingCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        const validRatings = [];
+        q.responses.forEach(value => {
+          const num = Number(value);
+          if (!isNaN(num) && num >= 1 && num <= 5) {
+            validRatings.push(num);
+            ratingCounts[num] = (ratingCounts[num] || 0) + 1;
+          }
+        });
+        const noAnswer = Math.max(0, total - validRatings.length);
+        if (noAnswer > 0) ratingCounts['Not answered'] = noAnswer;
+        q.responses = validRatings;
+        q.distribution = ratingCounts;
+        q.totalAnswered = validRatings.length;
+        q.totalNoAnswer = noAnswer;
+      } else {
+        const textResponses = q.responses.filter(t =>
+          t !== null && t !== undefined && t !== '' && !(Array.isArray(t) && t.length === 0)
+        );
+        q.totalAnswered = textResponses.length;
+        q.totalNoAnswer = Math.max(0, total - textResponses.length);
+      }
+
+      return q;
+    });
   }
 
   return processed;
