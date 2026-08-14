@@ -99,14 +99,20 @@ const FormFill = () => {
 
   const hasRespondentName = String(respondentName || '').trim().length > 0;
   const getLocationValue = (field) => field.question
-    ? String(answers[field.question.id] || '').trim()
-    : String(locationValues[field.key] || '').trim();
+    ? String(answers[field.question.id] || '')
+    : String(locationValues[field.key] || '');
   const locationValueFor = (key) => {
     const field = locationFields.find(f => f.key === key);
-    return field ? getLocationValue(field) : '';
+    return field ? getLocationValue(field).trim() : '';
   };
-  const hasLocationValue = (field) => getLocationValue(field).length > 0;
+  const hasLocationValue = (field) => String(getLocationValue(field)).trim().length > 0;
   const allLocationsFilled = locationFields.every(hasLocationValue);
+  const locationValidationMessage = (field) => {
+    if (!hasLocationValue(field)) return locationRequiredMessage(field.label);
+    if (!isValidLocationText(getLocationValue(field))) return `${field.label} can only contain letters and spaces.`;
+    return '';
+  };
+  const locationHasError = (field) => locationAttempted[field.key] && !!locationValidationMessage(field);
 
   const validateRespondentName = () => {
     if (!hasRespondentName) {
@@ -120,9 +126,14 @@ const FormFill = () => {
   const validateLocations = () => {
     let valid = true;
     locationFields.forEach(field => {
+      const value = getLocationValue(field);
       if (!hasLocationValue(field)) {
         setLocationAttempted(prev => ({ ...prev, [field.key]: true }));
         toast.error(locationRequiredMessage(field.label));
+        valid = false;
+      } else if (!isValidLocationText(value)) {
+        setLocationAttempted(prev => ({ ...prev, [field.key]: true }));
+        toast.error(`${field.label} can only contain letters and spaces.`);
         valid = false;
       }
     });
@@ -373,7 +384,7 @@ const FormFill = () => {
                 </p>
                 {['dropdown', 'multiple_choice'].includes(field.question?.type) ? (
                   <Select value={answers[field.question.id] || ''} onValueChange={v => setAnswers({ ...answers, [field.question.id]: v })}>
-                    <SelectTrigger id={`respondent-${field.key}`} className={locationAttempted[field.key] && !hasLocationValue(field) ? 'border-rose-400 ring-2 ring-rose-100' : ''}>
+                    <SelectTrigger id={`respondent-${field.key}`} className={locationHasError(field) ? 'border-rose-400 ring-2 ring-rose-100' : ''}>
                       <SelectValue placeholder={`Select your ${field.label.toLowerCase()}`} />
                     </SelectTrigger>
                     <SelectContent>
@@ -393,17 +404,17 @@ const FormFill = () => {
                       } else {
                         setLocationValues(prev => ({ ...prev, [field.key]: v }));
                       }
-                      if (locationAttempted[field.key] && String(v || '').trim()) {
+                      if (locationAttempted[field.key] && isValidLocationText(v)) {
                         setLocationAttempted(prev => ({ ...prev, [field.key]: false }));
                       }
                     }}
                     required
-                    className={locationAttempted[field.key] && !hasLocationValue(field) ? 'border-rose-400 ring-2 ring-rose-100' : ''}
+                    className={locationHasError(field) ? 'border-rose-400 ring-2 ring-rose-100' : ''}
                   />
                 )}
-                {locationAttempted[field.key] && !hasLocationValue(field) && (
+                {locationHasError(field) && (
                   <p role="alert" className="mt-2 text-sm font-medium text-rose-500">
-                    {locationRequiredMessage(field.label)}
+                    {locationValidationMessage(field)}
                   </p>
                 )}
               </div>
