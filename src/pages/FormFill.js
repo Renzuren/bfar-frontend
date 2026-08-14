@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
-import { isReservedField, isTextQuestionType } from '../lib/preprocessing';
+import { isReservedField, isTextQuestionType, isValidLocationText } from '../lib/preprocessing';
 
 const pad4 = (n) => String(n).padStart(4, '0');
 
