@@ -90,7 +90,8 @@ const computeQuestionAnalytics = (responses, question) => {
 };
 
 const NarrativeReport = () => {
-  const { project } = useOutletContext();
+  const outletCtx = useOutletContext();
+  const project = outletCtx?.project;
   const reportRef = useRef(null);
   const [beforeForm, setBeforeForm] = useState(null);
   const [afterForm, setAfterForm] = useState(null);
@@ -280,7 +281,7 @@ const NarrativeReport = () => {
     }
   };
 
-  if (loading) {
+  if (loading || !project) {
     return (
       <div className="flex items-center justify-center py-20 text-slate-500">
         Loading report data...
