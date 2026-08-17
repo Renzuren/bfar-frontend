@@ -10,7 +10,12 @@ import FormFill from './pages/FormFill';
 import FormResponses from './pages/FormResponses';
 import FormAnalytics from './pages/FormAnalytics';
 import MLUpload from './pages/MLUpload';
+import ProjectDashboard from './pages/ProjectDashboard';
+import QuestionnaireBuilder from './pages/QuestionnaireBuilder';
+import NarrativeReport from './pages/NarrativeReport';
+import ReportsList from './pages/ReportsList';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ProjectProvider } from './context/ProjectContext';
 import VerifyAccount from './pages/VerifyAccount';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -34,25 +39,37 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/verify-account" element={<VerifyAccount />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/verify-reset-code" element={<VerifyResetCode />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/forms/new" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
-          <Route path="/forms/:id/edit" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
-          <Route path="/forms/:id/responses" element={<ProtectedRoute><FormResponses /></ProtectedRoute>} />
-          <Route path="/forms/:id/analytics" element={<ProtectedRoute><FormAnalytics /></ProtectedRoute>} />
-          <Route path="/ml-upload" element={<ProtectedRoute><MLUpload /></ProtectedRoute>} />
-          <Route path="/f/:id" element={<FormFill />} />
-        </Routes>
-        <Toaster />
-      </BrowserRouter>
+      <ProjectProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/verify-account" element={<VerifyAccount />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/verify-reset-code" element={<VerifyResetCode />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+
+            {/* Project routes */}
+            <Route path="/projects/:id" element={<ProtectedRoute><ProjectDashboard /></ProtectedRoute>}>
+              <Route path="questionnaire-before" element={<QuestionnaireBuilder />} />
+              <Route path="questionnaire-after" element={<QuestionnaireBuilder />} />
+              <Route path="narrative-report" element={<NarrativeReport />} />
+              <Route path="reports" element={<ReportsList />} />
+            </Route>
+
+            {/* Legacy form routes */}
+            <Route path="/forms/new" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
+            <Route path="/forms/:id/edit" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
+            <Route path="/forms/:id/responses" element={<ProtectedRoute><FormResponses /></ProtectedRoute>} />
+            <Route path="/forms/:id/analytics" element={<ProtectedRoute><FormAnalytics /></ProtectedRoute>} />
+            <Route path="/ml-upload" element={<ProtectedRoute><MLUpload /></ProtectedRoute>} />
+            <Route path="/f/:id" element={<FormFill />} />
+          </Routes>
+          <Toaster />
+        </BrowserRouter>
+      </ProjectProvider>
     </AuthProvider>
   );
 }
