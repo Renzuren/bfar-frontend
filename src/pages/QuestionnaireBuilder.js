@@ -1,0 +1,687 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useParams, useOutletContext, useLocation } from 'react-router-dom';
+import { Plus, Trash2, Save, ChevronLeft, ChevronRight, Layers, Pencil, GripVertical, UserPlus, Copy, Eye, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Card } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { api } from '../lib/apiMiddleware';
+import useDragAutoScroll from '../hooks/useDragAutoScroll';
+import { normalizeLocationCodes, ensureSystemFields, canonicalizeSystemFields, isSystemField, isReservedField } from '../lib/preprocessing';
+
+const QUESTION_TYPES = [
+  { value: 'multiple_choice', label: 'Multiple Choice' },
+  { value: 'checkboxes', label: 'Checkboxes' },
+  { value: 'dropdown', label: 'Dropdown' },
+  { value: 'date', label: 'Date' },
+  { value: 'rating', label: 'Rating Scale (1-5)' }
+];
+
+const generateCSVHeaders = (questions) => {
+  const shouldSkipQuestion = (questionType, title = '') => {
+    const skipKeywords = ['name', 'address', 'comment', 'specify', 'consent', 'text'];
+    const lowerTitle = title.toLowerCase();
+    return skipKeywords.some(keyword => lowerTitle.includes(keyword));
+  };
+  const headers = [];
+  questions.forEach((question) => {
+    if (!shouldSkipQuestion(question.type, question.title) && question.code) {
+      const sanitizedTitle = question.title.replace(/,/g, '').replace(/:/g, '').trim();
+      const header = sanitizedTitle ? `${question.code}:${sanitizedTitle}` : question.code;
+      headers.push(header);
+    }
+  });
+  return headers.join(',');
+};
+
+const QuestionnaireBuilder = () => {
+  const navigate = useNavigate();
+  const { id: projectId } = useParams();
+  const location = useLocation();
+  const { project } = useOutletContext();
+  const questionnaireType = location.pathname.includes('questionnaire-before') ? 'before' : 'after';
+  const formField = questionnaireType === 'before' ? 'before_form' : 'after_form';
+
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    questions: []
+  });
+
+  const [sections, setSections] = useState([{
+    id: `section_${Date.now()}`,
+    title: 'Untitled Section',
+    questions: ensureSystemFields([], 'Untitled Section', Date.now())
+  }]);
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
+  const [editingTabIndex, setEditingTabIndex] = useState(null);
+  const [editingTabValue, setEditingTabValue] = useState('');
+  const [dragItem, setDragItem] = useState(null);
+  const [dragOver, setDragOver] = useState(null);
+  const [savedFormId, setSavedFormId] = useState(null);
+
+  const handleDragHover = (target) => {
+    if (!dragItem) {
+      if (dragOver) setDragOver(null);
+      return;
+    }
+    if (!target) {
+      if (dragOver) setDragOver(null);
+      return;
+    }
+    const targetType = target.dataset.dragType;
+    const index = Number(target.dataset.dragIndex);
+    if (targetType !== dragItem.type || index === dragItem.fromIndex) {
+      if (dragOver) setDragOver(null);
+      return;
+    }
+    if (!dragOver || dragOver.type !== targetType || dragOver.index !== index) {
+      setDragOver({ type: targetType, index });
+    }
+  };
+
+  const { startAutoScroll, updateAutoScroll, stopAutoScroll } = useDragAutoScroll({ edgeSize: 140, maxSpeed: 18, onHoverChange: handleDragHover });
+
+  useEffect(() => {
+    const loadForm = async () => {
+      if (!project) return;
+      const formId = project[formField];
+      if (formId) {
+        try {
+          const response = await api.get(`/forms/${formId}`);
+          const fetchedForm = response.data;
+          setSavedFormId(formId);
+
+          let loadedSections = [];
+          if (fetchedForm.sections && fetchedForm.sections.length > 0) {
+            loadedSections = fetchedForm.sections.map(sec => ({
+              ...sec,
+              questions: normalizeLocationCodes(sec.questions.map(q => ({ ...q, section: q.section || sec.title })))
+            }));
+          } else if (fetchedForm.questions && fetchedForm.questions.length > 0) {
+            const sectionMap = new Map();
+            normalizeLocationCodes(fetchedForm.questions).forEach(q => {
+              const secName = q.section && q.section.trim() ? q.section : 'Section 1';
+              if (!sectionMap.has(secName)) sectionMap.set(secName, []);
+              sectionMap.get(secName).push(q);
+            });
+            loadedSections = Array.from(sectionMap.entries()).map(([title, qs], idx) => ({
+              id: `section_${Date.now()}_${idx}`,
+              title,
+              questions: qs
+            }));
+          } else {
+            loadedSections = [{ id: `section_${Date.now()}`, title: 'Section 1', questions: [] }];
+          }
+
+          loadedSections = loadedSections.map((sec, idx) => {
+            const questions = canonicalizeSystemFields(
+              normalizeLocationCodes((sec.questions || []).map(q => ({ ...q, section: q.section || sec.title })))
+            );
+            return {
+              ...sec,
+              questions: idx === 0 ? ensureSystemFields(questions, sec.title || 'Untitled Section') : questions
+            };
+          });
+
+          setSections(loadedSections);
+          setFormData({
+            title: fetchedForm.title,
+            description: fetchedForm.description || '',
+            questions: fetchedForm.questions || []
+          });
+          setCurrentSectionIndex(0);
+        } catch (error) {
+          toast.error('Failed to load questionnaire');
+        }
+      }
+      setFetching(false);
+    };
+    loadForm();
+  }, [project, formField]);
+
+  const addSection = () => {
+    const newSection = {
+      id: `section_${Date.now()}`,
+      title: `New Section ${sections.length + 1}`,
+      questions: []
+    };
+    setSections([...sections, newSection]);
+    setCurrentSectionIndex(sections.length);
+  };
+
+  const deleteSection = (index) => {
+    if (sections.length === 1) {
+      toast.error('You must keep at least one section');
+      return;
+    }
+    if ((sections[index]?.questions || []).some(isSystemField)) {
+      toast.error('The section containing system fields cannot be deleted');
+      return;
+    }
+    const newSections = [...sections];
+    newSections.splice(index, 1);
+    setSections(newSections);
+    if (currentSectionIndex >= newSections.length) setCurrentSectionIndex(newSections.length - 1);
+  };
+
+  const renameSection = (index, newTitle) => {
+    const newSections = [...sections];
+    newSections[index].title = newTitle;
+    newSections[index].questions = newSections[index].questions.map(q => ({ ...q, section: newTitle }));
+    setSections(newSections);
+  };
+
+  const moveQuestionToSection = (questionId, fromIdx, toIdx) => {
+    if (fromIdx === toIdx) return;
+    const newSections = [...sections];
+    const qIndex = newSections[fromIdx].questions.findIndex(q => q.id === questionId);
+    if (qIndex === -1) return;
+    const [moved] = newSections[fromIdx].questions.splice(qIndex, 1);
+    moved.section = newSections[toIdx].title;
+    newSections[toIdx].questions.push(moved);
+    setSections(newSections);
+    toast.success(`Moved to "${newSections[toIdx].title}"`);
+  };
+
+  const addQuestion = () => {
+    const current = sections[currentSectionIndex];
+    const newQuestion = {
+      id: `q_${Date.now()}`,
+      type: 'multiple_choice',
+      title: '',
+      code: '',
+      description: '',
+      required: false,
+      options: ['Option 1', 'Option 2'],
+      section: current.title
+    };
+    const updated = [...sections];
+    updated[currentSectionIndex].questions.push(newQuestion);
+    setSections(updated);
+  };
+
+  const addBeneficiaryQuestion = () => {
+    const exists = sections.some(section =>
+      section.questions.some(q => q.code === 'BENE')
+    );
+    if (exists) {
+      toast.warning('Beneficiary question already exists in this form.');
+      return;
+    }
+    const current = sections[currentSectionIndex];
+    const beneQuestion = {
+      id: `q_${Date.now()}`,
+      type: 'multiple_choice',
+      title: 'Are you a beneficiary of the livelihood program?',
+      code: 'BENE',
+      description: 'Yes — Beneficiary · No — Non-Beneficiary',
+      required: true,
+      options: ['Yes', 'No'],
+      section: current.title
+    };
+    const updated = [...sections];
+    updated[currentSectionIndex].questions.push(beneQuestion);
+    setSections(updated);
+    toast.success('Beneficiary question added to current section.');
+  };
+
+  const updateQuestion = (sectionIdx, qIdx, field, value) => {
+    const updated = [...sections];
+    updated[sectionIdx].questions[qIdx][field] = value;
+    setSections(updated);
+  };
+
+  const deleteQuestion = (sectionIdx, qIdx) => {
+    const updated = [...sections];
+    updated[sectionIdx].questions.splice(qIdx, 1);
+    setSections(updated);
+  };
+
+  const handleTypeChange = (sectionIdx, qIdx, newType) => {
+    const updated = [...sections];
+    const q = updated[sectionIdx].questions[qIdx];
+    q.type = newType;
+    if (['multiple_choice', 'checkboxes', 'dropdown'].includes(newType)) {
+      q.options = q.options?.length ? q.options : ['Option 1', 'Option 2'];
+    } else {
+      delete q.options;
+    }
+    setSections(updated);
+  };
+
+  const addOption = (sectionIdx, qIdx) => {
+    const updated = [...sections];
+    const q = updated[sectionIdx].questions[qIdx];
+    q.options = [...(q.options || []), ''];
+    setSections(updated);
+  };
+
+  const updateOption = (sectionIdx, qIdx, optIdx, value) => {
+    const updated = [...sections];
+    updated[sectionIdx].questions[qIdx].options[optIdx] = value;
+    setSections(updated);
+  };
+
+  const deleteOption = (sectionIdx, qIdx, optIdx) => {
+    const updated = [...sections];
+    updated[sectionIdx].questions[qIdx].options.splice(optIdx, 1);
+    setSections(updated);
+  };
+
+  const reorderArray = useCallback((arr, from, to) => {
+    if (from === to) return arr;
+    const next = [...arr];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    return next;
+  }, []);
+
+  const resetDrag = useCallback(() => {
+    setDragItem(null);
+    setDragOver(null);
+    stopAutoScroll();
+  }, [stopAutoScroll]);
+
+  const handleSectionDragStart = (e, fromIndex) => {
+    if (editingTabIndex === fromIndex) {
+      e.preventDefault();
+      return;
+    }
+    if ((sections[fromIndex]?.questions || []).some(isSystemField)) {
+      e.preventDefault();
+      return;
+    }
+    setDragOver(null);
+    setDragItem({ type: 'section', fromIndex });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(fromIndex));
+    startAutoScroll(e);
+  };
+
+  const handleSectionDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    updateAutoScroll(e);
+  };
+
+  const handleQuestionDragStart = (e, fromIndex) => {
+    const tag = (e.target.tagName || '').toUpperCase();
+    if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'OPTION', 'LABEL', 'A'].includes(tag)) {
+      e.preventDefault();
+      return;
+    }
+    const question = sections[currentSectionIndex]?.questions[fromIndex];
+    if (question && isSystemField(question)) {
+      e.preventDefault();
+      return;
+    }
+    setDragOver(null);
+    setDragItem({ type: 'question', fromIndex });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(fromIndex));
+    startAutoScroll(e);
+  };
+
+  const handleQuestionDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    updateAutoScroll(e);
+  };
+
+  useEffect(() => {
+    if (!dragItem) return undefined;
+    const handleDocumentDragOver = (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    };
+    const handleDocumentDrop = (e) => {
+      e.preventDefault();
+      const element = document.elementFromPoint(e.clientX, e.clientY);
+      const target = element && element.closest('[data-drag-target]');
+      const fromIndex = dragItem.fromIndex;
+      if (target && target.dataset.dragType === dragItem.type) {
+        const toIndex = Number(target.dataset.dragIndex);
+        if (toIndex !== fromIndex) {
+          if (dragItem.type === 'section') {
+            const systemSection = sections.findIndex(sec => (sec.questions || []).some(isSystemField));
+            if (systemSection !== -1 && (toIndex === 0 || fromIndex === systemSection || toIndex === systemSection)) {
+              toast.warning('The section containing system fields must stay first');
+            } else {
+              const currentId = sections[currentSectionIndex]?.id;
+              const next = reorderArray(sections, fromIndex, toIndex);
+              setSections(next);
+              const newIdx = next.findIndex(s => s.id === currentId);
+              if (newIdx !== -1) setCurrentSectionIndex(newIdx);
+            }
+          } else if (dragItem.type === 'question') {
+            const systemCount = sections[currentSectionIndex]?.questions.filter(isSystemField).length || 0;
+            if (systemCount > 0 && toIndex < systemCount) {
+              toast.warning('System fields must stay at the beginning of the section');
+            } else {
+              const updated = [...sections];
+              updated[currentSectionIndex].questions = reorderArray(
+                updated[currentSectionIndex].questions,
+                fromIndex,
+                toIndex
+              );
+              setSections(updated);
+            }
+          }
+        }
+      }
+      resetDrag();
+    };
+    document.addEventListener('dragover', handleDocumentDragOver);
+    document.addEventListener('drop', handleDocumentDrop);
+    return () => {
+      document.removeEventListener('dragover', handleDocumentDragOver);
+      document.removeEventListener('drop', handleDocumentDrop);
+    };
+  }, [dragItem, sections, currentSectionIndex, reorderArray, resetDrag]);
+
+  const validateForm = () => {
+    if (!formData.title.trim()) {
+      toast.error('Please enter a questionnaire title');
+      return false;
+    }
+    const allQ = sections.flatMap(s => s.questions);
+    if (allQ.length === 0) {
+      toast.error('Please add at least one question');
+      return false;
+    }
+    for (let i = 0; i < allQ.length; i++) {
+      const q = allQ[i];
+      if (!q.title.trim()) {
+        toast.error(`Question ${i + 1} is missing a title`);
+        return false;
+      }
+      if (['multiple_choice', 'checkboxes', 'dropdown'].includes(q.type)) {
+        if (!q.options || q.options.length < 2 || q.options.some(opt => !opt.trim())) {
+          toast.error(`Question ${i + 1} needs at least 2 valid options`);
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) return;
+    const allQuestions = sections.flatMap(s => s.questions);
+    const csvHeaders = generateCSVHeaders(allQuestions);
+    const payload = {
+      ...formData,
+      questions: allQuestions,
+      sections,
+      csvHeaders,
+      csvColumnCount: csvHeaders ? csvHeaders.split(',').length : 0,
+      project_id: projectId,
+      questionnaire_type: questionnaireType,
+      updatedAt: new Date().toISOString()
+    };
+    if (!payload.createdAt) payload.createdAt = new Date().toISOString();
+
+    setLoading(true);
+    try {
+      let formId = savedFormId;
+      if (formId) {
+        await api.put(`/forms/${formId}`, payload);
+        toast.success('Questionnaire updated successfully!');
+      } else {
+        const response = await api.post('/forms', payload);
+        formId = response.data.id;
+        setSavedFormId(formId);
+        toast.success('Questionnaire created successfully!');
+
+        await api.put(`/projects/${projectId}`, {
+          [formField]: formId,
+        });
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to save questionnaire');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyFormLink = () => {
+    if (!savedFormId) return;
+    const link = `${window.location.origin}/f/${savedFormId}`;
+    navigator.clipboard.writeText(link);
+    toast.success('Questionnaire link copied to clipboard!');
+  };
+
+  if (fetching) return <div className="flex items-center justify-center py-20 text-slate-500">Loading questionnaire...</div>;
+
+  const current = sections[currentSectionIndex];
+  const isFirst = currentSectionIndex === 0;
+  const isLast = currentSectionIndex === sections.length - 1;
+
+  return (
+    <div className="space-y-8">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
+        <div className="relative">
+          <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-cyan-300">
+            {questionnaireType === 'before' ? 'Create Questionnaire (Before)' : 'Create Questionnaire (After)'}
+          </p>
+          <p className="mb-3 text-xs text-slate-400">
+            {questionnaireType === 'before'
+              ? 'This questionnaire will be distributed to respondents before the intervention or program.'
+              : 'This questionnaire will be distributed after the intervention to measure changes from the Before questionnaire.'}
+          </p>
+          <Input
+            value={formData.title}
+            onChange={e => setFormData({ ...formData, title: e.target.value })}
+            placeholder={`Enter ${questionnaireType} questionnaire title`}
+            className="mb-3 h-12 border-0 border-b-2 border-white/20 bg-transparent px-0 text-2xl font-bold text-white shadow-none placeholder:text-slate-400 focus:border-cyan-300 focus:ring-0"
+          />
+          <Textarea
+            value={formData.description}
+            onChange={e => setFormData({ ...formData, description: e.target.value })}
+            placeholder="Add a short description (optional)"
+            rows={2}
+            className="max-w-2xl border-0 bg-white/5 px-0 text-sm text-slate-200 placeholder:text-slate-400 focus:ring-0"
+          />
+        </div>
+      </section>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <Layers className="h-4 w-4 text-cyan-600" />
+          Sections <span className="hidden text-slate-400 sm:inline">(drag tabs to reorder, double-click to rename)</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={addBeneficiaryQuestion} variant="outline" size="sm" className="border-cyan-300 text-cyan-700 hover:bg-cyan-50">
+            <UserPlus className="mr-1.5 h-4 w-4" /> Beneficiary Q
+          </Button>
+          <Button onClick={addSection} variant="outline" size="sm">
+            <Plus className="mr-1.5 h-4 w-4" /> Add Section
+          </Button>
+          {savedFormId && (
+            <Button onClick={copyFormLink} variant="outline" size="sm" className="border-emerald-300 text-emerald-700 hover:bg-emerald-50">
+              <Copy className="mr-1.5 h-4 w-4" /> Copy Link
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {sections.map((sec, idx) => {
+          if (editingTabIndex === idx) {
+            return <Input key={sec.id} value={editingTabValue} onChange={e => setEditingTabValue(e.target.value)} onBlur={() => { if (editingTabValue.trim()) renameSection(idx, editingTabValue); setEditingTabIndex(null); }} onKeyDown={e => { if (e.key === 'Enter') { if (editingTabValue.trim()) renameSection(idx, editingTabValue); setEditingTabIndex(null); } if (e.key === 'Escape') setEditingTabIndex(null); }} className="w-auto min-w-[120px] text-sm" autoFocus />;
+          }
+          return (
+            <button
+              key={sec.id}
+              draggable
+              data-drag-target="section"
+              data-drag-type="section"
+              data-drag-index={idx}
+              onDragStart={(e) => handleSectionDragStart(e, idx)}
+              onDragOver={handleSectionDragOver}
+              onDragEnd={resetDrag}
+              onClick={() => setCurrentSectionIndex(idx)}
+              onDoubleClick={() => { setEditingTabValue(sec.title); setEditingTabIndex(idx); }}
+              className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium transition ${
+                idx === currentSectionIndex
+                  ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20'
+                  : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
+              } ${dragItem?.type === 'section' && dragItem.fromIndex === idx ? 'opacity-50' : ''} ${dragOver?.type === 'section' && dragOver.index === idx ? 'ring-2 ring-cyan-400 bg-cyan-50 text-slate-900' : ''}`}
+              title="Drag to reorder sections"
+            >
+              <span className={`font-bold ${idx === currentSectionIndex ? 'text-cyan-300' : 'text-slate-400'}`}>{idx + 1}.</span>
+              <span className="max-w-[160px] truncate">{sec.title}</span>
+              <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${idx === currentSectionIndex ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                {sec.questions.filter(q => !isReservedField(q)).length}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <Card className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-6 py-4">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <GripVertical className="h-4 w-4 shrink-0 text-slate-300" />
+            <Input value={current.title} onChange={e => renameSection(currentSectionIndex, e.target.value)} className="border-0 bg-transparent text-lg font-bold text-slate-900 shadow-none focus:ring-0" />
+            <Pencil className="h-4 w-4 shrink-0 text-slate-300" />
+          </div>
+          <span className="hidden shrink-0 text-xs text-slate-400 md:inline">Drag questions to reorder</span>
+          <Button variant="ghost" size="sm" onClick={() => deleteSection(currentSectionIndex)} disabled={sections.length === 1} className="text-rose-500 hover:bg-rose-50 hover:text-rose-600">
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="divide-y divide-slate-100 px-6 py-2">
+          {(() => {
+            const surveyNumbers = new Map();
+            let surveyCount = 0;
+            current.questions.forEach(question => {
+              if (!isReservedField(question)) surveyNumbers.set(question.id, ++surveyCount);
+            });
+            return current.questions.map((q, qIdx) => {
+            const isSys = isSystemField(q);
+            return (
+            <div
+              key={q.id}
+              draggable={!isSys}
+              data-drag-target="question"
+              data-drag-type="question"
+              data-drag-index={qIdx}
+              onDragStart={(e) => handleQuestionDragStart(e, qIdx)}
+              onDragOver={handleQuestionDragOver}
+              onDragEnd={resetDrag}
+              className={`py-6 transition ${dragItem?.type === 'question' && dragItem.fromIndex === qIdx ? 'opacity-50' : ''} ${dragOver?.type === 'question' && dragOver.index === qIdx ? 'rounded-xl bg-cyan-50/60' : ''}`}
+            >
+              <div className="flex gap-4">
+                {!isSys && (
+                  <div className="flex cursor-grab items-start pt-2 text-slate-300 active:cursor-grabbing" title="Drag to reorder questions">
+                    <GripVertical className="h-5 w-5" />
+                  </div>
+                )}
+                <div className="flex-1 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-50 text-xs font-bold text-cyan-700 ring-1 ring-cyan-100">
+                      {isSys ? 'S' : surveyNumbers.get(q.id)}
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">{isSys ? 'System Field' : 'Question'}</span>
+                    {isSys && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600 ring-1 ring-indigo-100">Always included</span>}
+                    {q.required && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-600 ring-1 ring-rose-100">Required</span>}
+                  </div>
+                  {isSys ? (
+                    <div className="grid gap-3 lg:grid-cols-3">
+                      <div><Label>Field</Label><Input value={q.title} disabled className="bg-slate-50 text-slate-600" /></div>
+                      <div><Label>Type</Label><Input value={q.type} disabled className="bg-slate-50 text-slate-600" /></div>
+                      <div><Label>Code</Label><Input value={q.code || ''} disabled className="bg-slate-50 text-slate-600" /></div>
+                    </div>
+                  ) : (
+                    <>
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <div className="lg:col-span-2"><Label>Question text</Label><Input value={q.title} onChange={e => updateQuestion(currentSectionIndex, qIdx, 'title', e.target.value)} placeholder="Enter your question" /></div>
+                    <div><Label>Type</Label><Select value={q.type} onValueChange={v => handleTypeChange(currentSectionIndex, qIdx, v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{QUESTION_TYPES.some(t => t.value === q.type) ? null : <SelectItem value={q.type} disabled>Text (legacy)</SelectItem>}{QUESTION_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
+                    <div><Label>Question code</Label><Input value={q.code || ''} onChange={e => updateQuestion(currentSectionIndex, qIdx, 'code', e.target.value)} placeholder="e.g., A1" /></div>
+                    <div className="lg:col-span-2"><Label>Description (optional)</Label><Input value={q.description || ''} onChange={e => updateQuestion(currentSectionIndex, qIdx, 'description', e.target.value)} placeholder="Add helper text" /></div>
+                  </div>
+
+                  {['multiple_choice', 'checkboxes', 'dropdown'].includes(q.type) && (
+                    <div className="rounded-xl bg-slate-50/80 p-4">
+                      <Label className="mb-3 block text-xs font-semibold uppercase tracking-wide text-slate-500">Options</Label>
+                      <div className="space-y-2">
+                        {q.options?.map((opt, oi) => (
+                          <div key={oi} className="flex gap-2">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-xs font-bold text-slate-400 ring-1 ring-slate-200">{oi + 1}</div>
+                            <Input value={opt} onChange={e => updateOption(currentSectionIndex, qIdx, oi, e.target.value)} placeholder={`Option ${oi + 1}`} />
+                            <Button variant="outline" size="icon" onClick={() => deleteOption(currentSectionIndex, qIdx, oi)} className="text-rose-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => addOption(currentSectionIndex, qIdx)} className="mt-3 text-cyan-700 hover:bg-cyan-50">
+                        <Plus className="mr-1.5 h-4 w-4" /> Add Option
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                    <div className="flex items-center gap-2">
+                      <Switch checked={q.required} onCheckedChange={c => updateQuestion(currentSectionIndex, qIdx, 'required', c)} />
+                      <Label className="text-sm font-medium text-slate-700">Required question</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-44">
+                        <Select value={currentSectionIndex.toString()} onValueChange={val => moveQuestionToSection(q.id, currentSectionIndex, parseInt(val))}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>{sections.map((sec, idx) => <SelectItem key={sec.id} value={idx.toString()}>{sec.title}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => deleteQuestion(currentSectionIndex, qIdx)} className="text-rose-500 hover:bg-rose-50 hover:text-rose-600">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  </>
+                  )}
+                </div>
+              </div>
+            </div>
+            );
+            });
+          })()}
+        </div>
+
+        <div className="border-t border-slate-100 px-6 py-5">
+          <Button variant="outline" className="w-full border-dashed text-slate-600 hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-700" onClick={addQuestion}>
+            <Plus className="mr-2 h-4 w-4" /> Add Question to this Section
+          </Button>
+        </div>
+      </Card>
+
+      <div className="flex items-center justify-between pb-10">
+        <Button variant="outline" onClick={() => setCurrentSectionIndex(currentSectionIndex - 1)} disabled={isFirst}>
+          <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+        </Button>
+        {!isLast ? (
+          <Button onClick={() => setCurrentSectionIndex(currentSectionIndex + 1)} className="bg-slate-900 text-white hover:bg-slate-800">
+            Next <ChevronRight className="ml-2 h-4 w-4" />
+          </Button>
+        ) : (
+          <Button className="bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700" onClick={handleSave} disabled={loading}>
+            <Save className="mr-2 h-4 w-4" /> {loading ? 'Saving...' : 'Save Questionnaire'}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default QuestionnaireBuilder;
