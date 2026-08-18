@@ -39,8 +39,8 @@ export const getDefaultLocationCode = (question) => {
  * Assigns default location codes (A1/A2/A3) to questions that are missing a
  * code. Existing codes are preserved so admin-set codes stay editable.
  */
-export const normalizeLocationCodes = (questions = []) =>
-  questions.map((q) => {
+export const normalizeLocationCodes = (questions) =>
+  (questions || []).map((q) => {
     if (!q || normalizeQuestionCode(q)) return q;
     const defaultCode = getDefaultLocationCode(q);
     if (defaultCode) return { ...q, code: defaultCode };
@@ -131,12 +131,13 @@ export const createSystemField = (code, sectionTitle = 'Untitled Section', times
  * front of a question list. Existing fields are kept in place, so this is safe
  * to run on every fetch and save.
  */
-export const ensureSystemFields = (questions = [], sectionTitle = 'Untitled Section', timestamp = Date.now()) => {
-  const existing = new Set(questions.map((q) => normalizeQuestionCode(q)));
+export const ensureSystemFields = (questions, sectionTitle = 'Untitled Section', timestamp = Date.now()) => {
+  const safeQuestions = questions || [];
+  const existing = new Set(safeQuestions.map((q) => normalizeQuestionCode(q)));
   const missing = SYSTEM_FIELD_DEFINITIONS.filter((def) => !existing.has(canonicalSystemCode(def.code)));
   return [
     ...missing.map((def) => createSystemField(def.code, sectionTitle, timestamp)),
-    ...questions
+    ...safeQuestions
   ];
 };
 
@@ -145,8 +146,8 @@ export const ensureSystemFields = (questions = [], sectionTitle = 'Untitled Sect
  * type and required flag. Used when loading legacy forms so old location
  * questions (previously 'short_text') match the new system fields.
  */
-export const canonicalizeSystemFields = (questions = []) =>
-  questions.map((q) => {
+export const canonicalizeSystemFields = (questions) =>
+  (questions || []).map((q) => {
     const def = SYSTEM_FIELD_DEFINITIONS.find((d) => normalizeQuestionCode(q) === canonicalSystemCode(d.code));
     if (!def) return q;
     return {

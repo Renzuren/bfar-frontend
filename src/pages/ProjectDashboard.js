@@ -8,6 +8,8 @@ import {
   Menu,
   X,
   ChevronRight,
+  ListChecks,
+  Layers,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProject } from '../context/ProjectContext';
@@ -16,16 +18,22 @@ import { toast } from 'sonner';
 
 const SIDEBAR_ITEMS = [
   {
-    label: 'Create Questionnaire (Before)',
-    path: 'questionnaire-before',
+    label: 'Create Questionnaire',
+    path: 'create-questionnaire',
     icon: FileText,
-    description: 'Build a survey for before the intervention',
+    description: 'Build a new questionnaire (Before or After)',
   },
   {
-    label: 'Create Questionnaire (After)',
-    path: 'questionnaire-after',
-    icon: ClipboardList,
-    description: 'Build a survey for after the intervention',
+    label: 'Before',
+    path: 'before',
+    icon: Layers,
+    description: 'View and manage Before questionnaires',
+  },
+  {
+    label: 'After',
+    path: 'after',
+    icon: ListChecks,
+    description: 'View and manage After questionnaires',
   },
   {
     label: 'Narrative Report',
@@ -36,7 +44,7 @@ const SIDEBAR_ITEMS = [
   {
     label: 'Reports',
     path: 'reports',
-    icon: FileText,
+    icon: ClipboardList,
     description: 'List of all generated reports',
   },
 ];
@@ -185,10 +193,11 @@ const ProjectOverview = ({ project }) => {
   }
 
   const formatDate = (value) => {
-    let date = new Date();
-    if (value && typeof value === 'object' && typeof value._seconds === 'number') {
+    if (!value) return 'N/A';
+    let date;
+    if (typeof value === 'object' && typeof value._seconds === 'number') {
       date = new Date(value._seconds * 1000);
-    } else if (typeof value === 'string' || typeof value === 'number') {
+    } else {
       date = new Date(value);
     }
     if (isNaN(date.getTime())) return 'N/A';
@@ -214,28 +223,39 @@ const ProjectOverview = ({ project }) => {
 
       <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <button
-          onClick={() => navigate(`/projects/${id}/questionnaire-before`)}
+          onClick={() => navigate(`/projects/${id}/create-questionnaire`)}
+          className="group rounded-2xl border border-slate-200/80 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+        >
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
+            <FileText className="h-6 w-6" />
+          </div>
+          <h3 className="mb-1 text-base font-bold text-slate-900 group-hover:text-cyan-700">Create Questionnaire</h3>
+          <p className="text-sm text-slate-500">Build a new Before or After questionnaire</p>
+        </button>
+
+        <button
+          onClick={() => navigate(`/projects/${id}/before`)}
           className="group rounded-2xl border border-slate-200/80 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
         >
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-            <FileText className="h-6 w-6" />
+            <Layers className="h-6 w-6" />
           </div>
-          <h3 className="mb-1 text-base font-bold text-slate-900 group-hover:text-cyan-700">Before Questionnaire</h3>
+          <h3 className="mb-1 text-base font-bold text-slate-900 group-hover:text-cyan-700">Before</h3>
           <p className="text-sm text-slate-500">
-            {project.before_form ? 'Form created — click to edit' : 'No form yet — click to create'}
+            {project.before_form ? 'Form created — click to view' : 'No form yet — click to create'}
           </p>
         </button>
 
         <button
-          onClick={() => navigate(`/projects/${id}/questionnaire-after`)}
+          onClick={() => navigate(`/projects/${id}/after`)}
           className="group rounded-2xl border border-slate-200/80 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
         >
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-            <ClipboardList className="h-6 w-6" />
+            <ListChecks className="h-6 w-6" />
           </div>
-          <h3 className="mb-1 text-base font-bold text-slate-900 group-hover:text-cyan-700">After Questionnaire</h3>
+          <h3 className="mb-1 text-base font-bold text-slate-900 group-hover:text-cyan-700">After</h3>
           <p className="text-sm text-slate-500">
-            {project.after_form ? 'Form created — click to edit' : 'No form yet — click to create'}
+            {project.after_form ? 'Form created — click to view' : 'No form yet — click to create'}
           </p>
         </button>
 
@@ -252,17 +272,6 @@ const ProjectOverview = ({ project }) => {
               ? 'Compare Before vs. After results'
               : 'Complete both questionnaires to compare'}
           </p>
-        </button>
-
-        <button
-          onClick={() => navigate(`/projects/${id}/reports`)}
-          className="group rounded-2xl border border-slate-200/80 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
-        >
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
-            <BarChart3 className="h-6 w-6" />
-          </div>
-          <h3 className="mb-1 text-base font-bold text-slate-900 group-hover:text-cyan-700">Reports</h3>
-          <p className="text-sm text-slate-500">View and download generated reports</p>
         </button>
       </section>
     </div>

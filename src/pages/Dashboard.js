@@ -9,10 +9,9 @@ import {
   CalendarDays,
   Inbox,
   ClipboardList,
-  Users,
-  BarChart3,
   FileText,
-  Layers,
+  CheckCircle2,
+  PenLine,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -59,7 +58,7 @@ const Dashboard = () => {
   const handleDeleteProject = async () => {
     if (!deleteProjectId) return;
     setDeleteDialogOpen(false);
-    const success = await deleteProject(deleteProjectId);
+    await deleteProject(deleteProjectId);
     setDeleteProjectId(null);
     setDeleteProjectTitle('');
   };
@@ -94,13 +93,14 @@ const Dashboard = () => {
   };
 
   const formatDate = (value) => {
-    let date = new Date();
-    if (value && typeof value === 'object' && typeof value._seconds === 'number') {
+    if (!value) return 'N/A';
+    let date;
+    if (typeof value === 'object' && typeof value._seconds === 'number') {
       date = new Date(value._seconds * 1000);
-    } else if (typeof value === 'string' || typeof value === 'number') {
+    } else {
       date = new Date(value);
     }
-    if (isNaN(date.getTime())) return '';
+    if (isNaN(date.getTime())) return 'N/A';
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
@@ -112,18 +112,16 @@ const Dashboard = () => {
     );
   });
 
-  const totalBeforeForms = projects.reduce(
-    (sum, p) => sum + (p.before_form ? 1 : 0),
+  const totalForms = projects.reduce(
+    (sum, p) => sum + (p.before_form ? 1 : 0) + (p.after_form ? 1 : 0),
     0
   );
-  const totalAfterForms = projects.reduce(
-    (sum, p) => sum + (p.after_form ? 1 : 0),
-    0
-  );
-  const totalReports = projects.reduce(
-    (sum, p) => sum + (p.reports_count || 0),
-    0
-  );
+  const activeProjects = projects.filter(
+    (p) => p.before_form || p.after_form
+  ).length;
+  const draftProjects = projects.filter(
+    (p) => !p.before_form && !p.after_form
+  ).length;
 
   const initials = (user?.full_name || user?.email || 'U')
     .split(/[\s@._]+/)
@@ -134,9 +132,9 @@ const Dashboard = () => {
 
   const stats = [
     { label: 'Total Projects', value: projects.length, icon: ClipboardList, tint: 'bg-cyan-50 text-cyan-600' },
-    { label: 'Before Forms', value: totalBeforeForms, icon: FileText, tint: 'bg-indigo-50 text-indigo-600' },
-    { label: 'After Forms', value: totalAfterForms, icon: Layers, tint: 'bg-emerald-50 text-emerald-600' },
-    { label: 'Reports', value: totalReports, icon: BarChart3, tint: 'bg-amber-50 text-amber-600' },
+    { label: 'Total Forms', value: totalForms, icon: FileText, tint: 'bg-indigo-50 text-indigo-600' },
+    { label: 'Active', value: activeProjects, icon: CheckCircle2, tint: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Drafts', value: draftProjects, icon: PenLine, tint: 'bg-amber-50 text-amber-600' },
   ];
 
   return (
@@ -259,70 +257,80 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                {filteredProjects.map((project) => (
-                  <Card
-                    key={project.id}
-                    className="group overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
-                  >
-                    <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700 ring-1 ring-cyan-200">
-                        <span className="h-1.5 w-1.5 rounded-full bg-cyan-500" />
-                        Project
-                      </span>
-                      <Button
-                        onClick={() => openDeleteDialog(project)}
-                        size="sm"
-                        variant="ghost"
-                        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-
-                    <div className="p-5">
-                      <h3 className="mb-1.5 line-clamp-2 text-lg font-bold text-slate-900">{project.title}</h3>
-                      <p className="mb-5 line-clamp-2 min-h-[2.5rem] text-sm leading-relaxed text-slate-500">
-                        {project.description || 'No description provided.'}
-                      </p>
-
-                      <div className="mb-5 grid grid-cols-2 gap-3">
-                        <div className="rounded-xl bg-slate-50 px-4 py-3">
-                          <p className="text-xs text-slate-400">Before Form</p>
-                          <p className="text-xl font-bold text-slate-900">
-                            {project.before_form ? (
-                              <span className="text-emerald-600">Yes</span>
-                            ) : (
-                              <span className="text-slate-400">None</span>
-                            )}
-                          </p>
-                        </div>
-                        <div className="rounded-xl bg-indigo-50/70 px-4 py-3">
-                          <p className="text-xs text-indigo-500">After Form</p>
-                          <p className="text-xl font-bold text-indigo-700">
-                            {project.after_form ? (
-                              <span className="text-indigo-600">Yes</span>
-                            ) : (
-                              <span className="text-slate-400">None</span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-
-                      <Button
-                        onClick={() => navigate(`/projects/${project.id}`)}
-                        className="w-full bg-slate-900 text-white hover:bg-slate-800"
-                      >
-                        <Users className="mr-2 h-4 w-4" /> Open Project
-                      </Button>
-
-                      <div className="mt-4 flex items-center gap-3 text-xs text-slate-400">
-                        <span className="inline-flex items-center gap-1">
-                          <CalendarDays className="h-3.5 w-3.5" /> {formatDate(project.created_at ?? project.createdAt)}
+                {filteredProjects.map((project) => {
+                  const hasBefore = !!project.before_form;
+                  const hasAfter = !!project.after_form;
+                  return (
+                    <Card
+                      key={project.id}
+                      className="group overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+                          hasBefore || hasAfter
+                            ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                            : 'bg-amber-50 text-amber-700 ring-amber-200'
+                        }`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${
+                            hasBefore || hasAfter ? 'bg-emerald-500' : 'bg-amber-500'
+                          }`} />
+                          {hasBefore || hasAfter ? 'Active' : 'Draft'}
                         </span>
+                        <Button
+                          onClick={() => openDeleteDialog(project)}
+                          size="sm"
+                          variant="ghost"
+                          className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
-                    </div>
-                  </Card>
-                ))}
+
+                      <div className="p-5">
+                        <h3 className="mb-1.5 line-clamp-2 text-lg font-bold text-slate-900">{project.title}</h3>
+                        <p className="mb-5 line-clamp-2 min-h-[2.5rem] text-sm leading-relaxed text-slate-500">
+                          {project.description || 'No description provided.'}
+                        </p>
+
+                        <div className="mb-5 grid grid-cols-2 gap-3">
+                          <div className="rounded-xl bg-slate-50 px-4 py-3">
+                            <p className="text-xs text-slate-400">Before Form</p>
+                            <p className="text-xl font-bold text-slate-900">
+                              {hasBefore ? (
+                                <span className="text-emerald-600">Yes</span>
+                              ) : (
+                                <span className="text-slate-400">None</span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="rounded-xl bg-indigo-50/70 px-4 py-3">
+                            <p className="text-xs text-indigo-500">After Form</p>
+                            <p className="text-xl font-bold text-indigo-700">
+                              {hasAfter ? (
+                                <span className="text-indigo-600">Yes</span>
+                              ) : (
+                                <span className="text-slate-400">None</span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        <Button
+                          onClick={() => navigate(`/projects/${project.id}`)}
+                          className="w-full bg-slate-900 text-white hover:bg-slate-800"
+                        >
+                          <FolderKanban className="mr-2 h-4 w-4" /> Open Project
+                        </Button>
+
+                        <div className="mt-4 flex items-center gap-3 text-xs text-slate-400">
+                          <span className="inline-flex items-center gap-1">
+                            <CalendarDays className="h-3.5 w-3.5" /> {formatDate(project.created_at ?? project.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </section>

@@ -1,12 +1,8 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import axios from 'axios';
 import { api } from '../lib/apiMiddleware';
 import { getAuthItem, setAuthItem, clearAuthStorage } from '../lib/authStorage';
 
 const AuthContext = createContext();
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
-const API = `${BACKEND_URL}/api`;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -21,7 +17,6 @@ export const AuthProvider = ({ children }) => {
       try {
         const parsedUser = JSON.parse(savedUser);
         setUser(parsedUser);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       } catch (e) {
         // console.error('Failed to parse user from localStorage');
         clearAuthStorage();
@@ -36,7 +31,6 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const onUnauthorized = () => {
       clearAuthStorage();
-      delete axios.defaults.headers.common['Authorization'];
       setUser(null);
     };
     window.addEventListener('bfar:unauthorized', onUnauthorized);
@@ -65,8 +59,6 @@ export const AuthProvider = ({ children }) => {
       setAuthItem('token', access_token, rememberMe);
       setAuthItem('refreshToken', refreshToken ?? response.data?.refresh_token, rememberMe);
       setAuthItem('expiresIn', expiresIn, rememberMe);
-
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
 
       // Store full user object including status (with defensive defaults so a
       // missing user payload can never crash the login flow).
@@ -109,8 +101,6 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     clearAuthStorage();
-
-    delete axios.defaults.headers.common['Authorization'];
     setUser(null);
   };
 

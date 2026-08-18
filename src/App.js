@@ -12,6 +12,8 @@ import FormAnalytics from './pages/FormAnalytics';
 import MLUpload from './pages/MLUpload';
 import ProjectDashboard from './pages/ProjectDashboard';
 import QuestionnaireBuilder from './pages/QuestionnaireBuilder';
+import BeforeTab from './pages/BeforeTab';
+import AfterTab from './pages/AfterTab';
 import NarrativeReport from './pages/NarrativeReport';
 import ReportsList from './pages/ReportsList';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -53,8 +55,9 @@ function App() {
 
             {/* Project routes */}
             <Route path="/projects/:id" element={<ProtectedRoute><ProjectDashboard /></ProtectedRoute>}>
-              <Route path="questionnaire-before" element={<QuestionnaireBuilder />} />
-              <Route path="questionnaire-after" element={<QuestionnaireBuilder />} />
+              <Route path="create-questionnaire" element={<QuestionnaireBuilder />} />
+              <Route path="before" element={<BeforeTab />} />
+              <Route path="after" element={<AfterTab />} />
               <Route path="narrative-report" element={<NarrativeReport />} />
               <Route path="reports" element={<ReportsList />} />
             </Route>

@@ -186,26 +186,30 @@ const FormBuilder = () => {
       toast.error('The section containing system fields cannot be deleted');
       return;
     }
-    const newSections = [...sections];
-    newSections.splice(index, 1);
+    const newSections = sections.filter((_, i) => i !== index);
     setSections(newSections);
     if (currentSectionIndex >= newSections.length) setCurrentSectionIndex(newSections.length - 1);
   };
 
   const renameSection = (index, newTitle) => {
-    const newSections = [...sections];
-    newSections[index].title = newTitle;
-    newSections[index].questions = newSections[index].questions.map(q => ({ ...q, section: newTitle }));
+    const newSections = sections.map((sec, si) =>
+      si === index
+        ? { ...sec, title: newTitle, questions: sec.questions.map(q => ({ ...q, section: newTitle })) }
+        : sec
+    );
     setSections(newSections);
   };
 
   const moveQuestionToSection = (questionId, fromIdx, toIdx) => {
     if (fromIdx === toIdx) return;
-    const newSections = [...sections];
+    const newSections = sections.map(sec => ({
+      ...sec,
+      questions: [...sec.questions],
+    }));
     const qIndex = newSections[fromIdx].questions.findIndex(q => q.id === questionId);
     if (qIndex === -1) return;
-    const [moved] = newSections[fromIdx].questions.splice(qIndex, 1);
-    moved.section = newSections[toIdx].title;
+    const moved = { ...newSections[fromIdx].questions[qIndex], section: newSections[toIdx].title };
+    newSections[fromIdx].questions.splice(qIndex, 1);
     newSections[toIdx].questions.push(moved);
     setSections(newSections);
     toast.success(`Moved to "${newSections[toIdx].title}"`);
@@ -223,8 +227,11 @@ const FormBuilder = () => {
       options: ['Option 1', 'Option 2'],
       section: current.title
     };
-    const updated = [...sections];
-    updated[currentSectionIndex].questions.push(newQuestion);
+    const updated = sections.map((sec, si) =>
+      si === currentSectionIndex
+        ? { ...sec, questions: [...sec.questions, newQuestion] }
+        : sec
+    );
     setSections(updated);
   };
 
@@ -248,52 +255,77 @@ const FormBuilder = () => {
       options: ['Yes', 'No'],
       section: current.title
     };
-    const updated = [...sections];
-    updated[currentSectionIndex].questions.push(beneQuestion);
+    const updated = sections.map((sec, si) =>
+      si === currentSectionIndex
+        ? { ...sec, questions: [...sec.questions, beneQuestion] }
+        : sec
+    );
     setSections(updated);
     toast.success('Beneficiary question added to current section.');
   };
 
   const updateQuestion = (sectionIdx, qIdx, field, value) => {
-    const updated = [...sections];
-    updated[sectionIdx].questions[qIdx][field] = value;
+    const updated = sections.map((sec, si) =>
+      si === sectionIdx
+        ? { ...sec, questions: sec.questions.map((q, qi) => qi === qIdx ? { ...q, [field]: value } : q) }
+        : sec
+    );
     setSections(updated);
   };
 
   const deleteQuestion = (sectionIdx, qIdx) => {
-    const updated = [...sections];
-    updated[sectionIdx].questions.splice(qIdx, 1);
+    const updated = sections.map((sec, si) =>
+      si === sectionIdx
+        ? { ...sec, questions: sec.questions.filter((_, qi) => qi !== qIdx) }
+        : sec
+    );
     setSections(updated);
   };
 
   const handleTypeChange = (sectionIdx, qIdx, newType) => {
-    const updated = [...sections];
-    const q = updated[sectionIdx].questions[qIdx];
-    q.type = newType;
-    if (['multiple_choice', 'checkboxes', 'dropdown'].includes(newType)) {
-      q.options = q.options?.length ? q.options : ['Option 1', 'Option 2'];
-    } else {
-      delete q.options;
-    }
+    const updated = sections.map((sec, si) => {
+      if (si !== sectionIdx) return sec;
+      return {
+        ...sec,
+        questions: sec.questions.map((q, qi) => {
+          if (qi !== qIdx) return q;
+          const next = { ...q, type: newType };
+          if (['multiple_choice', 'checkboxes', 'dropdown'].includes(newType)) {
+            next.options = q.options?.length ? [...q.options] : ['Option 1', 'Option 2'];
+          } else {
+            delete next.options;
+          }
+          return next;
+        }),
+      };
+    });
     setSections(updated);
   };
 
   const addOption = (sectionIdx, qIdx) => {
-    const updated = [...sections];
-    const q = updated[sectionIdx].questions[qIdx];
-    q.options = [...(q.options || []), ''];
+    const updated = sections.map((sec, si) =>
+      si === sectionIdx
+        ? { ...sec, questions: sec.questions.map((q, qi) => qi === qIdx ? { ...q, options: [...(q.options || []), ''] } : q) }
+        : sec
+    );
     setSections(updated);
   };
 
   const updateOption = (sectionIdx, qIdx, optIdx, value) => {
-    const updated = [...sections];
-    updated[sectionIdx].questions[qIdx].options[optIdx] = value;
+    const updated = sections.map((sec, si) =>
+      si === sectionIdx
+        ? { ...sec, questions: sec.questions.map((q, qi) => qi === qIdx ? { ...q, options: q.options.map((o, oi) => oi === optIdx ? value : o) } : q) }
+        : sec
+    );
     setSections(updated);
   };
 
   const deleteOption = (sectionIdx, qIdx, optIdx) => {
-    const updated = [...sections];
-    updated[sectionIdx].questions[qIdx].options.splice(optIdx, 1);
+    const updated = sections.map((sec, si) =>
+      si === sectionIdx
+        ? { ...sec, questions: sec.questions.map((q, qi) => qi === qIdx ? { ...q, options: q.options.filter((_, oi) => oi !== optIdx) } : q) }
+        : sec
+    );
     setSections(updated);
   };
 

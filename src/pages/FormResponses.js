@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, Download, ChevronLeft, ChevronRight, FileSpreadsheet, Inbox, Users, UserCheck, UserX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -76,6 +76,16 @@ const getNumericAnswer = (answer, question) => {
 const FormResponses = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const location = useLocation();
+  const backState = location.state;
+
+  const goBack = () => {
+    if (backState?.project_id) {
+      navigate(`/projects/${backState.project_id}/${backState.questionnaire_type === 'after' ? 'after' : 'before'}`);
+    } else {
+      navigate('/dashboard');
+    }
+  };
   const [form, setForm] = useState(null);
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -115,11 +125,11 @@ const FormResponses = () => {
       setSections(formSections);
     } catch (error) {
       toast.error('Failed to fetch responses');
-      navigate('/dashboard');
+      goBack();
     } finally {
       setLoading(false);
     }
-  }, [id, navigate]);
+  }, [id]);
 
   useEffect(() => {
     fetchData();
@@ -279,8 +289,8 @@ const FormResponses = () => {
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl">
         <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-          <Button variant="ghost" onClick={() => navigate('/dashboard')} className="text-slate-600">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Dashboard
+          <Button variant="ghost" onClick={goBack} className="text-slate-600">
+            <ArrowLeft className="mr-2 h-4 w-4" /> {backState?.project_id ? 'Back' : 'Dashboard'}
           </Button>
           <div className="flex items-center gap-2">
             <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 sm:inline-flex">

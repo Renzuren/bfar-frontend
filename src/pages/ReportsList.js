@@ -25,7 +25,8 @@ import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 
 const ReportsList = () => {
-  const { project } = useOutletContext();
+  const outletCtx = useOutletContext();
+  const project = outletCtx?.project;
   const navigate = useNavigate();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,10 +62,11 @@ const ReportsList = () => {
   };
 
   const formatDate = (value) => {
-    let date = new Date();
-    if (value && typeof value === 'object' && typeof value._seconds === 'number') {
+    if (!value) return 'N/A';
+    let date;
+    if (typeof value === 'object' && typeof value._seconds === 'number') {
       date = new Date(value._seconds * 1000);
-    } else if (typeof value === 'string' || typeof value === 'number') {
+    } else {
       date = new Date(value);
     }
     if (isNaN(date.getTime())) return 'N/A';
@@ -77,7 +79,7 @@ const ReportsList = () => {
     });
   };
 
-  if (loading) {
+  if (loading || !project) {
     return (
       <div className="flex items-center justify-center py-20 text-slate-500">
         Loading reports...
