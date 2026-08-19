@@ -563,6 +563,61 @@ const FormFill = () => {
     if (question.type === 'profile_photo') return null;
     if (locationQuestionIds.includes(question.id)) return null;
 
+    const isShort = isTextQuestionType(question.type) || question.type === 'date' || question.type === 'dropdown';
+
+    if (isShort) {
+      return (
+        <div
+          key={question.id}
+          className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all duration-200 hover:border-slate-300"
+        >
+          <Label className="mb-1.5 block text-sm font-semibold text-slate-700">
+            {question.title}
+            {question.required && <span className="ml-1 text-rose-500">*</span>}
+          </Label>
+          {question.description && (
+            <p className="mb-2 text-xs text-slate-400">{question.description}</p>
+          )}
+          {isTextQuestionType(question.type) && (
+            <Input
+              value={answers[question.id] || ''}
+              onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+              required={question.required}
+              placeholder="Type your answer here..."
+              className="h-10 rounded-lg border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-blue-100"
+            />
+          )}
+          {question.type === 'date' && (
+            <Input
+              type="date"
+              value={answers[question.id] || ''}
+              onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+              required={question.required}
+              className="h-10 rounded-lg border-slate-200 bg-slate-50/50 text-sm text-slate-900 focus:border-blue-400 focus:ring-blue-100"
+            />
+          )}
+          {question.type === 'dropdown' && (
+            <Select
+              value={answers[question.id] || ''}
+              onValueChange={(v) => setAnswers({ ...answers, [question.id]: v })}
+              required={question.required}
+            >
+              <SelectTrigger className="h-10 rounded-lg border-slate-200 bg-slate-50/50 text-sm text-slate-900 focus:border-blue-400 focus:ring-blue-100">
+                <SelectValue placeholder="Select an option" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-slate-200">
+                {question.options?.map((opt, oi) => (
+                  <SelectItem key={oi} value={opt} className="rounded-lg text-sm">
+                    {opt}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div
         key={question.id}
@@ -764,7 +819,7 @@ const FormFill = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
         {/* Progress Steps */}
         <div className="mb-8 rounded-2xl bg-white px-4 py-4 shadow-sm sm:px-6">
           <div
@@ -946,102 +1001,104 @@ const FormFill = () => {
                     )}
                   </div>
 
-                  {locationFields.map((field) => (
-                    <div key={field.key}>
-                      <Label
-                        htmlFor={`respondent-${field.key}`}
-                        className="mb-1.5 block text-sm font-semibold text-slate-700"
-                      >
-                        <span className="inline-flex items-center gap-1.5">
-                          <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                          {field.label}
-                        </span>
-                        <span className="ml-1 text-rose-500">*</span>
-                      </Label>
-                      {['dropdown', 'multiple_choice'].includes(
-                        field.question?.type
-                      ) ? (
-                        <Select
-                          value={answers[field.question.id] || ''}
-                          onValueChange={(v) =>
-                            setAnswers({
-                              ...answers,
-                              [field.question.id]: v,
-                            })
-                          }
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {locationFields.map((field) => (
+                      <div key={field.key}>
+                        <Label
+                          htmlFor={`respondent-${field.key}`}
+                          className="mb-1.5 block text-sm font-semibold text-slate-700"
                         >
-                          <SelectTrigger
+                          <span className="inline-flex items-center gap-1.5">
+                            <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                            {field.label}
+                          </span>
+                          <span className="ml-1 text-rose-500">*</span>
+                        </Label>
+                        {['dropdown', 'multiple_choice'].includes(
+                          field.question?.type
+                        ) ? (
+                          <Select
+                            value={answers[field.question.id] || ''}
+                            onValueChange={(v) =>
+                              setAnswers({
+                                ...answers,
+                                [field.question.id]: v,
+                              })
+                            }
+                          >
+                            <SelectTrigger
+                              id={`respondent-${field.key}`}
+                              className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 focus:border-blue-400 focus:ring-blue-100 ${
+                                locationHasError(field)
+                                  ? 'border-rose-300 ring-2 ring-rose-100'
+                                  : ''
+                              }`}
+                            >
+                              <SelectValue
+                                placeholder={`Select your ${field.label.toLowerCase()}`}
+                              />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-slate-200">
+                              {field.question.options?.map((opt) => (
+                                <SelectItem
+                                  key={opt}
+                                  value={opt}
+                                  className="rounded-lg"
+                                >
+                                  {opt}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
                             id={`respondent-${field.key}`}
-                            className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 focus:border-blue-400 focus:ring-blue-100 ${
+                            type="text"
+                            placeholder={`e.g. ${field.label}`}
+                            value={getLocationValue(field)}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              if (field.question) {
+                                setAnswers({
+                                  ...answers,
+                                  [field.question.id]: v,
+                                });
+                              } else {
+                                setLocationValues((prev) => ({
+                                  ...prev,
+                                  [field.key]: v,
+                                }));
+                              }
+                              if (
+                                locationAttempted[field.key] &&
+                                isValidLocationText(v)
+                              ) {
+                                setLocationAttempted((prev) => ({
+                                  ...prev,
+                                  [field.key]: false,
+                                }));
+                              }
+                            }}
+                            required
+                            className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-blue-100 ${
                               locationHasError(field)
                                 ? 'border-rose-300 ring-2 ring-rose-100'
                                 : ''
                             }`}
+                          />
+                        )}
+                        {locationHasError(field) && (
+                          <p
+                            role="alert"
+                            className="mt-2 flex items-center gap-1.5 text-sm font-medium text-rose-500"
                           >
-                            <SelectValue
-                              placeholder={`Select your ${field.label.toLowerCase()}`}
-                            />
-                          </SelectTrigger>
-                          <SelectContent className="rounded-xl border-slate-200">
-                            {field.question.options?.map((opt) => (
-                              <SelectItem
-                                key={opt}
-                                value={opt}
-                                className="rounded-lg"
-                              >
-                                {opt}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input
-                          id={`respondent-${field.key}`}
-                          type="text"
-                          placeholder={`e.g. ${field.label}`}
-                          value={getLocationValue(field)}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            if (field.question) {
-                              setAnswers({
-                                ...answers,
-                                [field.question.id]: v,
-                              });
-                            } else {
-                              setLocationValues((prev) => ({
-                                ...prev,
-                                [field.key]: v,
-                              }));
-                            }
-                            if (
-                              locationAttempted[field.key] &&
-                              isValidLocationText(v)
-                            ) {
-                              setLocationAttempted((prev) => ({
-                                ...prev,
-                                [field.key]: false,
-                              }));
-                            }
-                          }}
-                          required
-                          className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-blue-100 ${
-                            locationHasError(field)
-                              ? 'border-rose-300 ring-2 ring-rose-100'
-                              : ''
-                          }`}
-                        />
-                      )}
-                      {locationHasError(field) && (
-                        <p
-                          role="alert"
-                          className="mt-2 flex items-center gap-1.5 text-sm font-medium text-rose-500"
-                        >
-                          <AlertCircle className="h-3.5 w-3.5" />
-                          {locationValidationMessage(field)}
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            {locationValidationMessage(field)}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -1145,14 +1202,27 @@ const FormFill = () => {
               )}
 
               {/* Other Demographics Questions */}
-              {demographicsQuestions
-                .filter(
+              {(() => {
+                const otherQs = demographicsQuestions.filter(
                   (q) =>
                     !locationQuestionIds.includes(q.id) &&
                     !isReservedField(q) &&
                     q.type !== 'profile_photo'
-                )
-                .map((q, idx) => renderQuestion(q, idx + 1))}
+                );
+                if (otherQs.length === 0) return null;
+                return (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {otherQs.map((q, idx) => {
+                      const isShort = isTextQuestionType(q.type) || q.type === 'date' || q.type === 'dropdown';
+                      return (
+                        <div key={q.id} className={isShort ? '' : 'col-span-full'}>
+                          {renderQuestion(q, idx + 1)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </>
           )}
 
@@ -1174,9 +1244,18 @@ const FormFill = () => {
                   </p>
                 </div>
               ) : (
-                questionnaireQuestions
-                  .filter((q) => !isReservedField(q))
-                  .map((q, idx) => renderQuestion(q, idx + 1))
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {questionnaireQuestions
+                    .filter((q) => !isReservedField(q))
+                    .map((q, idx) => {
+                      const isShort = isTextQuestionType(q.type) || q.type === 'date' || q.type === 'dropdown';
+                      return (
+                        <div key={q.id} className={isShort ? '' : 'col-span-full'}>
+                          {renderQuestion(q, idx + 1)}
+                        </div>
+                      );
+                    })}
+                </div>
               )}
             </>
           )}
