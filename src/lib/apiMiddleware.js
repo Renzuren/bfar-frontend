@@ -11,7 +11,7 @@ class ApiClient {
   constructor(baseURL) {
     this.client = axios.create({
       baseURL,
-      timeout: 10000,
+      timeout: 30000,
     });
 
     // Request interceptor for preprocessing
@@ -35,6 +35,11 @@ class ApiClient {
     const token = getAuthItem('token');
     if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // Skip preprocessing for FormData (multipart uploads)
+    if (config.data instanceof FormData) {
+      return config;
     }
 
     // Preprocess request data based on endpoint
