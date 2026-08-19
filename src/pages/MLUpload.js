@@ -1,723 +1,1041 @@
-﻿import React, { useMemo, useRef, useState } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import RespondentAnalytics from '@/components/RespondentAnalytics';
-import { findAreaKey, resolveProvince } from '@/lib/geoData';
+  Upload, FileSpreadsheet, Database, BarChart3, ArrowLeft, Import,
+  ChevronLeft, ChevronRight, TrendingUp, AlertCircle, Loader2,
+  CheckCircle2, XCircle, Filter,
+  Download, Save, Eye, TrendingDown, Minus, BarChart2
+} from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
-  AlertCircle,
-  ArrowLeft,
-  ArrowRight,
-  BarChart3,
-  Check,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  FileSpreadsheet,
-  FolderOpen,
-  Import,
-  Loader2,
-  Save,
-  Upload,
-  X,
-} from 'lucide-react';
-
-const parseNumericValue = (value) => {
-  if (value === null || value === undefined || value === '') return null;
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  const cleaned = String(value).trim().replace(/,/g, '');
-  const parsed = Number(cleaned);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-const normalize = (value) => String(value ?? '').trim().toLowerCase();
-const normalizeHeader = (column) => normalize(column).replace(/[^a-z0-9]+/g, ' ').trim();
-const GROUP_BENEFICIARY = 'B';
-const GROUP_NON_BENEFICIARY = 'NB';
-const GROUP_UNKNOWN = 'Unknown';
-const normalizeGroupToken = (value) => normalize(String(value)).replace(/[^a-z0-9]/g, '');
-const isBeneficiaryToken = (token) =>
-  ['1', 'b', 'bene', 'beneficiary'].includes(token) || (token.startsWith('b') && !token.startsWith('nb') && !token.startsWith('nonb'));
-const isNonBeneficiaryToken = (token) =>
-  ['0', 'nb', 'nonbeneficiary', 'control', 'comparison', 'comparisongroup', 'ctrl'].includes(token) ||
-  token.startsWith('nb') || token.startsWith('nonb') || token.startsWith('ctrl') || token.startsWith('control') || token.startsWith('compar');
-const normalizeGroupStatus = (value, useTwoAsControl = false) => {
-  const normalized = normalizeGroupToken(value);
-  if (!normalized) return GROUP_UNKNOWN;
-  if (isBeneficiaryToken(normalized)) return GROUP_BENEFICIARY;
-  if (isNonBeneficiaryToken(normalized)) return GROUP_NON_BENEFICIARY;
-  if (useTwoAsControl && normalized === '2') return GROUP_NON_BENEFICIARY;
-  if (normalized === '2') return GROUP_NON_BENEFICIARY;
-  if (normalized === '1') return GROUP_BENEFICIARY;
-  return GROUP_UNKNOWN;
-};
-const detectColumn = (columns, keywords) => {
-  const normalizedHeaders = columns.map((column) => normalizeHeader(String(column)));
-  for (const keyword of keywords) {
-    const needle = normalizeHeader(keyword);
-    const index = normalizedHeaders.findIndex((column) => column.includes(needle));
-    if (index !== -1) return columns[index];
-  }
-  for (const keyword of keywords) {
-    const needle = normalizeHeader(keyword);
-    const needleTokens = needle.split(' ').filter(Boolean);
-    const index = normalizedHeaders.findIndex((column) => needleTokens.every((token) => column.split(' ').includes(token)));
-    if (index !== -1) return columns[index];
-  }
-  return '';
-};
-
-const parseCSVRows = (text) => {
-  const rows = [];
-  let row = [];
-  let field = '';
-  let inQuotes = false;
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-    if (char === '"') {
-      if (inQuotes && text[i + 1] === '"') {
-        field += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-    if (char === ',' && !inQuotes) {
-      row.push(field);
-      field = '';
-      continue;
-    }
-    if ((char === '\n' || char === '\r') && !inQuotes) {
-      if (char === '\r' && text[i + 1] === '\n') continue;
-      row.push(field);
-      if (row.length) rows.push(row);
-      row = [];
-      field = '';
-      continue;
-    }
-    field += char;
-  }
-  if (field !== '' || row.length) {
-    row.push(field);
-    if (row.length) rows.push(row);
-  }
-  return rows;
-};
-
-const rowsToObjects = (rows, headers) => rows.map((row) => {
-  const object = {};
-  headers.forEach((header, index) => {
-    object[header] = row[index] !== undefined && row[index] !== null ? row[index] : '';
-  });
-  return object;
-});
-
-const bucketAge = (value) => {
-  const age = parseNumericValue(value);
-  if (age === null || age < 0) return 'Unknown';
-  if (age < 20) return 'Under 20';
-  if (age < 30) return '20s';
-  if (age < 40) return '30s';
-  if (age < 50) return '40s';
-  if (age < 60) return '50s';
-  if (age < 70) return '60s';
-  return '70s+';
-};
-
-const decodeEducation = (value) => {
-  const numeric = parseNumericValue(value);
-  if (numeric === 1) return 'None';
-  if (numeric === 2) return 'Elementary';
-  if (numeric === 3) return 'High School';
-  if (numeric === 4) return 'College';
-  if (numeric === 5) return 'Post-grad';
-  return String(value ?? 'Unknown').trim() || 'Unknown';
-};
-
-const decodeMarital = (value) => {
-  const numeric = parseNumericValue(value);
-  if (numeric === 1) return 'Single';
-  if (numeric === 2) return 'Married';
-  if (numeric === 3) return 'Widowed';
-  if (numeric === 4) return 'Separated';
-  return String(value ?? 'Unknown').trim() || 'Unknown';
-};
-
-const decodeHousehold = (value) => {
-  const numeric = parseNumericValue(value);
-  if (numeric === null) return 'Unknown';
-  if (numeric <= 2) return 'Low';
-  if (numeric <= 4) return 'Mid';
-  return 'High';
-};
-
-const mean = (values) => values.length ? values.reduce((sum, item) => sum + item, 0) / values.length : 0;
-const stdDev = (values) => {
-  if (!values.length) return 0;
-  const avg = mean(values);
-  return Math.sqrt(values.reduce((sum, value) => sum + (value - avg) ** 2, 0) / values.length);
-};
-
-const buildAnalysisResults = (rows, columns, treatmentColumn, outcomeColumn, includeFeatures) => {
-  const headers = columns.map((column) => String(column).trim()).filter(Boolean);
-  const treatment = treatmentColumn || detectColumn(headers, ['a2', 'group', 'treated', 'control', 'treatment', 'assignment', 'arm']);
-  const preOutcome = detectColumn(headers, ['sesa', 'ses_a', 'ses a', 'before', 'pre', 'baseline', 'pretest', 'baseline_score', 'pre_score', 'ses_index_before', 'ses index before', 'ses before', 'before ses', 'pre ses']);
-  const postOutcome = detectColumn(headers, ['sesb', 'ses_b', 'ses b', 'after', 'post', 'outcome', 'score', 'result', 'posttest', 'followup', 'ses_index_after', 'ses index after', 'ses after', 'after ses', 'post ses']);
-  const outcome = outcomeColumn || postOutcome || detectColumn(headers, ['outcome', 'score', 'result', 'sesb', 'ses_b', 'ses b', 'post', 'after', 'final', 'ses_index', 'ses index', 'ses']);
-  const area = detectColumn(headers, ['a1', 'area', 'municipality', 'location', 'barangay', 'brgy', 'village', 'town', 'city']);
-  const province = detectColumn(headers, ['province', 'prov', 'province_name', 'municipality_province', 'a2:province', 'region']);
-  const age = detectColumn(headers, ['b3', 'age']);
-  const sex = detectColumn(headers, ['b5', 'sex', 'gender']);
-  const marital = detectColumn(headers, ['b6', 'm-status', 'mstatus', 'marital']);
-  const education = detectColumn(headers, ['b7', 'education', 'edu']);
-  const household = detectColumn(headers, ['b8', 'hh_size', 'household', 'hh size']);
-  const psScoreColumn = detectColumn(headers, ['p_score', 'ps_score', 'propensity', 'propensity_score', 'prop_score', 'probability']);
-
-  const treatmentValues = new Set(rows.map((row) => normalizeGroupToken(row[treatment])).filter(Boolean));
-  const useTwoAsControl = treatmentValues.has('1') && treatmentValues.has('2') && !treatmentValues.has('0');
-  const normalizeGroup = (value) => normalizeGroupStatus(value, useTwoAsControl);
-
-  const rawRespondents = rows.map((row, index) => {
-    const rawAreaValue = String(row[area] ?? 'Unspecified').trim();
-    const rawProvinceValue = String(row[province] ?? '').trim();
-    const matchedKey = findAreaKey(rawAreaValue, rawProvinceValue);
-    const areaName = matchedKey && !matchedKey.startsWith('__PROVINCE__') ? matchedKey : String(rawAreaValue).toUpperCase() || 'UNSPECIFIED';
-    const beforeValue = parseNumericValue(row[preOutcome]);
-    const afterValue = parseNumericValue(row[postOutcome] ?? row[outcome]);
-    const outcomeValue = parseNumericValue(row[outcome]);
-    const numericEducation = parseNumericValue(row[education]);
-    const numericHousehold = parseNumericValue(row[household]);
-    const psScore = parseNumericValue(row[psScoreColumn]);
-    const group = normalizeGroup(row[treatment]);
-    return {
-      id: `${index}`,
-      area: areaName,
-      province: resolveProvince(rawAreaValue, rawProvinceValue),
-      group,
-      sex: String(row[sex] ?? '').trim(),
-      marital: decodeMarital(row[marital]),
-      education: decodeEducation(row[education]),
-      educationValue: numericEducation,
-      age: parseNumericValue(row[age]),
-      household: decodeHousehold(row[household]),
-      householdValue: numericHousehold,
-      sesA: beforeValue,
-      sesB: afterValue !== null ? afterValue : outcomeValue,
-      rawOutcome: String(row[outcome] ?? row[postOutcome] ?? '').trim(),
-      beforeValue,
-      afterValue: afterValue !== null ? afterValue : outcomeValue,
-      outcomeValue,
-      delta: beforeValue !== null && afterValue !== null ? afterValue - beforeValue : null,
-      psScore,
-      rawData: row,
-    };
-  });
-
-  const outcomeValues = rawRespondents
-    .map((item) => item.afterValue)
-    .filter((value) => value !== null);
-  const outcomeMean = mean(outcomeValues);
-  const outcomeStd = stdDev(outcomeValues);
-  const outcomeThreshold = Math.max(0.5, outcomeStd * 0.2);
-
-  const respondents = rawRespondents.map((item) => {
-    let sesOutcome = 'Unknown';
-    if (item.beforeValue !== null && item.afterValue !== null) {
-      const delta = item.delta;
-      if (delta > 0.5) sesOutcome = 'Improved';
-      else if (delta < -0.5) sesOutcome = 'Declined';
-      else sesOutcome = 'No Change';
-    } else if (item.outcomeValue !== null) {
-      sesOutcome = item.outcomeValue > outcomeMean + outcomeThreshold ? 'Improved' : item.outcomeValue < outcomeMean - outcomeThreshold ? 'Declined' : 'No Change';
-    } else {
-      const normalized = normalize(item.rawOutcome);
-      if (/(improv|better|increase|up)/i.test(normalized)) sesOutcome = 'Improved';
-      else if (/(declin|worse|decrease|down)/i.test(normalized)) sesOutcome = 'Declined';
-      else if (/(no change|same|stable)/i.test(normalized)) sesOutcome = 'No Change';
-    }
-    return { ...item, sesOutcome };
-  });
-
-  const beneficiaries = respondents.filter((item) => item.group === GROUP_BENEFICIARY);
-  const nonBeneficiaries = respondents.filter((item) => item.group === GROUP_NON_BENEFICIARY);
-  const total = respondents.length;
-  const improved = respondents.filter((item) => item.sesOutcome === 'Improved').length;
-  const declined = respondents.filter((item) => item.sesOutcome === 'Declined').length;
-  const noChange = respondents.filter((item) => item.sesOutcome === 'No Change').length;
-  const beneficiaryRate = total ? (beneficiaries.length / total) * 100 : 0;
-  const meanSesA_beneficiary = mean(beneficiaries.map((item) => item.sesA).filter((value) => value !== null));
-  const meanSesB_beneficiary = mean(beneficiaries.map((item) => item.sesB).filter((value) => value !== null));
-  const meanSesA_nonBeneficiary = mean(nonBeneficiaries.map((item) => item.sesA).filter((value) => value !== null));
-  const meanSesB_nonBeneficiary = mean(nonBeneficiaries.map((item) => item.sesB).filter((value) => value !== null));
-  const validBeforeAfterBeneficiary = beneficiaries.some((item) => item.beforeValue !== null && item.afterValue !== null);
-  const validBeforeAfterNonBeneficiary = nonBeneficiaries.some((item) => item.beforeValue !== null && item.afterValue !== null);
-  const hasBeforeAfter = Boolean(preOutcome && postOutcome && (validBeforeAfterBeneficiary || validBeforeAfterNonBeneficiary));
-  const att = hasBeforeAfter
-    ? (meanSesB_beneficiary - meanSesA_beneficiary) - (meanSesB_nonBeneficiary - meanSesA_nonBeneficiary)
-    : meanSesB_beneficiary - meanSesB_nonBeneficiary;
-  const areaMap = respondents.reduce((acc, item) => {
-    if (!acc[item.area]) acc[item.area] = { ...item, total: 0, beneficiary: 0, nonBeneficiary: 0, improved: 0, declined: 0, noChange: 0 };
-    const bucket = acc[item.area];
-    bucket.total += 1;
-    if (item.group === GROUP_BENEFICIARY) bucket.beneficiary += 1;
-    else if (item.group === GROUP_NON_BENEFICIARY) bucket.nonBeneficiary += 1;
-    if (item.sesOutcome === 'Improved') bucket.improved += 1;
-    if (item.sesOutcome === 'Declined') bucket.declined += 1;
-    if (item.sesOutcome === 'No Change') bucket.noChange += 1;
-    return acc;
-  }, {});
-  const areaStats = Object.values(areaMap).sort((a, b) => b.total - a.total);
-  const topArea = areaStats[0] || { area: '—', total: 0 };
-
-  const ageDistribution = Object.entries(respondents.reduce((acc, item) => {
-    const bucket = bucketAge(item.age);
-    acc[bucket] = (acc[bucket] || 0) + 1;
-    return acc;
-  }, {})).sort((a, b) => a[0].localeCompare(b[0])).map(([decade, value]) => ({ decade, value }));
-
-  const totalRespondents = respondents.length;
-  const educationLevels = Object.entries(respondents.reduce((acc, item) => {
-    const label = item.education;
-    acc[label] = (acc[label] || 0) + 1;
-    return acc;
-  }, {})).map(([name, value], index) => ({ name, value, percentage: totalRespondents ? Number((value / totalRespondents * 100).toFixed(1)) : 0, color: ['#94a3b8', '#60a5fa', '#2563eb', '#7c3aed', '#0db890'][index] || '#2563eb' }));
-
-  const getFeatureKey = (featureKey) => {
-    const key = String(featureKey ?? '').trim();
-    if (!key) return '';
-    if (headers.includes(key)) return key;
-    const parsed = key.includes(':') ? key.split(':').pop().trim() : key;
-    if (headers.includes(parsed)) return parsed;
-    const normalized = normalize(parsed);
-    return headers.find((header) => normalize(header) === normalized) || '';
-  };
-
-  const allFeatureColumns = includeFeatures
-    ? includeFeatures
-      .split(',')
-      .map(getFeatureKey)
-      .filter(Boolean)
-      .filter((key, index, self) => self.indexOf(key) === index)
-    : headers.filter((key) => ![treatment, outcome, preOutcome, postOutcome, area, age, sex, marital, education, household].includes(key));
-
-  const featureColumns = allFeatureColumns.length
-    ? allFeatureColumns
-    : headers.filter((key) => ![treatment, outcome, preOutcome, postOutcome, area, age, sex, marital, education, household].includes(key));
-
-  const featureStats = featureColumns.map((column) => {
-    const values = rows.map((row) => parseNumericValue(row[column])).filter((value) => value !== null);
-    return { column, values, mean: mean(values), std: stdDev(values) };
-  });
-
-  const featureImportance = featureStats
-    .map((feature) => {
-      const beneficiaryVals = respondents.filter((item) => item.group === GROUP_BENEFICIARY).map((item) => parseNumericValue(item.rawData?.[feature.column])).filter((value) => value !== null);
-      const nonBeneficiaryVals = respondents.filter((item) => item.group === GROUP_NON_BENEFICIARY).map((item) => parseNumericValue(item.rawData?.[feature.column])).filter((value) => value !== null);
-      const groupDiff = (mean(beneficiaryVals) - mean(nonBeneficiaryVals)) / Math.max(feature.std || 1, 1e-6);
-      const clamped = Math.max(-1, Math.min(1, groupDiff));
-      return {
-        feature: feature.column,
-        value: Number(Math.abs(clamped).toFixed(2)),
-        effect: Number(clamped.toFixed(2)),
-      };
-    })
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 15);
-
-  const psDistribution = (() => {
-    const scores = respondents.map((item) => {
-      const values = featureStats.map((feature) => {
-        const parsed = parseNumericValue(item.rawData?.[feature.column]);
-        return parsed === null ? 0 : feature.std === 0 ? 0 : (parsed - feature.mean) / feature.std;
-      });
-      const raw = values.reduce((sum, value) => sum + value, 0);
-      return 1 / (1 + Math.exp(-raw / Math.max(1, values.length)));
-    });
-    const bins = Array.from({ length: 8 }, (_, index) => ({ bin: `${((index + 1) / 8).toFixed(2)}`, beneficiary: 0, nonBeneficiary: 0 }));
-    scores.forEach((score, idx) => {
-      const bucket = bins[Math.min(7, Math.floor(score * 8))];
-      if (respondents[idx].group === GROUP_BENEFICIARY) bucket.beneficiary += 1;
-      else if (respondents[idx].group === GROUP_NON_BENEFICIARY) bucket.nonBeneficiary += 1;
-    });
-    return bins;
-  })();
-
-  const trendBuckets = 10;
-  const sesTrend = Array.from({ length: trendBuckets }, (_, index) => {
-    const start = Math.floor((index * respondents.length) / trendBuckets);
-    const end = Math.floor(((index + 1) * respondents.length) / trendBuckets);
-    const bucket = respondents.slice(start, end);
-    return {
-      step: `${index + 1}`,
-      beneficiary: mean(bucket.filter((item) => item.group === GROUP_BENEFICIARY).map((item) => item.sesB).filter((value) => value !== null)),
-      nonBeneficiary: mean(bucket.filter((item) => item.group === GROUP_NON_BENEFICIARY).map((item) => item.sesB).filter((value) => value !== null)),
-    };
-  });
-
-  const radarData = [
-    { subject: 'Age', beneficiary: Number((mean(beneficiaries.map((item) => item.age).filter((value) => value !== null)) / 100 * 100).toFixed(0)), nonBeneficiary: Number((mean(nonBeneficiaries.map((item) => item.age).filter((value) => value !== null)) / 100 * 100).toFixed(0)) },
-    { subject: 'Education', beneficiary: Number((mean(beneficiaries.map((item) => item.educationValue).filter((value) => value !== null)) / 5 * 100).toFixed(0)), nonBeneficiary: Number((mean(nonBeneficiaries.map((item) => item.educationValue).filter((value) => value !== null)) / 5 * 100).toFixed(0)) },
-    { subject: 'HH Size', beneficiary: Number((mean(beneficiaries.map((item) => item.householdValue).filter((value) => value !== null)) / 6 * 100).toFixed(0)), nonBeneficiary: Number((mean(nonBeneficiaries.map((item) => item.householdValue).filter((value) => value !== null)) / 6 * 100).toFixed(0)) },
-    { subject: 'SES A', beneficiary: Number((mean(beneficiaries.map((item) => item.sesA).filter((value) => value !== null)) / 60 * 100).toFixed(0)), nonBeneficiary: Number((mean(nonBeneficiaries.map((item) => item.sesA).filter((value) => value !== null)) / 60 * 100).toFixed(0)) },
-    { subject: 'SES B', beneficiary: Number((mean(beneficiaries.map((item) => item.sesB).filter((value) => value !== null)) / 60 * 100).toFixed(0)), nonBeneficiary: Number((mean(nonBeneficiaries.map((item) => item.sesB).filter((value) => value !== null)) / 60 * 100).toFixed(0)) },
-    { subject: 'PS Score', beneficiary: Number((mean(beneficiaries.map((item) => item.psScore).filter((value) => value !== null)) * 100).toFixed(0)), nonBeneficiary: Number((mean(nonBeneficiaries.map((item) => item.psScore).filter((value) => value !== null)) * 100).toFixed(0)) },
-  ];
-
-  const smdData = featureStats.slice(0, 7).map((feature) => {
-    const beneficiaryVals = beneficiaries.map((item) => parseNumericValue(item.rawData?.[feature.column])).filter((value) => value !== null);
-    const nonBeneficiaryVals = nonBeneficiaries.map((item) => parseNumericValue(item.rawData?.[feature.column])).filter((value) => value !== null);
-    const beneficiaryMean = mean(beneficiaryVals);
-    const nonBeneficiaryMean = mean(nonBeneficiaryVals);
-    const beneficiaryStd = stdDev(beneficiaryVals);
-    const nonBeneficiaryStd = stdDev(nonBeneficiaryVals);
-    const pooled = Math.sqrt(((beneficiaryStd ** 2) * Math.max(0, beneficiaryVals.length - 1) + (nonBeneficiaryStd ** 2) * Math.max(0, nonBeneficiaryVals.length - 1)) / Math.max(1, beneficiaryVals.length + nonBeneficiaryVals.length - 2));
-    const smd = pooled === 0 ? 0 : Math.abs(beneficiaryMean - nonBeneficiaryMean) / pooled;
-    return { feature: feature.column, before: Number(Math.min(0.45, smd).toFixed(2)), after: Number(Math.max(0, Math.min(0.45, smd - 0.05)).toFixed(2)) };
-  });
-
-  const maritalData = Object.entries(respondents.reduce((acc, item) => {
-    acc[item.marital] = (acc[item.marital] || 0) + 1;
-    return acc;
-  }, {})).slice(0, 4).map(([name, value], index) => ({ name, value, color: ['#2563eb', '#22c55e', '#f59e0b', '#ef4444'][index] || '#a855f7' }));
-
-  const householdData = Object.entries(respondents.reduce((acc, item) => {
-    acc[item.household] = (acc[item.household] || 0) + 1;
-    return acc;
-  }, {})).map(([size, value]) => ({ size, value }));
-
-  const summaryRows = [
-    ['Total Respondents', total.toLocaleString()],
-    ['Total Columns', headers.length.toLocaleString()],
-    ['Beneficiary (B) Count', beneficiaries.length.toLocaleString()],
-    ['Non-Beneficiary (NB) Count', nonBeneficiaries.length.toLocaleString()],
-    ['Mean SES Before (B)', meanSesA_beneficiary.toFixed(2)],
-    ['Mean SES After (B)', meanSesB_beneficiary.toFixed(2)],
-    ['SES Δ Beneficiary', (meanSesB_beneficiary - meanSesA_beneficiary).toFixed(2)],
-    ['SES Δ Non-Beneficiary', (meanSesB_nonBeneficiary - meanSesA_nonBeneficiary).toFixed(2)],
-    ['No Change', noChange.toString()],
-  ];
-
-  return {
-    headers,
-    total,
-    totalColumns: headers.length,
-    beneficiaryCount: beneficiaries.length,
-    nonBeneficiaryCount: nonBeneficiaries.length,
-    improved,
-    declined,
-    noChange,
-    beneficiaryRate,
-    attValue: att,
-    sesImprovementPct: total ? (improved / total) * 100 : 0,
-    meanSesBefore: meanSesA_beneficiary,
-    meanSesAfter: meanSesB_beneficiary,
-    meanSesBeforeBeneficiary: meanSesA_beneficiary,
-    meanSesAfterBeneficiary: meanSesB_beneficiary,
-    meanSesBeforeNonBeneficiary: meanSesA_nonBeneficiary,
-    meanSesAfterNonBeneficiary: meanSesB_nonBeneficiary,
-    delta: meanSesB_beneficiary - meanSesA_beneficiary,
-    featureImportance,
-    areaDistribution: areaStats.slice(0, 8).map((item) => ({ name: item.area, beneficiary: item.beneficiary, nonBeneficiary: item.nonBeneficiary })),
-    ageDistribution,
-    educationLevels,
-    psDistribution,
-    sesTrend,
-    radarData,
-    smdData,
-    maritalData,
-    householdData,
-    summaryRows,
-    respondents,
-    areaStats,
-    topArea,
-  };
-};
-
-const STEPS = [
-  { id: 1, label: 'Upload' },
-  { id: 2, label: 'Preview' },
-  { id: 3, label: 'Analytics' },
-  { id: 4, label: 'Save' },
-];
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, Cell
+} from 'recharts';
 
 const MLUpload = () => {
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [csvData, setCsvData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const ML_API_URL = process.env.REACT_APP_ML_API_URL || 'http://localhost:8000';
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResults, setAnalysisResults] = useState(null);
+  const [activeTab, setActiveTab] = useState('summary');
   const [showPreview, setShowPreview] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Treatment, outcome, and feature filter
   const [treatmentColumn, setTreatmentColumn] = useState('');
   const [outcomeColumn, setOutcomeColumn] = useState('');
-  const [includeFeatures, setIncludeFeatures] = useState('B3:AGE, B5:SEX, B6:M-STATUS, B7:EDUCATION');
+  const [includeFeatures, setIncludeFeatures] = useState('');
+
+  // Save Results modal
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [saveDescription, setSaveDescription] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage] = useState(7);
-  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const autoDetectedFields = useMemo(() => {
-    if (!columns.length) return {};
-    const headers = columns.map((column) => String(column).trim()).filter(Boolean);
-    const treatment = detectColumn(headers, ['a2', 'group', 'treated', 'control', 'treatment', 'assignment', 'arm']);
-    const preOutcome = detectColumn(headers, ['sesa', 'ses_a', 'ses a', 'before', 'pre', 'baseline', 'pretest', 'baseline_score', 'pre_score']);
-    const postOutcome = detectColumn(headers, ['sesb', 'ses_b', 'ses b', 'after', 'post', 'outcome', 'score', 'result', 'posttest', 'followup']);
-    const outcome = detectColumn(headers, ['outcome', 'score', 'result', 'sesb', 'ses_b', 'ses b', 'post', 'after', 'final']);
-    return { treatment, preOutcome, postOutcome, outcome };
-  }, [columns]);
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const tableRef = useRef(null);
 
-  const currentStep = analysisResults ? 4 : isAnalyzing ? 3 : showPreview ? 2 : 1;
-
-  const resetAnalysisState = () => {
-    setAnalysisResults(null);
-    setShowPreview(false);
-    setIsAnalyzing(false);
-    setCurrentPage(1);
-    setSaveSuccess(false);
+  // ---------- File handling (unchanged) ----------
+  const handleFileSelect = (event) => {
+    const selectedFile = event.target.files[0];
+    if (selectedFile) validateAndProcessFile(selectedFile);
   };
 
-  const parseCSV = (selectedFile) => {
+  const validateAndProcessFile = (file) => {
     setError(null);
+    if (!file || typeof file !== 'object') { setError('Invalid file selected'); return; }
+    if (!file.name || file.name.trim() === '') { setError('File name is required'); return; }
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) { setError(`File size ${(file.size / 1024 / 1024).toFixed(1)}MB exceeds 10MB limit`); return; }
+    if (file.size === 0) { setError('File is empty'); return; }
+    const fileName = file.name.toLowerCase().trim();
+    const isCSV = fileName.endsWith('.csv');
+    const isXLSX = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+    if (!isCSV && !isXLSX) { setError(`Unsupported file type. Only CSV and XLSX files are supported`); return; }
+    setFile(file);
+    setShowPreview(false);
+    try {
+      if (isCSV) parseCSV(file);
+      else parseXLSX(file);
+    } catch (err) {
+      setError('Failed to process file. Please try again.');
+      console.error(err);
+    }
+  };
+
+  const parseCSV = (file) => {
     setIsLoading(true);
+    setError(null);
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = (e) => {
       try {
-        const text = event.target.result;
-        if (!text || !text.trim()) {
-          setError('CSV file is empty');
-          setIsLoading(false);
-          return;
-        }
-        const rawRows = parseCSVRows(text);
-        const headers = rawRows[0]?.map((header) => String(header ?? '').trim()).filter(Boolean) || [];
-        const rows = rowsToObjects(rawRows.slice(1), headers).filter((row) => Object.values(row).some((value) => String(value).trim() !== ''));
-        if (!headers.length || !rows.length) {
-          setError('No valid data found');
-          setIsLoading(false);
-          return;
-        }
+        const text = e.target.result;
+        if (!text.trim()) { setError('CSV file is empty'); setIsLoading(false); return; }
+        const rows = parseCSVRows(text);
+        if (rows.length === 0) { setError('No valid data found'); setIsLoading(false); return; }
+        const headers = rows[0].map(header => header.trim()).filter(header => header.length > 0);
+        if (headers.length === 0) { setError('No valid column headers'); setIsLoading(false); return; }
         setColumns(headers);
-        setCsvData(rows);
-        setFile(selectedFile);
         setTreatmentColumn('');
         setOutcomeColumn('');
-        setIncludeFeatures('B3:AGE, B5:SEX, B6:M-STATUS, B7:EDUCATION');
+        const data = rows.slice(1).map(row => {
+          const rowObj = {};
+          headers.forEach((header, index) => {
+            rowObj[header] = row[index] || '';
+          });
+          return rowObj;
+        }).filter(row => Object.values(row).some(value => value.trim()));
+        setCsvData(data);
         setCurrentPage(1);
-        resetAnalysisState();
-        setShowPreview(true);
+        setIsLoading(false);
       } catch (err) {
         setError('Failed to parse CSV');
-      } finally {
         setIsLoading(false);
       }
     };
-    reader.onerror = () => {
-      setError('Failed to read file');
-      setIsLoading(false);
-    };
-    reader.readAsText(selectedFile);
+    reader.onerror = () => { setError('Failed to read file'); setIsLoading(false); };
+    reader.readAsText(file);
   };
 
-  const parseXLSX = (selectedFile) => {
-    setError(null);
+  const parseXLSX = (file) => {
     setIsLoading(true);
+    setError(null);
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = (e) => {
       try {
-        const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const raw = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-        const headers = raw[0]?.map((header) => String(header ?? '').trim()).filter(Boolean) || [];
-        const rows = rowsToObjects(raw.slice(1), headers).filter((row) => Object.values(row).some((value) => String(value).trim() !== ''));
-        if (!headers.length || !rows.length) {
-          setError('No valid data found');
-          setIsLoading(false);
-          return;
-        }
+        const xlsxData = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(xlsxData, { type: 'array', cellDates: false, cellStyles: false });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', blankrows: false });
+        if (!jsonData || jsonData.length === 0) { setError('XLSX is empty'); setIsLoading(false); return; }
+        const firstRow = jsonData[0];
+        const headers = Object.keys(firstRow).map(key =>
+          firstRow[key] !== undefined && firstRow[key] !== null
+            ? firstRow[key].toString().trim()
+            : ''
+        ).filter(header => header.length > 0);
+        if (headers.length === 0) { setError('No valid headers'); setIsLoading(false); return; }
         setColumns(headers);
-        setCsvData(rows);
-        setFile(selectedFile);
         setTreatmentColumn('');
         setOutcomeColumn('');
-        setIncludeFeatures('B3:AGE, B5:SEX, B6:M-STATUS, B7:EDUCATION');
+        const processedData = jsonData.slice(1).map(row => {
+          const rowObj = {};
+          headers.forEach((header, headerIndex) => {
+            const cellKey = Object.keys(row).find(key =>
+              row[key] !== undefined && row[key] !== null
+            );
+            const cellValue = cellKey ? row[cellKey] : '';
+            rowObj[header] = cellValue !== undefined && cellValue !== null
+              ? cellValue.toString()
+              : '';
+          });
+          return rowObj;
+        }).filter(row => Object.values(row).some(value => value && value.toString().trim()));
+        setCsvData(processedData);
         setCurrentPage(1);
-        resetAnalysisState();
-        setShowPreview(true);
+        setIsLoading(false);
       } catch (err) {
-        setError('Failed to parse XLSX');
-      } finally {
+        setError(`Failed to parse XLSX: ${err.message}`);
         setIsLoading(false);
       }
     };
-    reader.onerror = () => {
-      setError('Failed to read XLSX');
-      setIsLoading(false);
-    };
-    reader.readAsArrayBuffer(selectedFile);
+    reader.onerror = () => { setError('Failed to read XLSX'); setIsLoading(false); };
+    reader.readAsArrayBuffer(file);
   };
 
-  const validateAndProcessFile = (selectedFile) => {
-    setError(null);
-    if (!selectedFile) {
-      setError('Invalid file selected');
-      return;
+  const parseCSVRows = (text) => {
+    const rows = [];
+    let currentRow = [];
+    let currentField = '';
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      if (char === '"') {
+        if (inQuotes && text[i + 1] === '"') { currentField += '"'; i++; }
+        else { inQuotes = !inQuotes; }
+      } else if (char === ',' && !inQuotes) {
+        currentRow.push(currentField.trim());
+        currentField = '';
+      } else if (char === '\n' && !inQuotes) {
+        currentRow.push(currentField.trim());
+        if (currentRow.some(field => field.length > 0)) rows.push(currentRow);
+        currentRow = [];
+        currentField = '';
+      } else {
+        currentField += char;
+      }
     }
-    if (selectedFile.size === 0) {
-      setError('File is empty');
-      return;
+    if (currentField.trim() || currentRow.length > 0) {
+      currentRow.push(currentField.trim());
+      if (currentRow.some(field => field.length > 0)) rows.push(currentRow);
     }
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      setError('File size exceeds 10MB');
-      return;
-    }
-    const fileName = selectedFile.name.toLowerCase();
-    if (fileName.endsWith('.csv')) parseCSV(selectedFile);
-    else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) parseXLSX(selectedFile);
-    else setError('Unsupported file type. Only CSV and XLSX are supported');
+    return rows;
   };
 
-  const handleFileSelect = (event) => {
-    const selectedFile = event.target.files?.[0];
-    if (selectedFile) validateAndProcessFile(selectedFile);
-  };
-
-  const handleDragOver = (event) => {
-    event.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (event) => {
-    event.preventDefault();
+  // Drag and drop
+  const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
+  const handleDrop = (e) => {
+    e.preventDefault();
     setIsDragging(false);
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile) validateAndProcessFile(droppedFile);
   };
 
-  const handleDrop = (event) => {
-    event.preventDefault();
-    setIsDragging(false);
-    const selectedFile = event.dataTransfer.files?.[0];
-    if (selectedFile) validateAndProcessFile(selectedFile);
+  // Scroll helpers
+  const handleScrollLeft = () => {
+    if (tableRef.current) {
+      const newScrollPosition = Math.max(0, scrollPosition - 200);
+      tableRef.current.scrollLeft = newScrollPosition;
+      setScrollPosition(newScrollPosition);
+    }
+  };
+  const handleScrollRight = () => {
+    if (tableRef.current) {
+      const maxScroll = tableRef.current.scrollWidth - tableRef.current.clientWidth;
+      const newScrollPosition = Math.min(maxScroll, scrollPosition + 200);
+      tableRef.current.scrollLeft = newScrollPosition;
+      setScrollPosition(newScrollPosition);
+    }
+  };
+  const handleTableScroll = (e) => {
+    const newScrollPosition = e.target.scrollLeft;
+    setScrollPosition(newScrollPosition);
+  };
+  const getMaxScroll = () => {
+    if (!tableRef.current) return 0;
+    return tableRef.current.scrollWidth - tableRef.current.clientWidth;
+  };
+  const getScrollPercentage = () => {
+    const maxScroll = getMaxScroll();
+    if (maxScroll <= 0) return 0;
+    return Math.round((scrollPosition / maxScroll) * 100);
   };
 
-  const handleChangeFile = () => {
-    setFile(null);
-    setCsvData([]);
-    setColumns([]);
-    setTreatmentColumn('');
-    setOutcomeColumn('');
-    setIncludeFeatures('B3:AGE, B5:SEX, B6:M-STATUS, B7:EDUCATION');
-    setShowPreview(false);
-    setError(null);
-    setCurrentPage(1);
-    resetAnalysisState();
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  // ---------- Convert XLSX to CSV for backend ----------
+  const convertXLSXtoCSV = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const csv = XLSX.utils.sheet_to_csv(firstSheet);
+          resolve(csv);
+        } catch (err) { reject(err); }
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
   };
 
-  const handleAnalyze = () => {
-    if (!csvData.length) {
+  // ---------- Analyze: call /train ----------
+  const handleAnalyze = async () => {
+    if (csvData.length === 0) {
       setError('No data available to analyze');
       return;
     }
-    const detectedTreatment = treatmentColumn || autoDetectedFields.treatment;
-    const detectedOutcome = outcomeColumn || autoDetectedFields.postOutcome || autoDetectedFields.outcome;
-    if (!detectedTreatment) {
-      setError('No treatment/group column could be detected. Please choose one from the dropdown.');
-      return;
-    }
-    if (!detectedOutcome) {
-      setError('No outcome column could be detected. Please choose one from the dropdown.');
-      return;
-    }
-    setError(null);
     setIsAnalyzing(true);
-    setTimeout(() => {
-      setAnalysisResults(buildAnalysisResults(csvData, columns, treatmentColumn, outcomeColumn, includeFeatures));
+    setError(null);
+    setShowPreview(true);
+    setUploadProgress(10);
+
+    try {
+      let fileToSend = file;
+      if (file && file.name.toLowerCase().endsWith('.xlsx')) {
+        const csvString = await convertXLSXtoCSV(file);
+        const blob = new Blob([csvString], { type: 'text/csv' });
+        fileToSend = new File([blob], file.name.replace(/\.xlsx$/i, '.csv'), { type: 'text/csv' });
+      }
+
+      const formData = new FormData();
+      formData.append('file', fileToSend);
+      if (treatmentColumn) formData.append('treatment_column', treatmentColumn);
+      if (outcomeColumn) formData.append('outcome_column', outcomeColumn);
+      if (includeFeatures.trim()) formData.append('include_features', includeFeatures.trim());
+
+      setUploadProgress(30);
+      const endpoint = `${ML_API_URL.replace(/\/$/, '')}/train`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      setUploadProgress(80);
+
+      if (!response.ok) {
+        let errorMsg = `Server returned ${response.status}`;
+        try {
+          const errorJson = await response.json();
+          if (errorJson.error) errorMsg = errorJson.error;
+        } catch (_) {}
+        throw new Error(errorMsg);
+      }
+
+      const result = await response.json();
+      setAnalysisResults(result);
+      // Auto‑switch to the "impact" tab if profiling data exists, else summary
+      if (result.profile_updates && result.profile_updates.length > 0) {
+        setActiveTab('impact');
+      } else {
+        setActiveTab('summary');
+      }
+      setUploadProgress(100);
+      setTimeout(() => setUploadProgress(0), 1000);
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        setError('Request timed out. Training may be taking too long.');
+      } else {
+        setError(`Analysis failed: ${err.message || 'Unknown error'}`);
+      }
+      setUploadProgress(0);
+    } finally {
       setIsAnalyzing(false);
-    }, 1800);
+    }
   };
 
-  const handleImportForm = () => {
-    if (!csvData.length || !columns.length) {
-      setError('No data available to import');
-      return;
-    }
-    navigate('/forms/new', {
-      state: {
-        importedData: {
-          title: `Imported Form - ${file?.name?.replace(/\.(csv|xlsx|xls)$/i, '') || 'Data'}`,
-          description: `Form created from ${file?.name || 'uploaded file'} import with ${columns.length} fields and ${csvData.length} rows`,
-          fields: columns.map((column, index) => ({ id: `field_${index}`, type: 'text', label: column, required: false, placeholder: `Enter ${column}` })),
-          importType: file?.name?.toLowerCase().endsWith('.csv') ? 'CSV' : 'XLSX',
-          sourceFile: file?.name,
-        },
-      },
-      replace: true,
+  // ---------- Chart Data Preparation (same as before) ----------
+  const preparePSHistogram = (psArray) => {
+    if (!psArray || psArray.length === 0) return [];
+    const bins = 20;
+    const min = 0;
+    const max = 1;
+    const step = (max - min) / bins;
+    const hist = Array(bins).fill(0);
+    psArray.forEach(p => {
+      const idx = Math.min(Math.floor((p - min) / step), bins - 1);
+      hist[idx] += 1;
     });
+    return hist.map((count, i) => ({
+      bin: `${(i * step).toFixed(2)}-${((i + 1) * step).toFixed(2)}`,
+      count
+    }));
+  };
+
+  const prepareSMDBarData = (perFeature) => {
+    if (!perFeature || perFeature.length === 0) return [];
+    const sorted = [...perFeature].sort((a, b) =>
+      Math.abs(b.smd_after || b.smd_before || 0) - Math.abs(a.smd_after || a.smd_before || 0)
+    );
+    return sorted.slice(0, 20).map(item => ({
+      name: item.feature.length > 20 ? item.feature.slice(0, 18) + '…' : item.feature,
+      fullName: item.feature,
+      before: item.smd_before || 0,
+      after: item.smd_after || 0,
+    }));
+  };
+
+  const prepareFeatureImportance = (selected) => {
+    if (!selected || selected.length === 0) return [];
+    return selected.slice(0, 15).map(item => ({
+      name: item.feature.length > 25 ? item.feature.slice(0, 23) + '…' : item.feature,
+      fullName: item.feature,
+      importance: item.importance,
+    }));
+  };
+
+  // ---------- Render Summary (unchanged) ----------
+  const renderSummary = () => {
+    if (!analysisResults) return <p className="text-slate-500">No results yet.</p>;
+    const { rows, treatment_column, treatment_detection_method, retrained, retrain_attempts, feature_selection } = analysisResults;
+    const topFeatures = feature_selection?.selected || [];
+    const importanceData = prepareFeatureImportance(topFeatures);
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Rows</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">{rows}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Treatment Column</p>
+            <p className="mt-1 truncate text-sm font-semibold text-slate-900">{treatment_column || 'N/A'}</p>
+            <p className="text-[11px] text-slate-400">{treatment_detection_method}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Retrained</p>
+            <div className="mt-1 flex items-center gap-2">
+              {retrained ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-amber-500" />}
+              <span className="text-sm font-semibold text-slate-900">{retrained ? 'Yes' : 'No'}</span>
+            </div>
+            <p className="text-[11px] text-slate-400">Attempts: {retrain_attempts}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Features Selected</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">{feature_selection?.n_features_selected || 0}</p>
+          </div>
+        </div>
+
+        {importanceData.length > 0 && (
+          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-slate-100 px-6 py-4">
+              <h3 className="text-sm font-semibold text-slate-900">Top 15 Feature Importances</h3>
+            </div>
+            <div className="p-6">
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={importanceData} layout="vertical" margin={{ left: 80, right: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" domain={[0, 'dataMax + 0.05']} />
+                    <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 10 }} />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="rounded-lg border border-slate-200 bg-white p-2.5 text-sm shadow-md">
+                              <p className="font-medium text-slate-900">{data.fullName || data.name}</p>
+                              <p className="text-slate-600">Importance: {data.importance.toFixed(4)}</p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar dataKey="importance" fill="#3b82f6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ---------- Render Output (unchanged) ----------
+  const renderOutput = () => {
+    if (!analysisResults) return <p className="text-slate-500">No results yet.</p>;
+    const { ps_output, decision_support } = analysisResults;
+    const psData = preparePSHistogram(ps_output?.ps);
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Min</p>
+            <p className="mt-0.5 text-lg font-semibold text-slate-900">{ps_output?.ps_summary?.min?.toFixed(4)}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Max</p>
+            <p className="mt-0.5 text-lg font-semibold text-slate-900">{ps_output?.ps_summary?.max?.toFixed(4)}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Mean</p>
+            <p className="mt-0.5 text-lg font-semibold text-slate-900">{ps_output?.ps_summary?.mean?.toFixed(4)}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Median</p>
+            <p className="mt-0.5 text-lg font-semibold text-slate-900">{ps_output?.ps_summary?.median?.toFixed(4)}</p>
+          </div>
+        </div>
+
+        {psData.length > 0 && (
+          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-slate-100 px-6 py-4">
+              <h3 className="text-sm font-semibold text-slate-900">Propensity Score Distribution</h3>
+            </div>
+            <div className="p-6">
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={psData} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="bin" angle={-45} textAnchor="end" height={60} tick={{ fontSize: 10 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#8884d8">
+                      {psData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={index < psData.length / 2 ? '#60a5fa' : '#a78bfa'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {decision_support && decision_support.length > 0 && (
+          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-slate-100 px-6 py-4">
+              <h3 className="text-sm font-semibold text-slate-900">Decision Support (PS Quartiles)</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-6 py-3 text-left font-semibold text-slate-600">Group</th>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-6 py-3 text-left font-semibold text-slate-600">Count</th>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-6 py-3 text-left font-semibold text-slate-600">Mean PS</th>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-6 py-3 text-left font-semibold text-slate-600">Interpretation</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {decision_support.map((row, idx) => (
+                    <tr key={idx} className="transition-colors hover:bg-slate-50/50">
+                      <td className="whitespace-nowrap px-6 py-3 text-slate-700">{row.ps_group}</td>
+                      <td className="whitespace-nowrap px-6 py-3 text-center text-slate-600">{row.count}</td>
+                      <td className="whitespace-nowrap px-6 py-3 text-center font-mono text-slate-600">{row.mean_ps?.toFixed(4)}</td>
+                      <td className="whitespace-nowrap px-6 py-3 text-slate-600">{row.interpretation}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ---------- Render Metrics (unchanged) ----------
+  const renderMetrics = () => {
+    if (!analysisResults) return <p className="text-slate-500">No results yet.</p>;
+    const { covariate_balance, model_interpretation } = analysisResults;
+    const smdData = prepareSMDBarData(covariate_balance?.per_feature);
+
+    return (
+      <div className="space-y-6">
+        {covariate_balance && (
+          <div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+                <p className="text-xs font-medium text-slate-500">Balance Achieved</p>
+                <div className="mt-1 flex items-center gap-2">
+                  {covariate_balance.balance_achieved ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <XCircle className="h-5 w-5 text-red-500" />
+                  )}
+                  <span className="text-sm font-semibold text-slate-900">{covariate_balance.balance_achieved ? 'Yes' : 'No'}</span>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+                <p className="text-xs font-medium text-slate-500">Mean |SMD|</p>
+                <p className="mt-0.5 text-lg font-semibold text-slate-900">{covariate_balance.mean_abs_smd?.toFixed(4)}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+                <p className="text-xs font-medium text-slate-500">Matched Pairs</p>
+                <p className="mt-0.5 text-lg font-semibold text-slate-900">{covariate_balance.matched_pairs}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+                <p className="text-xs font-medium text-slate-500">Caliper</p>
+                <p className="mt-0.5 text-lg font-semibold text-slate-900">{covariate_balance.caliper?.toFixed(4)}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+                <p className="text-xs font-medium text-slate-500">Overlap (Treated in Control)</p>
+                <p className="mt-0.5 text-lg font-semibold text-slate-900">{covariate_balance.overlap?.treated_in_control_range_pct?.toFixed(1)}%</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+                <p className="text-xs font-medium text-slate-500">Overlap (Control in Treated)</p>
+                <p className="mt-0.5 text-lg font-semibold text-slate-900">{covariate_balance.overlap?.control_in_treated_range_pct?.toFixed(1)}%</p>
+              </div>
+            </div>
+
+            {smdData.length > 0 && (
+              <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+                <div className="border-b border-slate-100 px-6 py-4">
+                  <h3 className="text-sm font-semibold text-slate-900">Standardized Mean Differences (SMD) – Before vs After Matching</h3>
+                </div>
+                <div className="p-6">
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={smdData} layout="vertical" margin={{ left: 80, right: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" domain={[0, 'dataMax + 0.2']} />
+                        <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 9 }} />
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload;
+                              return (
+                                <div className="rounded-lg border border-slate-200 bg-white p-2.5 text-sm shadow-md">
+                                  <p className="font-medium text-slate-900">{data.fullName || data.name}</p>
+                                  <p className="text-slate-600">Before: {data.before.toFixed(4)}</p>
+                                  <p className="text-slate-600">After: {data.after.toFixed(4)}</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Legend />
+                        <Bar dataKey="before" fill="#f87171" name="Before" />
+                        <Bar dataKey="after" fill="#34d399" name="After" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {model_interpretation && (
+          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-slate-100 px-6 py-4">
+              <h3 className="text-sm font-semibold text-slate-900">Model Interpretation (SHAP)</h3>
+            </div>
+            <div className="p-6">
+              <p className="mb-4 text-sm text-slate-600">{model_interpretation.method}</p>
+              <div className="max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <ul className="space-y-1 text-sm">
+                  {model_interpretation.feature_contributions?.slice(0, 15).map((item, idx) => (
+                    <li key={idx} className="flex justify-between border-b border-slate-100 py-1.5 px-2">
+                      <span className="truncate text-slate-700">{item.feature}</span>
+                      <span className="whitespace-nowrap font-mono text-slate-600">
+                        {item.mean_abs_shap?.toFixed(4)} ({item.direction === 'increases_likelihood' ? '\u2B06' : '\u2B07'})
+                      </span>
+                    </li>
+                  ))}
+                  {model_interpretation.feature_contributions?.length > 15 && (
+                    <li className="px-2 py-1 text-xs text-slate-400">&hellip; and {model_interpretation.feature_contributions.length - 15} more</li>
+                  )}
+                </ul>
+              </div>
+              {model_interpretation.socioeconomic_insights && (
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <h5 className="mb-2 text-sm font-semibold text-slate-700">Insights</h5>
+                  <ul className="list-disc pl-5 text-sm text-slate-600 space-y-1">
+                    {model_interpretation.socioeconomic_insights.map((insight, idx) => (
+                      <li key={idx}>{insight}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ---------- NEW: Render Impact (ATT + Profiling) ----------
+  const renderImpact = () => {
+    if (!analysisResults) return <p className="text-slate-500">No results yet.</p>;
+    const { att_result, profiling_summary, profile_updates, pair_profiles } = analysisResults;
+
+    // Helper to compute percentages
+    const calcPct = (count, total) => total > 0 ? (count / total * 100).toFixed(1) : 0;
+
+    return (
+      <div className="space-y-6">
+        {/* ATT Result Card */}
+        {att_result && (
+          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-slate-100 px-6 py-4">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-blue-600" />
+                <h3 className="text-sm font-semibold text-slate-900">Average Treatment Effect on the Treated (ATT)</h3>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-xs font-medium text-slate-500">Mean ATT</p>
+                  <p className="mt-0.5 text-2xl font-bold text-blue-600">{att_result.att_mean?.toFixed(4)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-500">95% CI</p>
+                  <p className="mt-0.5 font-mono text-sm text-slate-700">
+                    [{att_result.ci_95?.[0]?.toFixed(4)}, {att_result.ci_95?.[1]?.toFixed(4)}]
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-500">p-value (paired t-test)</p>
+                  <p className="mt-0.5 text-lg font-semibold text-slate-900">{att_result.p_value_paired_ttest?.toFixed(4)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-500">Matched Pairs</p>
+                  <p className="mt-0.5 text-lg font-semibold text-slate-900">{att_result.matched_pairs}</p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-slate-400">Caliper: {att_result.caliper?.toFixed(4)}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Profiling Summary Cards */}
+        {profiling_summary && (
+          <div className="grid grid-cols-3 gap-5">
+            <div className="rounded-2xl border border-green-200 bg-green-50/50 p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <TrendingUp className="h-8 w-8 text-green-600" />
+                <div>
+                  <p className="text-xs font-medium text-slate-500">Increased</p>
+                  <p className="text-2xl font-bold text-green-700">{profiling_summary.increased_count}</p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-red-200 bg-red-50/50 p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <TrendingDown className="h-8 w-8 text-red-600" />
+                <div>
+                  <p className="text-xs font-medium text-slate-500">Decreased</p>
+                  <p className="text-2xl font-bold text-red-700">{profiling_summary.decreased_count}</p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <Minus className="h-8 w-8 text-slate-500" />
+                <div>
+                  <p className="text-xs font-medium text-slate-500">No Change</p>
+                  <p className="text-2xl font-bold text-slate-700">{profiling_summary.no_change_count}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Profile Updates Table with bars */}
+        {profile_updates && profile_updates.length > 0 && (
+          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-slate-100 px-6 py-4">
+              <div className="flex items-center gap-2">
+                <BarChart2 className="h-4 w-4 text-cyan-600" />
+                <h3 className="text-sm font-semibold text-slate-900">Pre‑Post Change Profile (Treated vs Control)</h3>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-6 py-3 text-left font-semibold text-slate-600">Feature</th>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-3 py-3 text-center font-semibold text-slate-600" colSpan="3">Treated</th>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-3 py-3 text-center font-semibold text-slate-600" colSpan="3">Control</th>
+                  </tr>
+                  <tr className="bg-slate-50/70">
+                    <th className="border-b border-slate-200 px-6 py-2"></th>
+                    <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-green-600">↑</th>
+                    <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-red-600">↓</th>
+                    <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-slate-400">–</th>
+                    <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-green-600">↑</th>
+                    <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-red-600">↓</th>
+                    <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-slate-400">–</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                    {profile_updates.map((item, idx) => {
+                      const tTotal = item.treated.total || 1;
+                      const cTotal = item.control.total || 1;
+                      return (
+                        <tr key={idx} className="transition-colors hover:bg-slate-50/50">
+                          <td className="whitespace-nowrap px-6 py-3 font-medium text-slate-700">{item.feature}</td>
+                          {/* Treated bars */}
+                          <td className="px-3 py-3 text-center">
+                            <div className="flex items-center gap-1 justify-center">
+                              <span className="text-xs">{item.treated.increased}</span>
+                              <div className="w-12 h-1.5 bg-green-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-green-500 rounded-full" style={{ width: `${(item.treated.increased / tTotal) * 100}%` }} />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <div className="flex items-center gap-1 justify-center">
+                              <span className="text-xs">{item.treated.decreased}</span>
+                              <div className="w-12 h-1.5 bg-red-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-red-500 rounded-full" style={{ width: `${(item.treated.decreased / tTotal) * 100}%` }} />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <div className="flex items-center gap-1 justify-center">
+                              <span className="text-xs">{item.treated.no_change}</span>
+                              <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-slate-400 rounded-full" style={{ width: `${(item.treated.no_change / tTotal) * 100}%` }} />
+                              </div>
+                            </div>
+                          </td>
+                          {/* Control bars */}
+                          <td className="px-3 py-3 text-center">
+                            <div className="flex items-center gap-1 justify-center">
+                              <span className="text-xs">{item.control.increased}</span>
+                              <div className="w-12 h-1.5 bg-green-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-green-500 rounded-full" style={{ width: `${(item.control.increased / cTotal) * 100}%` }} />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <div className="flex items-center gap-1 justify-center">
+                              <span className="text-xs">{item.control.decreased}</span>
+                              <div className="w-12 h-1.5 bg-red-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-red-500 rounded-full" style={{ width: `${(item.control.decreased / cTotal) * 100}%` }} />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <div className="flex items-center gap-1 justify-center">
+                              <span className="text-xs">{item.control.no_change}</span>
+                              <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-slate-400 rounded-full" style={{ width: `${(item.control.no_change / cTotal) * 100}%` }} />
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Optional: expandable pair profiles */}
+        {pair_profiles && pair_profiles.length > 0 && (
+          <details className="rounded-2xl border border-slate-200/80 bg-white p-6">
+            <summary className="cursor-pointer text-sm font-semibold text-slate-700 hover:text-blue-600">
+              <span className="flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                View matched pair details ({pair_profiles.length} pairs)
+              </span>
+            </summary>
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Pair</th>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Treated ID</th>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Control ID</th>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Treated Outcome</th>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Control Outcome</th>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Difference</th>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {pair_profiles.slice(0, 50).map((pair, idx) => (
+                    <tr key={idx} className="transition-colors hover:bg-slate-50/50">
+                      <td className="whitespace-nowrap px-4 py-2 text-center text-slate-500">{idx + 1}</td>
+                      <td className="whitespace-nowrap px-4 py-2 text-slate-600">{pair.treated_index}</td>
+                      <td className="whitespace-nowrap px-4 py-2 text-slate-600">{pair.control_index}</td>
+                      <td className="whitespace-nowrap px-4 py-2 text-slate-600">{pair.treated_outcome?.toFixed(2)}</td>
+                      <td className="whitespace-nowrap px-4 py-2 text-slate-600">{pair.control_outcome?.toFixed(2)}</td>
+                      <td className="whitespace-nowrap px-4 py-2 text-slate-600">{pair.outcome_difference?.toFixed(2)}</td>
+                      <td className="whitespace-nowrap px-4 py-2">
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          pair.status === 'Increased' ? 'bg-green-50 text-green-600' :
+                          pair.status === 'Decreased' ? 'bg-red-50 text-red-600' :
+                          'bg-slate-100 text-slate-500'
+                        }`}>{pair.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                  {pair_profiles.length > 50 && (
+                    <tr><td colSpan="7" className="py-3 text-center text-xs text-slate-400">… and {pair_profiles.length - 50} more</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        )}
+      </div>
+    );
+  };
+
+  // ---------- Save Results (localStorage) ----------
+  const handleSaveResults = () => {
+    if (!analysisResults) return;
+    const saved = JSON.parse(localStorage.getItem('savedAnalyses') || '[]');
+    const entry = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      name: saveName || `Analysis ${new Date().toLocaleString()}`,
+      description: saveDescription || '',
+      date: new Date().toISOString(),
+      results: analysisResults,
+    };
+    saved.push(entry);
+    localStorage.setItem('savedAnalyses', JSON.stringify(saved));
+    setShowSaveModal(false);
+    setSaveName('');
+    setSaveDescription('');
+    alert('Results saved successfully!');
   };
 
   const handleDownloadJSON = () => {
     if (!analysisResults) return;
     const blob = new Blob([JSON.stringify(analysisResults, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `analysis_${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analysis_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
     URL.revokeObjectURL(url);
   };
 
-  const handleSaveResults = () => {
-    if (!analysisResults) return;
-    const saved = JSON.parse(localStorage.getItem('savedAnalyses') || '[]');
-    saved.push({
-      id: Date.now().toString(36),
-      name: saveName || `Analysis ${new Date().toLocaleString()}`,
-      description: saveDescription || '',
-      date: new Date().toISOString(),
-      results: analysisResults,
-    });
-    localStorage.setItem('savedAnalyses', JSON.stringify(saved));
-    setShowSaveModal(false);
-    setSaveName('');
-    setSaveDescription('');
-    setSaveSuccess(true);
+  // ---------- Form import (unchanged) ----------
+  const handleImportForm = () => {
+    if (csvData.length === 0 || columns.length === 0) {
+      setError('No data available to import');
+      return;
+    }
+    setError(null);
+    try {
+      const isSurveyData = detectSurveyData();
+      let formFields;
+      let formTitle;
+      let formDescription;
+
+      if (isSurveyData) {
+        formFields = createSurveyFormFields();
+        formTitle = `Survey Form - ${file?.name?.replace(/\.(csv|xlsx|xls)$/, '') || 'Survey Data'}`;
+        formDescription = `Survey questionnaire created from ${file?.name} with ${columns.length} questions and ${csvData.length} responses`;
+      } else {
+        formFields = columns.map((column, index) => ({
+          id: `field_${index}`,
+          type: 'text',
+          label: column,
+          required: false,
+          placeholder: `Enter ${column}`
+        }));
+        formTitle = `Imported Form - ${file?.name?.replace(/\.(csv|xlsx|xls)$/, '') || 'Data'}`;
+        formDescription = `Form created from ${file?.name} import with ${columns.length} fields and ${csvData.length} data rows`;
+      }
+
+      const formData = {
+        title: formTitle,
+        description: formDescription,
+        fields: formFields,
+        isSurvey: isSurveyData,
+        sourceFile: file?.name,
+        importType: file?.name?.toLowerCase().endsWith('.csv') ? 'CSV' : 'XLSX',
+        importedAt: new Date().toISOString()
+      };
+
+      navigate('/forms/new', { state: { importedData: formData }, replace: true });
+    } catch (err) {
+      console.error('Form import error:', err);
+      setError(`Failed to create form: ${err.message || 'Unknown error occurred'}`);
+    }
   };
 
-  const totalPages = Math.max(1, Math.ceil(csvData.length / rowsPerPage));
-  const previewRows = csvData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  // ---------- Survey detection functions (unchanged) ----------
+  const detectSurveyData = () => {
+    if (csvData.length === 0 || columns.length === 0) return false;
+    const surveyKeywords = [
+      'question', 'answer', 'response', 'option', 'choice', 'rating', 'score',
+      'satisfaction', 'feedback', 'comment', 'agree', 'disagree', 'strongly',
+      'scale', 'range', 'multiple', 'single', 'yes', 'no', 'true', 'false',
+      'likert', 'satisfied', 'dissatisfied', 'excellent', 'poor',
+      'recommend', 'important', 'priority', 'frequency', 'always', 'never',
+      'survey', 'poll', 'quiz', 'test', 'assessment'
+    ];
+    const columnNames = columns.map(col => col.toLowerCase());
+    const hasSurveyKeywords = columnNames.some(col =>
+      surveyKeywords.some(keyword => col.includes(keyword))
+    );
+    let surveyScore = 0;
+    let maxScore = 0;
+    const questionPatterns = columns.filter(col =>
+      /q\d+|question|ques|what|when|how|why|which|where|who/.test(col.toLowerCase())
+    );
+    if (questionPatterns.length > 0) surveyScore += 2;
+    maxScore += 2;
+    const answerPatterns = columns.filter(col =>
+      /answer|response|reply|feedback|comment|note/.test(col.toLowerCase())
+    );
+    if (answerPatterns.length > 0) surveyScore += 2;
+    maxScore += 2;
+    const limitedOptionsCount = columns.filter(col => {
+      const uniqueValues = [...new Set(csvData.map(row => row[col]))].filter(val => val);
+      return uniqueValues.length >= 2 && uniqueValues.length <= 8;
+    }).length;
+    if (limitedOptionsCount > 0) surveyScore += 1;
+    maxScore += 1;
+    const ratingScales = columns.filter(col => {
+      const values = csvData.map(row => row[col]).filter(val => val);
+      const numericValues = values.filter(val => !isNaN(val) && val !== '');
+      return numericValues.length >= 3 &&
+        Math.max(...numericValues) <= 10 &&
+        Math.min(...numericValues) >= 1;
+    }).length;
+    if (ratingScales > 0) surveyScore += 1;
+    maxScore += 1;
+    const booleanColumns = columns.filter(col => {
+      const uniqueValues = [...new Set(csvData.map(row => row[col]))].filter(val => val);
+      const booleanValues = ['yes', 'no', 'true', 'false', '1', '0', 'y', 'n'];
+      return uniqueValues.length === 2 &&
+        uniqueValues.every(val => booleanValues.includes(val.toString().toLowerCase()));
+    }).length;
+    if (booleanColumns > 0) surveyScore += 1;
+    maxScore += 1;
+    const confidence = maxScore > 0 ? (surveyScore / maxScore) : 0;
+    return confidence >= 0.3;
+  };
 
+  const createSurveyFormFields = () => {
+    return columns.map((column, index) => {
+      const columnName = column.toLowerCase();
+      const uniqueValues = [...new Set(csvData.map(row => row[column]))].filter(val => val);
+      let fieldType = 'text';
+      let options = [];
+      if (uniqueValues.length === 2 &&
+          uniqueValues.some(val => ['yes', 'no', 'true', 'false', '1', '0'].includes(val.toLowerCase()))) {
+        fieldType = 'radio';
+        options = uniqueValues;
+      }
+      else if (uniqueValues.length >= 3 && uniqueValues.length <= 10) {
+        fieldType = 'select';
+        options = uniqueValues;
+      }
+      else if (uniqueValues.some(val => !isNaN(val)) &&
+               uniqueValues.some(val => Number(val) >= 1) &&
+               uniqueValues.some(val => Number(val) <= 10)) {
+        fieldType = 'radio';
+        options = uniqueValues.filter(val => !isNaN(val)).sort((a, b) => Number(a) - Number(b));
+      }
+      else if (uniqueValues.some(val => val.length > 50)) {
+        fieldType = 'textarea';
+      }
+      return {
+        id: `field_${index}`,
+        type: fieldType,
+        label: column,
+        required: columnName.includes('required') || columnName.includes('mandatory'),
+        placeholder: `Enter ${column}`,
+        options: options.length > 0 ? options : undefined
+      };
+    });
+  };
+
+  const handleBackToDashboard = () => navigate('/dashboard');
+
+  // ---------- Main render ----------
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-6xl px-4 pb-24 pt-0 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 pb-24 pt-0 sm:px-6 lg:px-8">
         <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate('/dashboard')}
+                onClick={handleBackToDashboard}
                 className="gap-1.5 text-slate-500 hover:text-slate-900"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -727,44 +1045,6 @@ const MLUpload = () => {
               <h1 className="text-sm font-semibold text-slate-900 sm:text-base">ML Data Upload</h1>
             </div>
 
-            <nav className="hidden items-center gap-1 md:flex">
-              {STEPS.map((step, index) => {
-                const isCompleted = currentStep > step.id;
-                const isActive = currentStep === step.id;
-                return (
-                  <React.Fragment key={step.id}>
-                    <div className="flex items-center gap-3 rounded-full px-3 py-1.5 transition-colors">
-                      <span
-                        className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
-                          isCompleted
-                            ? 'bg-emerald-500 text-white'
-                            : isActive
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-slate-100 text-slate-400'
-                        }`}
-                      >
-                        {isCompleted ? <Check className="h-3 w-3" /> : step.id}
-                      </span>
-                      <span
-                        className={`text-xs font-medium ${
-                          isCompleted ? 'text-emerald-600' : isActive ? 'text-blue-600' : 'text-slate-400'
-                        }`}
-                      >
-                        {step.label}
-                      </span>
-                    </div>
-                    {index < STEPS.length - 1 && (
-                      <div
-                        className={`h-px w-8 transition-colors ${
-                          currentStep > step.id ? 'bg-emerald-300' : 'bg-slate-200'
-                        }`}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </nav>
-
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="hidden border-slate-200 text-[10px] text-slate-400 sm:inline-flex">
                 PSM · SES Impact
@@ -773,477 +1053,369 @@ const MLUpload = () => {
           </div>
         </header>
 
-        <div className="mx-auto max-w-6xl pt-6">
-          {error && (
-            <div className="mb-6 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span className="flex-1">{error}</span>
-              <button onClick={() => setError(null)} className="rounded-md p-1 text-red-400 hover:text-red-600">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
-
-          {currentStep === 1 && (
-            <Card className="border-slate-200 shadow-sm">
-              <CardContent className="p-0">
-                <div className="border-b border-slate-100 px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
-                      <Upload className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h2 className="text-sm font-semibold text-slate-900">Import File</h2>
-                      <p className="text-xs text-slate-500">Upload CSV or XLSX to prepare the analysis</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <div
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`group relative cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center transition-all duration-200 ${
-                      isDragging
-                        ? 'border-blue-400 bg-blue-50/50'
-                        : 'border-slate-200 bg-slate-50/50 hover:border-blue-300 hover:bg-blue-50/30'
-                    }`}
-                  >
-                    <div className="flex flex-col items-center gap-4">
-                      <div
-                        className={`flex h-16 w-16 items-center justify-center rounded-2xl transition-colors ${
-                          isDragging ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-600'
-                        }`}
-                      >
-                        {isLoading ? (
-                          <Loader2 className="h-8 w-8 animate-spin" />
-                        ) : (
-                          <FolderOpen className="h-8 w-8" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-base font-semibold text-slate-700">
-                          {isLoading ? 'Processing file...' : 'Drag & drop your file here'}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-400">
-                          or click to browse
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
-                          <FileSpreadsheet className="h-3 w-3" /> .csv
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
-                          <FileSpreadsheet className="h-3 w-3" /> .xlsx
-                        </span>
-                        <span className="text-xs text-slate-300">Max 10MB</span>
-                      </div>
-                    </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".csv,.xlsx,.xls"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {currentStep >= 2 && file && (
-            <Card className="mb-6 border-slate-200 shadow-sm">
-              <CardContent className="p-6">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50">
-                      <CheckCircle2 className="h-6 w-6 text-emerald-500" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900">{file.name}</h3>
-                      <p className="text-xs text-slate-500">
-                        {(file.size / 1024).toFixed(1)} KB
-                      </p>
-                      <div className="mt-1.5 flex items-center gap-3">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600">
-                          <Check className="h-3 w-3" /> {csvData.length.toLocaleString()} rows
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-600">
-                          {columns.length} columns
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleChangeFile}
-                    className="gap-1.5 text-slate-500"
-                  >
-                    Change File
-                  </Button>
-                </div>
-
-                <div className="mt-5 grid gap-4 border-t border-slate-100 pt-5 sm:grid-cols-3">
-                  <div>
-                    <Label className="mb-1.5 block text-xs font-medium text-slate-500">
-                      Group / Treatment Column
-                    </Label>
-                    <Select
-                      value={treatmentColumn}
-                      onValueChange={setTreatmentColumn}
-                    >
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder={`Auto-detect → ${autoDetectedFields.treatment || 'A2:GROUP'}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {columns.map((column) => (
-                          <SelectItem key={column} value={column} className="text-xs">
-                            {column}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+        {/* How it works - only show when no file is uploaded */}
+        {!file && !isLoading && (
+          <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
+            <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-blue-400/20 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
+            <div className="relative">
+              <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-blue-300">How it works</p>
+              <h2 className="mb-6 text-2xl font-bold">ML Analysis Pipeline</h2>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="flex items-start gap-3">
+                  <div className="bg-white/10 p-2 rounded-xl text-blue-300">
+                    <Upload className="w-5 h-5" />
                   </div>
                   <div>
-                    <Label className="mb-1.5 block text-xs font-medium text-slate-500">
-                      Outcome Column
-                    </Label>
-                    <Select
-                      value={outcomeColumn}
-                      onValueChange={setOutcomeColumn}
-                    >
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder="Auto-detect → Outcome" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {columns.map((column) => (
-                          <SelectItem key={column} value={column} className="text-xs">
-                            {column}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="mt-1.5 text-[11px] text-slate-400">
-                      Treatment: <span className="font-medium text-slate-600">{autoDetectedFields.treatment || '—'}</span>
-                      {' · '}
-                      Outcome: <span className="font-medium text-slate-600">{autoDetectedFields.postOutcome || autoDetectedFields.outcome || '—'}</span>
-                    </p>
+                    <h4 className="font-semibold text-white">1. Upload</h4>
+                    <p className="text-sm text-blue-200">Drag & drop your CSV or XLSX file</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="bg-white/10 p-2 rounded-xl text-indigo-300">
+                    <Filter className="w-5 h-5" />
                   </div>
                   <div>
-                    <Label className="mb-1.5 block text-xs font-medium text-slate-500">
-                      Include Features
-                    </Label>
-                    <Input
-                      value={includeFeatures}
-                      onChange={(e) => setIncludeFeatures(e.target.value)}
-                      placeholder="B3:AGE, B5:SEX, B6:M-STATUS, B7:EDUCATION"
-                      className="h-9 text-xs"
-                    />
+                    <h4 className="font-semibold text-white">2. Configure</h4>
+                    <p className="text-sm text-blue-200">Select treatment, outcome & feature filter</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {currentStep >= 2 && showPreview && csvData.length > 0 && (
-            <Card className="mb-6 rounded-2xl overflow-hidden border-slate-200 shadow-sm">
-              <CardContent className="p-0">
-                <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-sm font-semibold text-slate-900">
-                      Data Preview
-                    </h3>
-                    <Badge variant="secondary" className="bg-slate-100 text-[10px] font-medium text-slate-500">
-                      {csvData.length.toLocaleString()} rows × {columns.length} cols
-                    </Badge>
+                <div className="flex items-start gap-3">
+                  <div className="bg-white/10 p-2 rounded-xl text-emerald-300">
+                    <BarChart3 className="w-5 h-5" />
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5" />
-                    </Button>
-                    <span className="min-w-[80px] text-center text-xs text-slate-500">
-                      Page {currentPage} / {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                    >
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </Button>
+                  <div>
+                    <h4 className="font-semibold text-white">3. Analyze</h4>
+                    <p className="text-sm text-blue-200">Get PS scores, balance, SHAP & impact</p>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="sticky top-0 z-10 bg-slate-50">
-                        {columns.map((column) => (
-                          <th
-                            key={column}
-                            className="whitespace-nowrap border-b border-slate-200 px-6 py-4 text-left font-semibold text-slate-600"
-                          >
-                            {column}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {previewRows.map((row, rowIndex) => (
-                        <tr
-                          key={`${rowIndex}-${currentPage}`}
-                          className="transition-colors hover:bg-slate-50/50"
-                        >
-                          {columns.map((column) => {
-                            const value = row[column] ?? '';
-                            const normalized = String(value).trim();
-                            const name = column.toLowerCase();
-                            if (name.includes('group')) {
-                              const normalizedGroup =
-                                normalized === '1' || normalized.toLowerCase() === 'treated' || normalized.toLowerCase() === 'b' || normalized.toLowerCase() === 'beneficiary'
-                                  ? 'B'
-                                  : 'NB';
-                              return (
-                                <td key={`${column}-${rowIndex}`} className="whitespace-nowrap px-6 py-4">
-                                  <span
-                                    className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${
-                                      normalizedGroup === 'B'
-                                        ? 'bg-blue-50 text-blue-600'
-                                        : 'bg-slate-100 text-slate-500'
-                                    }`}
-                                  >
-                                    {normalizedGroup}
-                                  </span>
-                                </td>
-                              );
-                            }
-                            if (name.includes('ses') && name.includes('a')) {
-                              return (
-                                <td key={`${column}-${rowIndex}`} className="whitespace-nowrap px-6 py-4 font-mono text-slate-500">
-                                  {normalized || '—'}
-                                </td>
-                              );
-                            }
-                            if (name.includes('ses') && name.includes('b')) {
-                              const pairedA = parseNumericValue(row[column.replace(/B$/i, 'A')]);
-                              const currentB = parseNumericValue(value);
-                              const arrow =
-                                currentB !== null && pairedA !== null
-                                  ? currentB > pairedA
-                                    ? ' ▲'
-                                    : currentB < pairedA
-                                      ? ' ▼'
-                                      : ''
-                                  : '';
-                              const color =
-                                currentB !== null && pairedA !== null
-                                  ? currentB > pairedA
-                                    ? 'text-emerald-600'
-                                    : currentB < pairedA
-                                      ? 'text-red-500'
-                                      : 'text-slate-500'
-                                  : 'text-slate-500';
-                              return (
-                                <td key={`${column}-${rowIndex}`} className={`whitespace-nowrap px-6 py-4 font-mono text-xs font-semibold ${color}`}>
-                                  {normalized || '—'}{arrow}
-                                </td>
-                              );
-                            }
-                            return (
-                              <td key={`${column}-${rowIndex}`} className="whitespace-nowrap px-6 py-4 text-slate-600">
-                                {normalized || '—'}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="flex items-start gap-3">
+                  <div className="bg-white/10 p-2 rounded-xl text-purple-300">
+                    <Save className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-white">4. Save</h4>
+                    <p className="text-sm text-blue-200">Store or download results for later</p>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {currentStep === 3 && (
-            <div className="mb-6 flex items-center justify-center py-12">
-              <Card className="border-slate-200 shadow-sm">
-                <CardContent className="flex flex-col items-center gap-4 p-12">
-                  <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
-                  <div className="text-center">
-                    <h3 className="text-sm font-semibold text-slate-900">Analyzing Data</h3>
-                    <p className="text-xs text-slate-500">Running propensity score matching and impact assessment...</p>
-                  </div>
-                </CardContent>
-              </Card>
+              </div>
             </div>
-          )}
+          </section>
+        )}
 
-          {showPreview && csvData.length > 0 && currentStep < 3 && (
-            <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
-              <Button
-                onClick={handleImportForm}
-                variant="outline"
-                className="gap-2 border-slate-200 text-sm"
-              >
-                <Import className="h-4 w-4" /> Create Form from CSV
-              </Button>
-              <Button
-                onClick={handleAnalyze}
-                disabled={isAnalyzing}
-                className="gap-2 bg-blue-600 text-sm shadow-sm hover:bg-blue-700"
-              >
-                {isAnalyzing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <BarChart3 className="h-4 w-4" /> Analyze Data
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-
-          {analysisResults && (
-            <>
-              <RespondentAnalytics columns={columns} rows={csvData} analysis={analysisResults} />
-
-              <Card className="mt-6 rounded-2xl border-slate-200 shadow-sm">
-                <CardContent className="p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
-                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-900">Analysis Complete</h3>
-                        <p className="text-xs text-slate-500">
-                          Results are included above. Ready to save or export.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge className="bg-emerald-50 text-[10px] font-semibold text-emerald-600">
-                        <Check className="mr-1 h-3 w-3" /> Complete
-                      </Badge>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleDownloadJSON}
-                        className="gap-1.5 text-slate-600"
-                      >
-                        <Download className="h-3.5 w-3.5" /> JSON
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => setShowSaveModal(true)}
-                        className="gap-1.5 bg-blue-600 shadow-sm hover:bg-blue-700"
-                      >
-                        <Save className="h-3.5 w-3.5" /> Save Results
-                      </Button>
-                    </div>
-                  </div>
-
-                  {saveSuccess && (
-                    <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Results saved successfully.
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </>
-          )}
-
-          {showPreview && csvData.length > 0 && (
-            <div className="mt-6 flex items-center justify-between">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleChangeFile}
-                className="gap-1.5 text-slate-500"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" /> Start Over
-              </Button>
-              {analysisResults && (
-                <Button
-                  size="sm"
-                  onClick={() => setShowSaveModal(true)}
-                  className="gap-1.5 bg-blue-600 shadow-sm hover:bg-blue-700"
-                >
-                  <Save className="h-3.5 w-3.5" /> Save Results
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <Dialog open={showSaveModal} onOpenChange={setShowSaveModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Save Analysis Results</DialogTitle>
-            <DialogDescription>
-              Store your results locally to access them later from your dashboard.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label htmlFor="saveName" className="text-xs font-medium text-slate-700">
-                Name
-              </Label>
-              <Input
-                id="saveName"
-                value={saveName}
-                onChange={(e) => setSaveName(e.target.value)}
-                placeholder="e.g. General Assessment Baseline"
-                className="mt-1.5 h-9 text-sm"
-              />
-            </div>
-            <div>
-              <Label htmlFor="saveDescription" className="text-xs font-medium text-slate-700">
-                Description
-              </Label>
-              <Textarea
-                id="saveDescription"
-                value={saveDescription}
-                onChange={(e) => setSaveDescription(e.target.value)}
-                placeholder="Optional notes for this analysis run..."
-                className="mt-1.5 text-sm"
-                rows={3}
-              />
+        {/* File Upload Card */}
+        <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+          <div className="border-b border-slate-100 px-6 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+                <Upload className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Import File</h2>
+                <p className="text-xs text-slate-500">Upload CSV or XLSX to prepare the analysis</p>
+              </div>
             </div>
           </div>
-          <DialogFooter className="gap-2">
+          <div className="p-6">
+            {error && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
+                <AlertCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" />
+                <p className="text-sm text-red-800 flex-1">{error}</p>
+                <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600">
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+
+            {/* Drag & Drop */}
+            <div
+              className={`border-2 border-dashed rounded-xl p-10 text-center transition-all duration-300 relative ${
+                isDragging
+                  ? 'border-blue-500 bg-blue-50/70 shadow-lg scale-[1.01]'
+                  : 'border-slate-300 hover:border-blue-400 bg-slate-50/50 hover:bg-slate-50'
+              } ${isLoading ? 'pointer-events-none opacity-50' : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              {isLoading && (
+                <div className="absolute inset-0 bg-white/80 rounded-xl flex items-center justify-center">
+                  <div className="flex flex-col items-center space-y-2">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                    <p className="text-sm text-slate-600">Processing file...</p>
+                  </div>
+                </div>
+              )}
+              <div className="space-y-5">
+                <div className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  file ? 'bg-emerald-100' : 'bg-blue-100'
+                }`}>
+                  {file ? (
+                    <FileSpreadsheet className="w-10 h-10 text-emerald-600" />
+                  ) : (
+                    <Upload className="w-10 h-10 text-blue-600" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-slate-700 font-medium text-lg mb-1">
+                    {file ? file.name : 'Drop your CSV or XLSX file here'}
+                  </p>
+                  <p className="text-slate-500 text-sm">
+                    {file
+                      ? `Size: ${(file.size / 1024).toFixed(2)} KB`
+                      : 'or click to browse (max 10MB)'
+                    }
+                  </p>
+                </div>
+                <div className="flex justify-center">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    disabled={isLoading}
+                  />
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    variant={file ? "outline" : "default"}
+                    className={`${file ? 'bg-white hover:bg-slate-50 border-slate-300' : 'bg-blue-600 hover:bg-blue-700 text-white'} shadow-sm transition-all`}
+                    disabled={isLoading}
+                  >
+                    {file ? 'Change File' : <><Upload className="w-4 h-4 mr-2" /> Choose File</>}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Configuration options */}
+            {columns.length > 0 && (
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200/50">
+                <div>
+                  <Label className="mb-1.5 block text-xs font-medium text-slate-500">
+                    Group / Treatment Column
+                  </Label>
+                  <Select value={treatmentColumn} onValueChange={setTreatmentColumn}>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="Auto-detect" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {columns.map((col) => (
+                        <SelectItem key={col} value={col} className="text-sm">{col}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="mb-1.5 block text-xs font-medium text-slate-500">
+                    Outcome Column
+                  </Label>
+                  <Select value={outcomeColumn} onValueChange={setOutcomeColumn}>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="Auto-detect" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {columns.map((col) => (
+                        <SelectItem key={col} value={col} className="text-sm">{col}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="mb-1.5 block text-xs font-medium text-slate-500">
+                    Include Features
+                  </Label>
+                  <Input
+                    value={includeFeatures}
+                    onChange={(e) => setIncludeFeatures(e.target.value)}
+                    placeholder="B3:AGE, B5:SEX, ..."
+                    className="h-10 text-sm"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Data Preview */}
+        {csvData.length > 0 && showPreview && (
+          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <h3 className="text-sm font-semibold text-slate-900">Data Preview</h3>
+                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500">
+                  {csvData.length.toLocaleString()} rows × {columns.length} cols
+                </span>
+              </div>
+              {columns.length > 6 && (
+                <div className="flex items-center gap-1.5">
+                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleScrollLeft} disabled={scrollPosition <= 0}>
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="min-w-[60px] text-center text-xs text-slate-500">{getScrollPercentage()}%</span>
+                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleScrollRight} disabled={getScrollPercentage() >= 99}>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+            </div>
+            <div className="overflow-x-auto">
+              <div className="h-96 overflow-y-auto" ref={tableRef} onScroll={handleTableScroll}>
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 z-20 bg-slate-50">
+                    <tr>
+                      {columns.map((column, index) => (
+                        <th key={index} className="whitespace-nowrap border-b border-slate-200 px-6 py-3 text-left font-semibold text-slate-600">
+                          {column}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {csvData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((row, rowIndex) => (
+                      <tr key={rowIndex} className="transition-colors hover:bg-slate-50/50">
+                        {columns.map((column, colIndex) => (
+                          <td key={colIndex} className="whitespace-nowrap px-6 py-3 text-sm text-slate-600">
+                            {row[column] || <span className="text-slate-300">—</span>}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Empty state – only if no file */}
+        {!file && !isLoading && (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-100">
+              <Database className="h-10 w-10 text-slate-400" />
+            </div>
+            <h3 className="mb-2 text-xl font-bold text-slate-900">No file uploaded yet</h3>
+            <p className="mx-auto max-w-md text-sm text-slate-500">
+              Upload a CSV or XLSX file to begin propensity-score matching analysis.
+            </p>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        {csvData.length > 0 && (
+          <div className="flex flex-wrap items-center justify-center gap-3">
             <Button
+              onClick={handleImportForm}
               variant="outline"
-              onClick={() => setShowSaveModal(false)}
-              className="gap-1.5"
+              className="gap-2 border-slate-200 text-sm"
             >
-              Cancel
+              <Import className="h-4 w-4" /> Create Form from CSV
             </Button>
             <Button
-              onClick={handleSaveResults}
-              disabled={!saveName.trim()}
-              className="gap-1.5 bg-blue-600 hover:bg-blue-700"
+              onClick={handleAnalyze}
+              disabled={isAnalyzing}
+              className="gap-2 bg-blue-600 text-sm shadow-sm hover:bg-blue-700"
             >
-              <Save className="h-3.5 w-3.5" /> Save
+              {isAnalyzing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Analyzing...
+                </>
+              ) : (
+                <>
+                  <BarChart3 className="h-4 w-4" /> Analyze Data
+                </>
+              )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        )}
+
+        {/* Progress bar */}
+        {isAnalyzing && uploadProgress > 0 && uploadProgress < 100 && (
+          <div className="w-full">
+            <Progress value={uploadProgress} className="h-2" />
+            <p className="text-xs text-slate-500 mt-1 text-center">Training in progress… {uploadProgress}%</p>
+          </div>
+        )}
+
+        {/* Analysis Results */}
+        {analysisResults && (
+          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900">Analysis Results</h3>
+                  <p className="text-xs text-slate-500">Results are ready to review</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={handleDownloadJSON} className="gap-1.5 text-slate-600">
+                  <Download className="h-3.5 w-3.5" /> JSON
+                </Button>
+                <Button size="sm" onClick={() => setShowSaveModal(true)} className="gap-1.5 bg-blue-600 shadow-sm hover:bg-blue-700">
+                  <Save className="h-3.5 w-3.5" /> Save
+                </Button>
+              </div>
+            </div>
+            <div className="p-6">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="summary">Summary</TabsTrigger>
+                  <TabsTrigger value="output">Output</TabsTrigger>
+                  <TabsTrigger value="metrics">Metrics</TabsTrigger>
+                  <TabsTrigger value="impact">Impact</TabsTrigger>
+                </TabsList>
+                <TabsContent value="summary" className="mt-4">{renderSummary()}</TabsContent>
+                <TabsContent value="output" className="mt-4">{renderOutput()}</TabsContent>
+                <TabsContent value="metrics" className="mt-4">{renderMetrics()}</TabsContent>
+                <TabsContent value="impact" className="mt-4">{renderImpact()}</TabsContent>
+              </Tabs>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Save Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="mb-1 text-lg font-bold text-slate-900">Save Analysis Results</h3>
+            <p className="mb-5 text-sm text-slate-500">Store your results locally to access them later.</p>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-xs font-medium text-slate-700">Name *</Label>
+                <Input
+                  value={saveName}
+                  onChange={(e) => setSaveName(e.target.value)}
+                  placeholder="e.g., Baseline Analysis 2026"
+                  className="mt-1.5 h-11"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-slate-700">Description (optional)</Label>
+                <Textarea
+                  value={saveDescription}
+                  onChange={(e) => setSaveDescription(e.target.value)}
+                  placeholder="What was this run about?"
+                  className="mt-1.5"
+                  rows={3}
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <Button variant="outline" onClick={() => setShowSaveModal(false)} className="flex-1">
+                Cancel
+              </Button>
+              <Button onClick={handleSaveResults} disabled={!saveName.trim()} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                <Save className="mr-1.5 h-4 w-4" /> Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
