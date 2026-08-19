@@ -94,6 +94,9 @@ const QuestionnaireBuilder = () => {
   const [dragItem, setDragItem] = useState(null);
   const [dragOver, setDragOver] = useState(null);
   const [savedFormId, setSavedFormId] = useState(null);
+  const [showNewSectionModal, setShowNewSectionModal] = useState(false);
+  const [newSectionTitle, setNewSectionTitle] = useState('');
+  const [newSectionType, setNewSectionType] = useState('questionnaire');
 
   const currentSectionType = sections[currentSectionIndex]?.section_type || 'demographics';
   const availableTypes = currentSectionType === 'questionnaire' ? QUESTIONNAIRE_QUESTION_TYPES : DEMOGRAPHICS_QUESTION_TYPES;
@@ -282,6 +285,39 @@ const QuestionnaireBuilder = () => {
     toast.success('Beneficiary question added to current section.');
   };
 
+  const addNewSection = () => {
+    const title = newSectionTitle.trim() || `Section ${sections.length + 1}`;
+    const newSection = {
+      id: `section_${newSectionType}_${Date.now()}`,
+      title,
+      section_type: newSectionType,
+      questions: []
+    };
+    setSections([...sections, newSection]);
+    setCurrentSectionIndex(sections.length);
+    setNewSectionTitle('');
+    setNewSectionType('questionnaire');
+    setShowNewSectionModal(false);
+    toast.success(`"${title}" section added`);
+  };
+
+  const deleteSection = (sectionIdx) => {
+    if (sections.length <= 2) {
+      toast.error('You need at least 2 sections (Demographics and Questionnaire)');
+      return;
+    }
+    const sec = sections[sectionIdx];
+    if (sec.questions.length > 0) {
+      if (!window.confirm(`Delete "${sec.title || sec.section_type}" section and its ${sec.questions.length} question(s)?`)) return;
+    }
+    const updated = sections.filter((_, i) => i !== sectionIdx);
+    setSections(updated);
+    if (currentSectionIndex >= updated.length) {
+      setCurrentSectionIndex(updated.length - 1);
+    }
+    toast.success('Section deleted');
+  };
+
   const updateQuestion = (sectionIdx, qIdx, field, value) => {
     const updated = sections.map((sec, si) =>
       si === sectionIdx
@@ -413,13 +449,23 @@ const QuestionnaireBuilder = () => {
         const toIndex = Number(target.dataset.dragIndex);
         if (toIndex !== fromIndex) {
           if (dragItem.type === 'question') {
-              const updated = [...sections];
-              updated[currentSectionIndex].questions = reorderArray(
-                updated[currentSectionIndex].questions,
-                fromIndex,
-                toIndex
-              );
-              setSections(updated);
+            const updated = [...sections];
+            updated[currentSectionIndex].questions = reorderArray(
+              updated[currentSectionIndex].questions,
+              fromIndex,
+              toIndex
+            );
+            setSections(updated);
+          } else if (dragItem.type === 'section') {
+            const reordered = reorderArray(sections, fromIndex, toIndex);
+            setSections(reordered);
+            if (currentSectionIndex === fromIndex) {
+              setCurrentSectionIndex(toIndex);
+            } else if (fromIndex < currentSectionIndex && toIndex >= currentSectionIndex) {
+              setCurrentSectionIndex(currentSectionIndex - 1);
+            } else if (fromIndex > currentSectionIndex && toIndex <= currentSectionIndex) {
+              setCurrentSectionIndex(currentSectionIndex + 1);
+            }
           }
         }
       }
@@ -606,8 +652,8 @@ const QuestionnaireBuilder = () => {
   const SectionIcon = sectionConfig.icon;
 
   return (
-    <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
+    <div className="max-w-5xl mx-auto space-y-8">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 px-8 py-10 text-white shadow-2xl shadow-slate-900/20 sm:px-12 sm:py-12">
         <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
         <div className="relative">
@@ -693,28 +739,53 @@ const QuestionnaireBuilder = () => {
       </div>
 
       {/* Section Tabs */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {sections.map((sec, idx) => {
           const cfg = SECTION_TYPE_CONFIG[sec.section_type] || SECTION_TYPE_CONFIG.demographics;
           const Icon = cfg.icon;
+          const isActive = idx === currentSectionIndex;
           return (
-            <button
-              key={sec.id}
-              onClick={() => setCurrentSectionIndex(idx)}
-              className={`flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition ${
-                idx === currentSectionIndex
-                  ? `bg-${cfg.color}-600 text-white shadow-lg shadow-${cfg.color}-600/20`
-                  : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              <span className="font-bold">{cfg.label}</span>
-              <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${idx === currentSectionIndex ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                {sec.questions.filter(q => !isReservedField(q)).length}
-              </span>
-            </button>
+            <div key={sec.id} className="group relative">
+              <button
+                draggable
+                data-drag-target="section"
+                data-drag-type="section"
+                data-drag-index={idx}
+                onDragStart={(e) => handleSectionDragStart(e, idx)}
+                onDragOver={handleSectionDragOver}
+                onDragEnd={resetDrag}
+                onClick={() => setCurrentSectionIndex(idx)}
+                className={`flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition ${
+                  isActive
+                    ? `bg-${cfg.color}-600 text-white shadow-lg shadow-${cfg.color}-600/20`
+                    : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
+                } ${dragItem?.type === 'section' && dragItem.fromIndex === idx ? 'opacity-50' : ''} ${dragOver?.type === 'section' && dragOver.index === idx ? 'ring-2 ring-cyan-400' : ''}`}
+              >
+                <GripVertical className="h-3.5 w-3.5 opacity-50" />
+                <Icon className="h-4 w-4" />
+                <span className="font-bold">{sec.title || cfg.label}</span>
+                <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                  {sec.questions.filter(q => !isReservedField(q)).length}
+                </span>
+              </button>
+              {sections.length > 2 && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteSection(idx); }}
+                  className={`absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full text-white opacity-0 shadow transition group-hover:opacity-100 ${isActive ? 'bg-red-500 hover:bg-red-600' : 'bg-slate-400 hover:bg-red-500'}`}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              )}
+            </div>
           );
         })}
+        <button
+          onClick={() => setShowNewSectionModal(true)}
+          className="flex items-center gap-1.5 rounded-xl border-2 border-dashed border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-400 transition hover:border-cyan-400 hover:bg-cyan-50 hover:text-cyan-600"
+        >
+          <Plus className="h-4 w-4" />
+          Add Tab
+        </button>
       </div>
 
       {/* Section Content */}
@@ -735,7 +806,7 @@ const QuestionnaireBuilder = () => {
           </div>
         </div>
 
-        <div className="divide-y divide-slate-100 px-6 py-2">
+        <div className="divide-y divide-slate-100 px-6 py-4">
           {(() => {
             const surveyNumbers = new Map();
             let surveyCount = 0;
@@ -754,7 +825,7 @@ const QuestionnaireBuilder = () => {
               onDragStart={(e) => handleQuestionDragStart(e, qIdx)}
               onDragOver={handleQuestionDragOver}
               onDragEnd={resetDrag}
-              className={`py-6 transition ${dragItem?.type === 'question' && dragItem.fromIndex === qIdx ? 'opacity-50' : ''} ${dragOver?.type === 'question' && dragOver.index === qIdx ? 'rounded-xl bg-cyan-50/60' : ''}`}
+              className={`rounded-2xl p-6 transition ${dragItem?.type === 'question' && dragItem.fromIndex === qIdx ? 'opacity-50' : ''} ${dragOver?.type === 'question' && dragOver.index === qIdx ? 'bg-cyan-50/60' : ''}`}
             >
               <div className="flex gap-4">
                 <div className="flex cursor-grab items-start pt-2 text-slate-300 active:cursor-grabbing" title="Drag to reorder questions">
@@ -799,11 +870,11 @@ const QuestionnaireBuilder = () => {
                   </div>
 
                   {['multiple_choice', 'checkboxes', 'dropdown'].includes(q.type) && (
-                    <div className="rounded-xl bg-slate-50/80 p-4">
+                    <div className="rounded-xl bg-slate-50/80 p-5">
                       <Label className="mb-3 block text-xs font-semibold uppercase tracking-wide text-slate-500">Options</Label>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {q.options?.map((opt, oi) => (
-                          <div key={oi} className="flex gap-2">
+                          <div key={oi} className="flex gap-3">
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-xs font-bold text-slate-400 ring-1 ring-slate-200">{oi + 1}</div>
                             <Input value={opt} onChange={e => updateOption(currentSectionIndex, qIdx, oi, e.target.value)} placeholder={`Option ${oi + 1}`} />
                             <Button variant="outline" size="icon" onClick={() => deleteOption(currentSectionIndex, qIdx, oi)} className="text-rose-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
@@ -846,7 +917,7 @@ const QuestionnaireBuilder = () => {
         </div>
       </Card>
 
-      <div className="flex items-center justify-between pb-10">
+      <div className="flex items-center justify-between gap-4 pt-4 pb-10">
         <Button variant="outline" onClick={() => setCurrentSectionIndex(currentSectionIndex - 1)} disabled={isFirst}>
           <ChevronLeft className="mr-2 h-4 w-4" /> Previous
         </Button>
@@ -860,6 +931,65 @@ const QuestionnaireBuilder = () => {
           </Button>
         )}
       </div>
+
+      {/* New Section Modal */}
+      {showNewSectionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="mb-1 text-lg font-bold text-slate-900">Add New Section</h3>
+            <p className="mb-5 text-sm text-slate-500">Create a new section tab to organize your questions.</p>
+            <div className="space-y-4">
+              <div>
+                <Label>Section title</Label>
+                <Input
+                  value={newSectionTitle}
+                  onChange={e => setNewSectionTitle(e.target.value)}
+                  placeholder={`Section ${sections.length + 1}`}
+                  autoFocus
+                  onKeyDown={e => { if (e.key === 'Enter') addNewSection(); }}
+                />
+              </div>
+              <div>
+                <Label>Section type</Label>
+                <div className="mt-1.5 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setNewSectionType('demographics')}
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                      newSectionType === 'demographics'
+                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <User className="h-4 w-4" />
+                    Demographics
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewSectionType('questionnaire')}
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                      newSectionType === 'questionnaire'
+                        ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <ClipboardList className="h-4 w-4" />
+                    Questionnaire
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <Button variant="outline" onClick={() => { setShowNewSectionModal(false); setNewSectionTitle(''); setNewSectionType('questionnaire'); }} className="flex-1">
+                Cancel
+              </Button>
+              <Button onClick={addNewSection} className="flex-1 bg-cyan-600 text-white hover:bg-cyan-700">
+                <Plus className="mr-1.5 h-4 w-4" /> Add Section
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
