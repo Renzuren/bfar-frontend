@@ -84,7 +84,7 @@ const ForgotPassword = () => {
             </button>
           </div>
 
-          <p className="text-center text-sm">
+          <p className="text-left text-sm">
             <Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">
               Back to sign in
             </Link>
@@ -130,7 +130,7 @@ const ForgotPassword = () => {
             </Button>
           </form>
 
-          <p className="mt-8 text-center text-sm text-slate-500">
+          <p className="mt-8 text-left text-sm text-slate-500">
             Remember your password?{' '}
             <Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">
               Sign in
