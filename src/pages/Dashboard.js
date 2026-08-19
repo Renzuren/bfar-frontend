@@ -194,10 +194,10 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto px-6 py-8 sm:px-10 sm:py-12">
         <div className="space-y-8">
 
-          <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
+          <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 px-6 py-8 sm:px-10 sm:py-12 text-white shadow-2xl shadow-slate-900/20 text-left">
             <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-cyan-400/15 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-blue-500/15 blur-3xl" />
             <div className="pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/10 blur-3xl" />
@@ -229,13 +229,13 @@ const Dashboard = () => {
             </div>
           </section>
 
-          <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <section className="grid grid-cols-2 gap-5 lg:grid-cols-4">
             {statColors.map((color, idx) => {
               const Icon = statIcons[idx];
               return (
                 <div
                   key={statLabels[idx]}
-                  className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                  className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                 >
                   <div className={`absolute inset-y-0 left-0 w-1 ${accentColors[color]}`} />
                   <div className="pl-4">
@@ -252,8 +252,8 @@ const Dashboard = () => {
             })}
           </section>
 
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
-            <div className="relative w-full lg:max-w-sm">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <div className="relative w-full max-w-xl">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
@@ -275,7 +275,7 @@ const Dashboard = () => {
                 ))}
               </div>
             ) : filteredProjects.length === 0 ? (
-              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-12 text-center">
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-16 text-left">
                 <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                   <Inbox className="h-8 w-8" />
                 </div>
@@ -307,7 +307,7 @@ const Dashboard = () => {
                     >
                       <div className={`h-1 w-full ${hasBefore || hasAfter ? 'bg-emerald-500' : 'bg-amber-400'}`} />
 
-                      <div className="flex items-center justify-between px-5 pt-4 pb-0">
+                      <div className="flex items-center justify-between px-6 pt-4 pb-0">
                         <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
                           hasBefore || hasAfter
                             ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
@@ -328,8 +328,8 @@ const Dashboard = () => {
                         </Button>
                       </div>
 
-                      <div className="p-5">
-                        <h3 className="mb-1.5 line-clamp-2 text-lg font-bold text-slate-900">{project.title}</h3>
+                      <div className="p-6">
+                        <h3 className="mb-1.5 line-clamp-2 text-lg font-bold text-slate-900 text-left">{project.title}</h3>
                         <p className="mb-5 line-clamp-2 min-h-[2.5rem] text-sm leading-relaxed text-slate-500">
                           {project.description || 'No description provided.'}
                         </p>
