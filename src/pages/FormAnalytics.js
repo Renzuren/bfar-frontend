@@ -552,7 +552,7 @@ const FormAnalytics = () => {
   return (
     <div className="min-h-screen bg-slate-50/80">
       <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm" onClick={goBack} className="gap-1.5 text-slate-500 hover:text-slate-900">
               <ArrowLeft className="h-4 w-4" />
@@ -594,20 +594,20 @@ const FormAnalytics = () => {
         </section>
 
         {totalResponses > 0 && (
-          <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-5">
-            <Card className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+          <div className="mb-8 grid grid-cols-2 gap-5 lg:grid-cols-5">
+            <Card className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Responses</p>
               <p className="mt-1.5 text-3xl font-bold text-cyan-600">{totalResponses}</p>
             </Card>
-            <Card className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+            <Card className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Beneficiaries</p>
               <p className="mt-1.5 text-3xl font-bold text-emerald-600">{totalBeneficiaries}</p>
             </Card>
-            <Card className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+            <Card className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Non-Beneficiaries</p>
               <p className="mt-1.5 text-3xl font-bold text-violet-600">{totalNonBeneficiaries}</p>
             </Card>
-            <Card className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+            <Card className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Questions</p>
               <p className="mt-1.5 text-3xl font-bold text-blue-600">{allAnalyticsData.length}</p>
             </Card>
