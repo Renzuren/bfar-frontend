@@ -12,6 +12,7 @@ import {
   FileText,
   CheckCircle2,
   PenLine,
+  Brain,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -130,30 +131,49 @@ const Dashboard = () => {
     .map((part) => part[0].toUpperCase())
     .join('') || 'U';
 
-  const stats = [
-    { label: 'Total Projects', value: projects.length, icon: ClipboardList, tint: 'bg-cyan-50 text-cyan-600' },
-    { label: 'Total Forms', value: totalForms, icon: FileText, tint: 'bg-indigo-50 text-indigo-600' },
-    { label: 'Active', value: activeProjects, icon: CheckCircle2, tint: 'bg-emerald-50 text-emerald-600' },
-    { label: 'Drafts', value: draftProjects, icon: PenLine, tint: 'bg-amber-50 text-amber-600' },
-  ];
+  const statColors = ['cyan', 'indigo', 'emerald', 'amber'];
+  const statIcons = [ClipboardList, FileText, CheckCircle2, PenLine];
+  const statLabels = ['Total Projects', 'Total Forms', 'Active', 'Drafts'];
+  const statValues = [projects.length, totalForms, activeProjects, draftProjects];
+
+  const accentColors = {
+    cyan: 'bg-cyan-500',
+    indigo: 'bg-indigo-500',
+    emerald: 'bg-emerald-500',
+    amber: 'bg-amber-500',
+  };
+
+  const iconBgColors = {
+    cyan: 'bg-cyan-50',
+    indigo: 'bg-indigo-50',
+    emerald: 'bg-emerald-50',
+    amber: 'bg-amber-50',
+  };
+
+  const iconTextColors = {
+    cyan: 'text-cyan-600',
+    indigo: 'text-indigo-600',
+    emerald: 'text-emerald-600',
+    amber: 'text-amber-600',
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl">
-        <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50/80">
+      <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/70 backdrop-blur-xl supports-[backdrop-filter]:bg-white/50">
+        <div className="mx-auto flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/20 transition-shadow hover:shadow-cyan-500/40">
               <FolderKanban className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">BFAR Assessment</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">General Assessment</p>
               <h1 className="text-lg font-bold text-slate-900">Projects</h1>
             </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden items-center gap-3 rounded-full border border-slate-200 bg-white py-1.5 pl-1.5 pr-3 shadow-sm sm:flex">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-xs font-bold text-white">
+            <div className="hidden items-center gap-3 rounded-full border border-slate-200/80 bg-white/90 py-1.5 pl-1.5 pr-3 shadow-sm backdrop-blur-sm sm:flex">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-xs font-bold text-white shadow-md shadow-cyan-500/20">
                 {initials}
               </div>
               <div className="leading-tight">
@@ -165,7 +185,7 @@ const Dashboard = () => {
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50"
+              className="text-slate-600 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
             >
               <LogOut className="h-4 w-4" />
               <span className="hidden sm:inline">Logout</span>
@@ -174,11 +194,13 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <main className="px-4 py-8 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-8">
+
           <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
-            <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl" />
+            <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-cyan-400/15 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-blue-500/15 blur-3xl" />
+            <div className="pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/10 blur-3xl" />
             <div className="relative">
               <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-cyan-300">Welcome back</p>
               <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">
@@ -187,30 +209,45 @@ const Dashboard = () => {
               <p className="max-w-2xl text-base text-slate-300">
                 Create projects to organize Before and After questionnaires, compare results, and generate narrative reports.
               </p>
-              <div className="mt-6">
-                <Button onClick={() => setCreateDialogOpen(true)} className="bg-cyan-500 text-white shadow-lg shadow-cyan-500/30 hover:bg-cyan-400">
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <Button
+                  onClick={() => setCreateDialogOpen(true)}
+                  className="bg-cyan-500 text-white shadow-lg shadow-cyan-500/30 transition-all hover:bg-cyan-400 hover:shadow-xl hover:shadow-cyan-500/40"
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   Create Project
+                </Button>
+                <Button
+                  onClick={() => navigate('/ml-upload')}
+                  variant="outline"
+                  className="border-2 border-violet-400/40 bg-violet-500/10 text-violet-200 backdrop-blur-sm transition-all hover:border-violet-400/60 hover:bg-violet-500/20 hover:text-white"
+                >
+                  <Brain className="mr-2 h-4 w-4" />
+                  ML Analysis
                 </Button>
               </div>
             </div>
           </section>
 
           <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {stats.map((stat) => {
-              const Icon = stat.icon;
+            {statColors.map((color, idx) => {
+              const Icon = statIcons[idx];
               return (
-                <Card key={stat.label} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:shadow-md">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{stat.label}</p>
-                      <p className="mt-1.5 text-3xl font-bold text-slate-900">{stat.value}</p>
+                <div
+                  key={statLabels[idx]}
+                  className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <div className={`absolute inset-y-0 left-0 w-1 ${accentColors[color]}`} />
+                  <div className="pl-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${iconBgColors[color]}`}>
+                        <Icon className={`h-5 w-5 ${iconTextColors[color]}`} />
+                      </div>
                     </div>
-                    <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${stat.tint}`}>
-                      <Icon className="h-5 w-5" />
-                    </div>
+                    <p className="text-sm font-medium text-slate-500">{statLabels[idx]}</p>
+                    <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{statValues[idx]}</p>
                   </div>
-                </Card>
+                </div>
               );
             })}
           </section>
@@ -223,36 +260,39 @@ const Dashboard = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search projects by title or description..."
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-cyan-400 focus:bg-white focus:ring-4 focus:ring-cyan-100"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-cyan-400 focus:bg-white focus:ring-4 focus:ring-cyan-100"
               />
             </div>
           </section>
 
           <section>
             {loading ? (
-              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {[0, 1, 2].map((i) => (
                   <div key={i} className="h-64 animate-pulse rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-                    <div className="h-full w-full rounded-2xl bg-slate-100" />
+                    <div className="h-full w-full rounded-2xl bg-slate-100/80" />
                   </div>
                 ))}
               </div>
             ) : filteredProjects.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
-                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 to-blue-100 text-cyan-600">
-                  <Inbox className="h-10 w-10" />
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-12 text-center">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                  <Inbox className="h-8 w-8" />
                 </div>
-                <h3 className="mb-2 text-xl font-bold text-slate-900">No projects found</h3>
+                <h3 className="mb-2 text-lg font-bold text-slate-900">No projects found</h3>
                 <p className="mx-auto mb-6 max-w-md text-sm text-slate-500">
                   {searchQuery
                     ? 'No projects match your search. Try another keyword.'
                     : 'Create your first project to start building Before and After questionnaires.'}
                 </p>
                 {!searchQuery && (
-                  <Button onClick={() => setCreateDialogOpen(true)} className="bg-cyan-600 text-white hover:bg-cyan-700">
-                    <Plus className="mr-2 h-4 w-4" />
+                  <button
+                    onClick={() => setCreateDialogOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                  >
+                    <Plus className="h-4 w-4" />
                     Create Your First Project
-                  </Button>
+                  </button>
                 )}
               </div>
             ) : (
@@ -261,11 +301,13 @@ const Dashboard = () => {
                   const hasBefore = !!project.before_form;
                   const hasAfter = !!project.after_form;
                   return (
-                    <Card
+                    <div
                       key={project.id}
-                      className="group overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+                      className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
                     >
-                      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+                      <div className={`h-1 w-full ${hasBefore || hasAfter ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+
+                      <div className="flex items-center justify-between px-5 pt-4 pb-0">
                         <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
                           hasBefore || hasAfter
                             ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
@@ -280,7 +322,7 @@ const Dashboard = () => {
                           onClick={() => openDeleteDialog(project)}
                           size="sm"
                           variant="ghost"
-                          className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                          className="text-slate-300 opacity-0 transition-all group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-600"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -317,7 +359,7 @@ const Dashboard = () => {
 
                         <Button
                           onClick={() => navigate(`/projects/${project.id}`)}
-                          className="w-full bg-slate-900 text-white hover:bg-slate-800"
+                          className="w-full bg-slate-900 text-white transition-colors hover:bg-slate-800"
                         >
                           <FolderKanban className="mr-2 h-4 w-4" /> Open Project
                         </Button>
@@ -328,7 +370,7 @@ const Dashboard = () => {
                           </span>
                         </div>
                       </div>
-                    </Card>
+                    </div>
                   );
                 })}
               </div>
@@ -337,16 +379,16 @@ const Dashboard = () => {
         </div>
 
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
+          <AlertDialogContent className="rounded-2xl">
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete this project?</AlertDialogTitle>
+              <AlertDialogTitle className="text-xl">Delete this project?</AlertDialogTitle>
               <AlertDialogDescription>
                 Are you sure you want to delete "{deleteProjectTitle}"? This will also delete all associated questionnaires and reports. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>No</AlertDialogCancel>
-              <AlertDialogAction className="bg-rose-600 text-white hover:bg-rose-700" onClick={handleDeleteProject}>
+              <AlertDialogCancel className="rounded-xl">No</AlertDialogCancel>
+              <AlertDialogAction className="rounded-xl bg-rose-600 text-white hover:bg-rose-700" onClick={handleDeleteProject}>
                 Yes, delete
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -354,7 +396,7 @@ const Dashboard = () => {
         </AlertDialog>
 
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="rounded-2xl sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="text-xl">Create New Project</DialogTitle>
               <DialogDescription>
@@ -385,10 +427,10 @@ const Dashboard = () => {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setCreateDialogOpen(false)} className="rounded-xl">
                 Cancel
               </Button>
-              <Button onClick={handleCreateProject} disabled={creating} className="bg-cyan-600 text-white hover:bg-cyan-700">
+              <Button onClick={handleCreateProject} disabled={creating} className="rounded-xl bg-cyan-600 text-white hover:bg-cyan-700">
                 {creating ? 'Creating...' : 'Create Project'}
               </Button>
             </DialogFooter>
