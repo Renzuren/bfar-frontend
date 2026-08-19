@@ -5,16 +5,14 @@ import {
   ListChecks,
   Eye,
   ExternalLink,
-  Copy,
   Trash2,
   Pencil,
   BarChart3,
   Inbox,
-  CalendarDays,
-  MoreVertical,
+  Copy,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,13 +23,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import { useProject } from '../context/ProjectContext';
@@ -46,6 +37,7 @@ const AfterTab = () => {
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [copying, setCopying] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -75,6 +67,49 @@ const AfterTab = () => {
     toast.success('Questionnaire link copied!');
   };
 
+  const copyFromBefore = async () => {
+    if (!project?.before_form) {
+      toast.error('No Before questionnaire to copy from');
+      return;
+    }
+    setCopying(true);
+    try {
+      const beforeRes = await api.get(`/forms/${project.before_form}`);
+      const beforeForm = beforeRes.data;
+
+      const payload = {
+        title: beforeForm.title ? `${beforeForm.title} (After)` : 'After Assessment',
+        description: beforeForm.description || '',
+        questions: (beforeForm.questions || []).map(q => ({ ...q })),
+        sections: (beforeForm.sections || []).map(sec => ({
+          ...sec,
+          id: `section_${sec.section_type}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          questions: (sec.questions || []).map(q => ({ ...q })),
+        })),
+        csvHeaders: beforeForm.csvHeaders || '',
+        csvColumnCount: beforeForm.csvColumnCount || 0,
+        project_id: projectId,
+        questionnaire_type: 'after',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const response = await api.post('/forms', payload);
+      const newFormId = response.data.id;
+
+      await api.put(`/projects/${projectId}`, { after_form: newFormId });
+      await fetchProject(projectId);
+
+      setForm({ ...payload, id: newFormId });
+      setResponses([]);
+      toast.success('After questionnaire created from Before template! You can now edit it.');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to copy Before questionnaire');
+    } finally {
+      setCopying(false);
+    }
+  };
+
   const getQuestionCount = () => {
     if (!form) return 0;
     if (form.sections) return form.sections.flatMap((s) => s.questions || []).length;
@@ -99,6 +134,18 @@ const AfterTab = () => {
     if (qCount === 0) return 'Draft';
     if (responses.length === 0) return 'Active';
     return 'Active';
+  };
+
+  const getLastResponseDate = () => {
+    if (responses.length === 0) return 'N/A';
+    const latest = responses.reduce((best, r) => {
+      const d = r.createdAt || r.submittedAt;
+      if (!d) return best;
+      const date = typeof d === 'object' && typeof d._seconds === 'number' ? d._seconds : new Date(d).getTime() / 1000;
+      if (!best || date > best.ts) return { ts: date, raw: d };
+      return best;
+    }, null);
+    return latest ? formatDate(latest.raw) : 'N/A';
   };
 
   const handleDeleteForm = async () => {
@@ -127,42 +174,75 @@ const AfterTab = () => {
   if (!project?.after_form) {
     return (
       <div className="space-y-8">
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-emerald-400/20 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-teal-500/20 blur-3xl" />
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-purple-700 p-8 text-white shadow-2xl shadow-purple-900/20 sm:p-10">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-violet-300/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-purple-300/20 blur-3xl" />
           <div className="relative">
-            <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-emerald-300">After Questionnaires</p>
+            <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-violet-200">After Questionnaires</p>
             <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">After Intervention</h2>
-            <p className="max-w-2xl text-base text-slate-300">
+            <p className="max-w-2xl text-base text-purple-100">
               Create a questionnaire to measure changes after the intervention or program has been completed.
             </p>
-            <div className="mt-6">
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              {project?.before_form && (
+                <Button
+                  onClick={copyFromBefore}
+                  disabled={copying}
+                  className="bg-white text-purple-700 shadow-lg shadow-purple-500/30 hover:bg-purple-50"
+                >
+                  {copying ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Copy className="mr-2 h-4 w-4" />
+                  )}
+                  {copying ? 'Copying...' : 'Copy from Before'}
+                </Button>
+              )}
               <Button
                 onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=after`)}
-                className="bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 hover:bg-emerald-400"
+                variant="outline"
+                className="border-white/30 text-white hover:bg-white/10"
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Create After Questionnaire
+                Create Blank
               </Button>
             </div>
           </div>
         </section>
 
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 text-violet-600">
             <Inbox className="h-10 w-10" />
           </div>
           <h3 className="mb-2 text-xl font-bold text-slate-900">No After Questionnaire Yet</h3>
           <p className="mx-auto mb-6 max-w-md text-sm text-slate-500">
-            Create an After questionnaire to measure the impact and changes after the intervention.
+            {project?.before_form
+              ? 'Copy your Before questionnaire to ensure matching structures for accurate Narrative Report comparisons, or create a blank one.'
+              : 'Create an After questionnaire to measure the impact and changes after the intervention.'}
           </p>
-          <Button
-            onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=after`)}
-            className="bg-emerald-600 text-white hover:bg-emerald-700"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Create After Questionnaire
-          </Button>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {project?.before_form && (
+              <button
+                onClick={copyFromBefore}
+                disabled={copying}
+                className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:opacity-50"
+              >
+                {copying ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                {copying ? 'Copying...' : 'Copy from Before'}
+              </button>
+            )}
+            <button
+              onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=after`)}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              <Plus className="h-4 w-4" />
+              Create Blank
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -172,143 +252,115 @@ const AfterTab = () => {
 
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-emerald-400/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-teal-500/20 blur-3xl" />
-        <div className="relative">
-          <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-emerald-300">After Questionnaires</p>
-          <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">After Intervention</h2>
-          <p className="max-w-2xl text-base text-slate-300">
-            All questionnaires distributed after the intervention to measure impact.
-          </p>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Total Forms</p>
-          <p className="mt-1.5 text-3xl font-bold text-emerald-600">1</p>
-        </Card>
-        <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Questions</p>
-          <p className="mt-1.5 text-3xl font-bold text-cyan-600">{getQuestionCount()}</p>
-        </Card>
-        <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Responses</p>
-          <p className="mt-1.5 text-3xl font-bold text-emerald-600">{responses.length}</p>
-        </Card>
-        <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Status</p>
-          <p className={`mt-1.5 text-3xl font-bold ${status === 'Active' ? 'text-emerald-600' : 'text-amber-500'}`}>{status}</p>
-        </Card>
-      </section>
-
-      <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
-        <div className="border-b border-slate-100 px-6 py-4">
-          <h3 className="text-lg font-bold text-slate-900">After Questionnaires</h3>
-        </div>
-
-        <div className="divide-y divide-slate-100">
-          <div className="px-6 py-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                  <ListChecks className="h-6 w-6" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="text-base font-bold text-slate-900">{form?.title || 'Untitled'}</h4>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${
-                      status === 'Active'
-                        ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                        : 'bg-amber-50 text-amber-700 ring-amber-200'
-                    }`}>
-                      <span className={`mr-1 h-1 w-1 rounded-full ${status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                      {status}
-                    </span>
-                  </div>
-                  {form?.description && (
-                    <p className="mt-1 text-sm text-slate-500">{form.description}</p>
-                  )}
-                  <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-slate-400">
-                    <span className="inline-flex items-center gap-1">
-                      <ListChecks className="h-3.5 w-3.5" /> {getQuestionCount()} questions
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <BarChart3 className="h-3.5 w-3.5" /> {responses.length} responses
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <CalendarDays className="h-3.5 w-3.5" /> Created {formatDate(form?.createdAt)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex shrink-0 items-center gap-2">
-                <Button
-                  onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=after`)}
-                  size="sm"
-                  variant="outline"
-                  className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                >
-                  <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
-                </Button>
-                <Button
-                  onClick={() => navigate(`/forms/${project.after_form}/analytics`, { state: { project_id: projectId, questionnaire_type: 'after' } })}
-                  size="sm"
-                  variant="outline"
-                  className="border-cyan-200 text-cyan-700 hover:bg-cyan-50"
-                >
-                  <BarChart3 className="mr-1.5 h-3.5 w-3.5" /> Analytics
-                </Button>
-                <Button
-                  onClick={() => navigate(`/forms/${project.after_form}/responses`, { state: { project_id: projectId, questionnaire_type: 'after' } })}
-                  size="sm"
-                  variant="outline"
-                >
-                  <Eye className="mr-1.5 h-3.5 w-3.5" /> View
-                </Button>
-                <Button
-                  onClick={copyFormLink}
-                  size="sm"
-                  variant="outline"
-                  className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                >
-                  <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy Link
-                </Button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=after`)}>
-                      <Pencil className="mr-2 h-4 w-4" /> Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate(`/forms/${project.after_form}/analytics`, { state: { project_id: projectId, questionnaire_type: 'after' } })}>
-                      <BarChart3 className="mr-2 h-4 w-4" /> Analytics
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate(`/forms/${project.after_form}/responses`, { state: { project_id: projectId, questionnaire_type: 'after' } })}>
-                      <ExternalLink className="mr-2 h-4 w-4" /> View Responses
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={copyFormLink}>
-                      <Copy className="mr-2 h-4 w-4" /> Copy Link
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => setDeleteDialogOpen(true)}
-                      className="text-rose-600 focus:text-rose-600"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" /> Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+      {/* Hero Header */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-purple-700 p-8 text-white shadow-2xl shadow-purple-900/20 sm:p-10">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-violet-300/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-purple-300/20 blur-3xl" />
+        <div className="relative flex items-start justify-between">
+          <div className="flex items-start gap-5">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
+              <ListChecks className="h-7 w-7" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold leading-tight sm:text-4xl">{form?.title || 'After Assessment'}</h2>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${
+                  status === 'Active'
+                    ? 'bg-emerald-400/20 text-emerald-100 ring-emerald-400/30'
+                    : 'bg-amber-400/20 text-amber-100 ring-amber-400/30'
+                }`}>
+                  <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${status === 'Active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                  {status}
+                </span>
+                <span className="inline-flex items-center gap-1 text-sm text-purple-200">
+                  <BarChart3 className="h-3.5 w-3.5" /> {responses.length} {responses.length === 1 ? 'response' : 'responses'}
+                </span>
               </div>
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Info Grid */}
+      <section className="grid grid-cols-3 gap-4">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Questions</p>
+          <p className="mt-1.5 text-3xl font-bold text-violet-600">{getQuestionCount()}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Responses</p>
+          <p className="mt-1.5 text-3xl font-bold text-emerald-600">{responses.length}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Last Response</p>
+          <p className="mt-1.5 text-lg font-bold text-slate-700">{getLastResponseDate()}</p>
+        </div>
+      </section>
+
+      {/* Action Grid */}
+      <section className="grid grid-cols-2 gap-4">
+        <button
+          onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=after`)}
+          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-blue-200"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-100">
+            <Pencil className="h-5 w-5" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-slate-900">Edit</p>
+            <p className="text-xs text-slate-500">Modify questions and settings</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => navigate(`/forms/${project.after_form}/responses`, { state: { project_id: projectId, questionnaire_type: 'after' } })}
+          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-emerald-200"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-100">
+            <Eye className="h-5 w-5" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-slate-900">View Responses</p>
+            <p className="text-xs text-slate-500">Browse submitted responses</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => navigate(`/forms/${project.after_form}/analytics`, { state: { project_id: projectId, questionnaire_type: 'after' } })}
+          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-violet-200"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 transition-colors group-hover:bg-violet-100">
+            <BarChart3 className="h-5 w-5" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-slate-900">Analytics</p>
+            <p className="text-xs text-slate-500">View charts and insights</p>
+          </div>
+        </button>
+
+        <button
+          onClick={copyFormLink}
+          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-amber-200"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 transition-colors group-hover:bg-amber-100">
+            <ExternalLink className="h-5 w-5" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-slate-900">Copy Link</p>
+            <p className="text-xs text-slate-500">Share questionnaire URL</p>
+          </div>
+        </button>
+      </section>
+
+      {/* Delete Button */}
+      <div className="flex justify-start">
+        <button
+          onClick={() => setDeleteDialogOpen(true)}
+          className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 transition-all hover:bg-red-50 hover:border-red-300"
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete Questionnaire
+        </button>
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
