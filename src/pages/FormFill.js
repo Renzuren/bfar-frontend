@@ -348,14 +348,14 @@ const FormFill = () => {
       const formData = new FormData();
       formData.append('photo', profilePhotoFile);
       const res = await api.post(`/forms/public/${id}/upload-photo`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 60000,
       });
       const url = res.data?.url;
       setProfilePhotoUrl(url);
       return url;
     } catch (error) {
-      toast.error('Failed to upload profile photo');
+      const msg = error.response?.data?.error || error.message || 'Failed to upload profile photo';
+      toast.error(msg);
       return null;
     } finally {
       setUploadingPhoto(false);
