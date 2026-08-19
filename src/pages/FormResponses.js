@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, Download, ChevronLeft, ChevronRight, FileSpreadsheet, Inbox, Users, UserCheck, UserX } from 'lucide-react';
+import {
+  ArrowLeft, Download, ChevronLeft, ChevronRight, FileSpreadsheet,
+  Inbox, Users, UserCheck, UserX, Search, X,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -93,6 +96,7 @@ const FormResponses = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -271,6 +275,21 @@ const FormResponses = () => {
     if (filterStatus === 'all') return true;
     const status = getBeneficiaryStatus(r);
     return filterStatus === 'yes' ? status === 'Yes' : status === 'No';
+  }).filter(r => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    const respondentId = getRespondentIdForRow(r);
+    const name = (r.full_name || '').toLowerCase();
+    const municipality = getLocationForRow(r, 'municipality').toLowerCase();
+    const barangay = getLocationForRow(r, 'barangay').toLowerCase();
+    const province = getLocationForRow(r, 'province').toLowerCase();
+    return (
+      String(respondentId).toLowerCase().includes(query) ||
+      name.includes(query) ||
+      municipality.includes(query) ||
+      barangay.includes(query) ||
+      province.includes(query)
+    );
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredResponses.length / rowsPerPage));
@@ -285,145 +304,240 @@ const FormResponses = () => {
     sectionLastIndices.push(colIdx - 1);
   });
 
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    if (endPage - startPage + 1 < maxVisible) {
+      startPage = Math.max(1, endPage - maxVisible + 1);
+    }
+    for (let i = startPage; i <= endPage; i++) pages.push(i);
+    return pages;
+  };
+
+  const pageNumbers = getPageNumbers();
+  const showingFrom = filteredResponses.length === 0 ? 0 : start + 1;
+  const showingTo = Math.min(start + rowsPerPage, filteredResponses.length);
+
+  // ==================== LOADING STATE ====================
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl">
-        <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-          <Button variant="ghost" onClick={goBack} className="text-slate-600">
-            <ArrowLeft className="mr-2 h-4 w-4" /> {backState?.project_id ? 'Back' : 'Dashboard'}
-          </Button>
-          <div className="flex items-center gap-2">
-            <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 sm:inline-flex">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100">
+      {/* Header */}
+      <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={goBack}
+              className="group flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+            >
+              <ArrowLeft className="h-4 w-4 transition group-hover:-translate-x-0.5" />
+              <span className="hidden sm:inline">{backState?.project_id ? 'Back' : 'Dashboard'}</span>
+            </button>
+            <div className="hidden h-6 w-px bg-slate-200 sm:block" />
+            <h1 className="hidden max-w-xs truncate text-sm font-semibold text-slate-800 sm:block">
+              {form.title}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200/60">
               <FileSpreadsheet className="h-3.5 w-3.5" />
-              {responses.length} responses
+              {responses.length} {responses.length === 1 ? 'response' : 'responses'}
             </span>
-            <Button variant="outline" onClick={downloadCSV} disabled={filteredResponses.length === 0} className="border-cyan-300 text-cyan-700 hover:bg-cyan-50">
-              <Download className="mr-2 h-4 w-4" /> Export CSV
-            </Button>
           </div>
         </div>
       </header>
 
-      <main className="px-4 py-8 sm:px-6 lg:px-8">
-        <section className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
-          <p className="mb-1 text-sm font-medium uppercase tracking-[0.2em] text-cyan-300">Form responses</p>
-          <h2 className="mb-1 text-2xl font-bold sm:text-3xl">{form.title}</h2>
-          <p className="text-sm text-slate-300">Respondents grouped by section — answers are converted to numeric values when exporting to CSV.</p>
-        </section>
+      <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+        {/* Page Title Banner */}
+        <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+          <div className="relative px-6 py-5 sm:px-8">
+            <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gradient-to-br from-cyan-100 to-blue-50 opacity-60 blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-gradient-to-tr from-emerald-50 to-teal-50 opacity-50 blur-2xl" />
+            <div className="relative">
+              <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-cyan-600">Form Responses</p>
+              <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">{form.title}</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Respondents grouped by section — answers are converted to numeric values when exporting to CSV.
+              </p>
+            </div>
+          </div>
+        </div>
 
-        <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
+        {/* Stats Row */}
+        <section className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Card className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition hover:shadow-md">
+            <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-cyan-50 opacity-0 transition group-hover:opacity-100" />
+            <div className="relative flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Total Respondents</p>
-                <p className="mt-1.5 text-3xl font-bold text-slate-900">{responses.length}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Responses</p>
+                <p className="mt-1 text-3xl font-bold tabular-nums text-slate-900">{responses.length}</p>
               </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600 ring-1 ring-cyan-100">
                 <Users className="h-5 w-5" />
               </div>
             </div>
           </Card>
-          <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
+
+          <Card className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition hover:shadow-md">
+            <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-emerald-50 opacity-0 transition group-hover:opacity-100" />
+            <div className="relative flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Beneficiaries</p>
-                <p className="mt-1.5 text-3xl font-bold text-emerald-600">{beneficiaryCount}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Beneficiaries</p>
+                <p className="mt-1 text-3xl font-bold tabular-nums text-emerald-600">{beneficiaryCount}</p>
               </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
                 <UserCheck className="h-5 w-5" />
               </div>
             </div>
           </Card>
-          <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
+
+          <Card className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition hover:shadow-md">
+            <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-amber-50 opacity-0 transition group-hover:opacity-100" />
+            <div className="relative flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Non-Beneficiaries</p>
-                <p className="mt-1.5 text-3xl font-bold text-amber-600">{nonBeneficiaryCount}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Non-Beneficiaries</p>
+                <p className="mt-1 text-3xl font-bold tabular-nums text-amber-600">{nonBeneficiaryCount}</p>
               </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600 ring-1 ring-amber-100">
                 <UserX className="h-5 w-5" />
               </div>
             </div>
           </Card>
         </section>
 
-        <section className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => { setFilterStatus('all'); setCurrentPage(1); }}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${filterStatus === 'all' ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/20' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-            >
-              All: {responses.length}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setFilterStatus('yes'); setCurrentPage(1); }}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${filterStatus === 'yes' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}
-            >
-              Beneficiaries: {beneficiaryCount}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setFilterStatus('no'); setCurrentPage(1); }}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${filterStatus === 'no' ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}
-            >
-              Non-Beneficiaries: {nonBeneficiaryCount}
-            </button>
+        {/* Controls Bar */}
+        <section className="mb-5 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => { setFilterStatus('all'); setCurrentPage(1); }}
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+                  filterStatus === 'all'
+                    ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                All <span className="ml-1 text-xs opacity-70">{responses.length}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setFilterStatus('yes'); setCurrentPage(1); }}
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+                  filterStatus === 'yes'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                }`}
+              >
+                Beneficiaries <span className="ml-1 text-xs opacity-70">{beneficiaryCount}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setFilterStatus('no'); setCurrentPage(1); }}
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+                  filterStatus === 'no'
+                    ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
+                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                }`}
+              >
+                Non-Beneficiaries <span className="ml-1 text-xs opacity-70">{nonBeneficiaryCount}</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search responses..."
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                  className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-8 text-sm text-slate-700 placeholder:text-slate-400 transition focus:border-cyan-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-100 sm:w-56"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => { setSearchQuery(''); setCurrentPage(1); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={downloadCSV}
+                disabled={filteredResponses.length === 0}
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 text-sm font-medium text-cyan-700 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Export CSV</span>
+              </button>
+            </div>
           </div>
-          <span className="text-sm text-slate-500">
-            Showing <span className="font-semibold text-slate-900">{filteredResponses.length}</span> of {responses.length} respondents
-          </span>
         </section>
 
+        {/* Empty State */}
         {responses.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
-            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 to-blue-100 text-cyan-600">
-              <Inbox className="h-10 w-10" />
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center shadow-sm">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 text-slate-400">
+              <Inbox className="h-8 w-8" />
             </div>
-            <h3 className="mb-2 text-xl font-bold text-slate-900">No responses yet</h3>
-            <p className="mx-auto max-w-md text-sm text-slate-500">
+            <h3 className="text-lg font-bold text-slate-900">No responses yet</h3>
+            <p className="mx-auto mt-1.5 max-w-sm text-sm text-slate-500">
               Share the form link with respondents to start collecting data. Responses will appear here in real time.
+            </p>
+          </div>
+        ) : filteredResponses.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center shadow-sm">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 text-slate-400">
+              <Search className="h-8 w-8" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">No results found</h3>
+            <p className="mx-auto mt-1.5 max-w-sm text-sm text-slate-500">
+              Try adjusting your search or filter criteria to find what you're looking for.
             </p>
           </div>
         ) : (
           <>
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            {/* Pagination Top Bar */}
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/60 bg-white px-4 py-3 shadow-sm">
               <div className="flex items-center gap-2 text-sm text-slate-500">
-                Rows per page:
+                <span>Rows per page:</span>
                 <Select value={rowsPerPage.toString()} onValueChange={(v) => { setRowsPerPage(Number(v)); setCurrentPage(1); }}>
-                  <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="10">10</SelectItem><SelectItem value="25">25</SelectItem><SelectItem value="50">50</SelectItem></SelectContent>
+                  <SelectTrigger className="h-8 w-16 rounded-lg border-slate-200 text-xs font-medium">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-slate-500">
-                  <span className="font-semibold text-slate-900">{filteredResponses.length}</span> total
-                  <span className="mx-2 text-slate-300">|</span>
-                  Page <span className="font-semibold text-slate-900">{currentPage}</span> of {totalPages}
-                </span>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="outline" onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
-                  <Button size="sm" variant="outline" onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages}><ChevronRight className="h-4 w-4" /></Button>
-                </div>
-              </div>
+              <span className="text-sm text-slate-500">
+                Showing{' '}
+                <span className="font-semibold text-slate-800">{showingFrom}–{showingTo}</span>{' '}
+                of{' '}
+                <span className="font-semibold text-slate-800">{filteredResponses.length}</span>
+              </span>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+            {/* Data Table */}
+            <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-slate-200">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Submitted At</th>
-                      <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Respondent ID</th>
-                      <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Respondent Name</th>
-                      <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Municipality</th>
-                      <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Barangay</th>
-                      <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Province</th>
-                      <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
+                  <thead>
+                    <tr className="bg-slate-50/80">
+                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Submitted At</th>
+                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Respondent ID</th>
+                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Respondent Name</th>
+                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Municipality</th>
+                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Barangay</th>
+                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Province</th>
+                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Status</th>
                       {tableSections.map(section => (
-                        <th key={section.id} colSpan={section.questions.length} className="border-b border-slate-200 bg-slate-100 px-6 py-2 text-center text-sm font-bold text-slate-700">
+                        <th key={section.id} colSpan={section.questions.length} className="sticky top-0 z-10 border-b border-slate-200 bg-slate-100/90 px-5 py-2.5 text-center text-xs font-bold text-slate-600 backdrop-blur-sm">
                           {section.title}
                         </th>
                       ))}
@@ -433,8 +547,8 @@ const FormResponses = () => {
                         section.questions.map((q, qIdx) => {
                           const isLastCol = (secIdx === tableSections.length - 1 && qIdx === section.questions.length - 1);
                           return (
-                            <th key={q.id} className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 ${!isLastCol ? 'border-r border-slate-200' : ''}`}>
-                              <div className="max-w-xs truncate" title={getQuestionLabel(q, allQuestions.findIndex(qq => qq.id === q.id))}>
+                            <th key={q.id} className={`sticky top-[37px] z-10 bg-slate-50/80 px-5 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 backdrop-blur-sm ${!isLastCol ? 'border-r border-slate-200/80' : ''}`}>
+                              <div className="max-w-[180px] truncate" title={getQuestionLabel(q, allQuestions.findIndex(qq => qq.id === q.id))}>
                                 {getQuestionLabel(q, allQuestions.findIndex(qq => qq.id === q.id))}
                               </div>
                             </th>
@@ -443,37 +557,37 @@ const FormResponses = () => {
                       )}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {paginated.map((resp) => {
+                  <tbody className="divide-y divide-slate-100">
+                    {paginated.map((resp, rowIdx) => {
                       const submittedAt = resp.submitted_at?._seconds ? new Date(resp.submitted_at._seconds * 1000).toLocaleString() : 'No date';
                       const status = getBeneficiaryStatus(resp);
                       const respondentId = getRespondentIdForRow(resp);
                       return (
-                        <tr key={resp.id} className="transition hover:bg-cyan-50/30">
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{submittedAt}</td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-900">{respondentId}</td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-900">{resp.full_name || '—'}</td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{getLocationForRow(resp, 'municipality')}</td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{getLocationForRow(resp, 'barangay')}</td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{getLocationForRow(resp, 'province')}</td>
-                          <td className="whitespace-nowrap px-6 py-4">
+                        <tr key={resp.id} className={`transition hover:bg-cyan-50/30 ${rowIdx % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'}`}>
+                          <td className="whitespace-nowrap px-5 py-3.5 text-sm text-slate-500">{submittedAt}</td>
+                          <td className="whitespace-nowrap px-5 py-3.5 text-sm font-semibold text-slate-900">{respondentId}</td>
+                          <td className="whitespace-nowrap px-5 py-3.5 text-sm font-medium text-slate-800">{resp.full_name || '—'}</td>
+                          <td className="whitespace-nowrap px-5 py-3.5 text-sm text-slate-600">{getLocationForRow(resp, 'municipality')}</td>
+                          <td className="whitespace-nowrap px-5 py-3.5 text-sm text-slate-600">{getLocationForRow(resp, 'barangay')}</td>
+                          <td className="whitespace-nowrap px-5 py-3.5 text-sm text-slate-600">{getLocationForRow(resp, 'province')}</td>
+                          <td className="whitespace-nowrap px-5 py-3.5">
                             {status === 'Yes' ? (
-                              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                              <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200/60">
                                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Beneficiary
                               </span>
                             ) : status === 'No' ? (
-                              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
+                              <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200/60">
                                 <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Non-Beneficiary
                               </span>
                             ) : (
-                              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 ring-1 ring-slate-200">—</span>
+                              <span className="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 ring-1 ring-slate-200/60">—</span>
                             )}
                           </td>
                           {allQuestions.map((q, colIdx) => {
                             const ans = getAnswerForQuestion(resp, q);
                             const hasRightBorder = sectionLastIndices.includes(colIdx);
                             return (
-                              <td key={q.id} className={`max-w-xs truncate px-6 py-4 text-sm ${hasRightBorder ? 'border-r border-slate-200' : ''}`} title={formatAnswerForTable(ans)}>
+                              <td key={q.id} className={`max-w-[180px] truncate px-5 py-3.5 text-sm text-slate-600 ${hasRightBorder ? 'border-r border-slate-200/80' : ''}`} title={formatAnswerForTable(ans)}>
                                 {formatAnswerForTable(ans)}
                               </td>
                             );
@@ -486,17 +600,62 @@ const FormResponses = () => {
               </div>
             </div>
 
+            {/* Bottom Pagination */}
             {totalPages > 1 && (
-              <div className="mt-6 flex items-center justify-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>
-                  <ChevronLeft className="mr-1.5 h-4 w-4" /> Previous
-                </Button>
-                <span className="rounded-lg bg-white px-4 py-1.5 text-sm font-medium text-slate-600 ring-1 ring-slate-200">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button size="sm" variant="outline" onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages}>
-                  Next <ChevronRight className="ml-1.5 h-4 w-4" />
-                </Button>
+              <div className="mt-5 flex items-center justify-center gap-1">
+                <button
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Prev
+                </button>
+
+                {pageNumbers[0] > 1 && (
+                  <>
+                    <button
+                      onClick={() => goToPage(1)}
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50"
+                    >
+                      1
+                    </button>
+                    {pageNumbers[0] > 2 && <span className="px-1 text-slate-400">...</span>}
+                  </>
+                )}
+
+                {pageNumbers.map(page => (
+                  <button
+                    key={page}
+                    onClick={() => goToPage(page)}
+                    className={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-medium shadow-sm transition ${
+                      page === currentPage
+                        ? 'border border-slate-900 bg-slate-900 text-white'
+                        : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+                {pageNumbers[pageNumbers.length - 1] < totalPages && (
+                  <>
+                    {pageNumbers[pageNumbers.length - 1] < totalPages - 1 && <span className="px-1 text-slate-400">...</span>}
+                    <button
+                      onClick={() => goToPage(totalPages)}
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50"
+                    >
+                      {totalPages}
+                    </button>
+                  </>
+                )}
+
+                <button
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next <ChevronRight className="h-4 w-4" />
+                </button>
               </div>
             )}
           </>
