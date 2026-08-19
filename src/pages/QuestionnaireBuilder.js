@@ -88,6 +88,7 @@ const QuestionnaireBuilder = () => {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [copyingFromBefore, setCopyingFromBefore] = useState(false);
   const [editingTabIndex, setEditingTabIndex] = useState(null);
   const [editingTabValue, setEditingTabValue] = useState('');
   const [dragItem, setDragItem] = useState(null);
@@ -541,6 +542,61 @@ const QuestionnaireBuilder = () => {
     setCurrentSectionIndex(0);
   };
 
+  const handleCopyFromBefore = async () => {
+    if (!project?.before_form) {
+      toast.error('No Before questionnaire to copy from');
+      return;
+    }
+    setCopyingFromBefore(true);
+    try {
+      const res = await api.get(`/forms/${project.before_form}`);
+      const beforeForm = res.data;
+
+      let loadedSections = [];
+      if (beforeForm.sections && beforeForm.sections.length > 0) {
+        loadedSections = beforeForm.sections.map((sec, idx) => ({
+          ...sec,
+          id: `section_${sec.section_type || (idx === 0 ? 'demographics' : 'questionnaire')}_${Date.now()}_${idx}`,
+          section_type: sec.section_type || (idx === 0 ? 'demographics' : 'questionnaire'),
+          questions: (sec.questions || []).map(q => ({ ...q, section: q.section || sec.title })),
+        }));
+      } else if (beforeForm.questions && beforeForm.questions.length > 0) {
+        const sectionMap = new Map();
+        beforeForm.questions.forEach(q => {
+          const secName = q.section && q.section.trim() ? q.section : 'Section 1';
+          if (!sectionMap.has(secName)) sectionMap.set(secName, []);
+          sectionMap.get(secName).push({ ...q });
+        });
+        loadedSections = Array.from(sectionMap.entries()).map(([title, qs], idx) => ({
+          id: `section_${Date.now()}_${idx}`,
+          title,
+          section_type: idx === 0 ? 'demographics' : 'questionnaire',
+          questions: qs,
+        }));
+      }
+
+      if (loadedSections.length === 0) {
+        loadedSections = [
+          { id: `section_demographics_${Date.now()}`, title: 'Demographics', section_type: 'demographics', questions: [] },
+          { id: `section_questionnaire_${Date.now()}`, title: 'Questionnaire', section_type: 'questionnaire', questions: [] },
+        ];
+      }
+
+      setSections(loadedSections);
+      setFormData({
+        title: beforeForm.title ? `${beforeForm.title} (After)` : '',
+        description: beforeForm.description || '',
+        questions: [],
+      });
+      setCurrentSectionIndex(0);
+      toast.success('Questions copied from Before! Edit as needed, then save.');
+    } catch (error) {
+      toast.error('Failed to load Before questionnaire');
+    } finally {
+      setCopyingFromBefore(false);
+    }
+  };
+
   if (fetching) return <div className="flex items-center justify-center py-20 text-slate-500">Loading questionnaire...</div>;
 
   const current = sections[currentSectionIndex];
@@ -615,6 +671,16 @@ const QuestionnaireBuilder = () => {
           Sections
         </div>
         <div className="flex flex-wrap gap-2">
+          {questionnaireType === 'after' && project?.before_form && !savedFormId && (
+            <Button onClick={handleCopyFromBefore} variant="outline" size="sm" disabled={copyingFromBefore} className="border-violet-300 text-violet-700 hover:bg-violet-50">
+              {copyingFromBefore ? (
+                <span className="mr-1.5 h-4 w-4 animate-spin rounded-full border-2 border-violet-300 border-t-violet-700" />
+              ) : (
+                <Copy className="mr-1.5 h-4 w-4" />
+              )}
+              {copyingFromBefore ? 'Copying...' : 'Copy from Before'}
+            </Button>
+          )}
           <Button onClick={addBeneficiaryQuestion} variant="outline" size="sm" className="border-cyan-300 text-cyan-700 hover:bg-cyan-50">
             <UserPlus className="mr-1.5 h-4 w-4" /> Beneficiary Q
           </Button>
