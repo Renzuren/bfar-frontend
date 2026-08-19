@@ -91,7 +91,7 @@ const ProjectDashboard = () => {
         }`}
       >
         {/* Sidebar header */}
-        <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-5">
+        <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-6">
           <button
             onClick={() => navigate('/dashboard')}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
@@ -126,7 +126,7 @@ const ProjectDashboard = () => {
                     to={to}
                     onClick={() => setSidebarOpen(false)}
                     className={({ isActive }) =>
-                      `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
+                      `group flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-150 ${
                         isActive
                           ? 'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100'
                           : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -154,7 +154,7 @@ const ProjectDashboard = () => {
         </nav>
 
         {/* Sidebar footer */}
-        <div className="border-t border-slate-100 px-5 py-4">
+        <div className="border-t border-slate-100 px-6 py-6">
           {currentProject?.description ? (
             <p className="text-xs leading-relaxed text-slate-400">
               {currentProject.description.length > 100
@@ -171,7 +171,7 @@ const ProjectDashboard = () => {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar */}
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-xl">
-          <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-3 px-6 py-4 lg:px-8">
             {/* Mobile hamburger */}
             <button
               onClick={() => setSidebarOpen(true)}
@@ -220,12 +220,14 @@ const ProjectDashboard = () => {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main className="flex-1 px-6 py-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
           {isOverview ? (
             <ProjectOverview project={currentProject} />
           ) : (
             <Outlet context={{ project: currentProject }} />
           )}
+          </div>
         </main>
       </div>
     </div>
@@ -297,7 +299,7 @@ const ProjectOverview = ({ project }) => {
   return (
     <div className="space-y-8">
       {/* Hero section */}
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white shadow-xl sm:p-10">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 px-6 py-8 sm:px-10 sm:py-12 text-white shadow-xl text-left">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
         <div className="relative">
@@ -317,7 +319,7 @@ const ProjectOverview = ({ project }) => {
       </section>
 
       {/* Quick access cards */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 text-left">
         {overviewCards.map((card) => {
           const Icon = card.icon;
           return (
