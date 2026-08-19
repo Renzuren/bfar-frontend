@@ -579,7 +579,7 @@ const FormAnalytics = () => {
         </div>
       </header>
 
-      <div ref={exportRef} className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div ref={exportRef} className="px-4 py-8 sm:px-6 lg:px-8">
         <section className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
           <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-500/15 blur-3xl" />
