@@ -38,7 +38,12 @@ class ApiClient {
     }
 
     // Skip preprocessing for FormData (multipart uploads)
-    if (config.data instanceof FormData) {
+    // Use duck-typing check in addition to instanceof (bundled envs can break instanceof)
+    if (config.data instanceof FormData || (config.data && typeof config.data.append === 'function' && typeof config.data.get === 'function')) {
+      // Ensure Content-Type is NOT manually set — browser must generate the boundary
+      if (config.headers && config.headers['Content-Type'] && config.headers['Content-Type'].includes('multipart/form-data')) {
+        delete config.headers['Content-Type'];
+      }
       return config;
     }
 
