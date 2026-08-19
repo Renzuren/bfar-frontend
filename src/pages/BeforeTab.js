@@ -127,11 +127,11 @@ const BeforeTab = () => {
 
   if (!project?.before_form) {
     return (
-      <div className="space-y-8">
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-600 via-blue-600 to-blue-700 p-8 text-white shadow-2xl shadow-blue-900/20 sm:p-10">
+      <div className="max-w-5xl mx-auto space-y-8">
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-600 via-blue-600 to-blue-700 px-8 py-10 text-white shadow-2xl shadow-blue-900/20 sm:px-12 sm:py-12">
           <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-300/20 blur-3xl" />
-          <div className="relative">
+          <div className="relative text-left">
             <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Before Questionnaires</p>
             <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">Before Intervention</h2>
             <p className="max-w-2xl text-base text-blue-100">
@@ -149,12 +149,12 @@ const BeforeTab = () => {
           </div>
         </section>
 
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 to-blue-100 text-cyan-600">
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-left shadow-sm">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 to-blue-100 text-cyan-600">
             <Inbox className="h-10 w-10" />
           </div>
           <h3 className="mb-2 text-xl font-bold text-slate-900">No Before Questionnaire Yet</h3>
-          <p className="mx-auto mb-6 max-w-md text-sm text-slate-500">
+          <p className="mb-6 max-w-md text-sm text-slate-500">
             Create a Before questionnaire to collect baseline data from respondents prior to the intervention.
           </p>
           <Button
@@ -172,12 +172,12 @@ const BeforeTab = () => {
   const status = getStatus();
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-5xl mx-auto space-y-8">
       {/* Hero Header */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-600 via-blue-600 to-blue-700 p-8 text-white shadow-2xl shadow-blue-900/20 sm:p-10">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-600 via-blue-600 to-blue-700 px-8 py-10 text-white shadow-2xl shadow-blue-900/20 sm:px-12 sm:py-12">
         <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-300/20 blur-3xl" />
-        <div className="relative flex items-start justify-between">
+        <div className="relative flex items-start justify-between text-left">
           <div className="flex items-start gap-5">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
               <Layers className="h-7 w-7" />
@@ -203,26 +203,26 @@ const BeforeTab = () => {
       </section>
 
       {/* Info Grid */}
-      <section className="grid grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Questions</p>
-          <p className="mt-1.5 text-3xl font-bold text-cyan-600">{getQuestionCount()}</p>
+      <section className="grid grid-cols-3 gap-5">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+          <p className="text-left text-xs font-medium uppercase tracking-wide text-slate-400">Questions</p>
+          <p className="mt-1.5 text-left text-3xl font-bold text-cyan-600">{getQuestionCount()}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Responses</p>
-          <p className="mt-1.5 text-3xl font-bold text-emerald-600">{responses.length}</p>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+          <p className="text-left text-xs font-medium uppercase tracking-wide text-slate-400">Responses</p>
+          <p className="mt-1.5 text-left text-3xl font-bold text-emerald-600">{responses.length}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Last Response</p>
-          <p className="mt-1.5 text-lg font-bold text-slate-700">{getLastResponseDate()}</p>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+          <p className="text-left text-xs font-medium uppercase tracking-wide text-slate-400">Last Response</p>
+          <p className="mt-1.5 text-left text-lg font-bold text-slate-700">{getLastResponseDate()}</p>
         </div>
       </section>
 
       {/* Action Grid */}
-      <section className="grid grid-cols-2 gap-4">
+      <section className="grid grid-cols-2 gap-5">
         <button
           onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=before`)}
-          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-blue-200"
+          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-blue-200"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-100">
             <Pencil className="h-5 w-5" />
@@ -235,7 +235,7 @@ const BeforeTab = () => {
 
         <button
           onClick={() => navigate(`/forms/${project.before_form}/responses`, { state: { project_id: projectId, questionnaire_type: 'before' } })}
-          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-emerald-200"
+          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-emerald-200"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-100">
             <Eye className="h-5 w-5" />
@@ -248,7 +248,7 @@ const BeforeTab = () => {
 
         <button
           onClick={() => navigate(`/forms/${project.before_form}/analytics`, { state: { project_id: projectId, questionnaire_type: 'before' } })}
-          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-violet-200"
+          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-violet-200"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 transition-colors group-hover:bg-violet-100">
             <BarChart3 className="h-5 w-5" />
@@ -261,7 +261,7 @@ const BeforeTab = () => {
 
         <button
           onClick={copyFormLink}
-          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-amber-200"
+          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-amber-200"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 transition-colors group-hover:bg-amber-100">
             <ExternalLink className="h-5 w-5" />
