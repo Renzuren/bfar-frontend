@@ -2,38 +2,41 @@
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Progress } from '@/components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import RespondentAnalytics from '@/components/RespondentAnalytics';
 import { findAreaKey, resolveProvince } from '@/lib/geoData';
 import * as XLSX from 'xlsx';
 import {
   AlertCircle,
   ArrowLeft,
+  ArrowRight,
   BarChart3,
   Check,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Download,
+  FileSpreadsheet,
+  FolderOpen,
   Import,
+  Loader2,
   Save,
   Upload,
+  X,
 } from 'lucide-react';
-
-const palette = {
-  pageBg: '#eef1f7',
-  primary: '#2563eb',
-  teal: '#0db890',
-  orange: '#f97316',
-  purple: '#7c3aed',
-  red: '#dc2626',
-  muted: '#94a3b8',
-  border: '#e2e8f0',
-  cardBg: '#ffffff',
-  cardAlt: '#fafbfc',
-  text: '#1e293b',
-};
 
 const parseNumericValue = (value) => {
   if (value === null || value === undefined || value === '') return null;
@@ -447,6 +450,13 @@ const buildAnalysisResults = (rows, columns, treatmentColumn, outcomeColumn, inc
   };
 };
 
+const STEPS = [
+  { id: 1, label: 'Upload' },
+  { id: 2, label: 'Preview' },
+  { id: 3, label: 'Analytics' },
+  { id: 4, label: 'Save' },
+];
+
 const MLUpload = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
@@ -467,6 +477,7 @@ const MLUpload = () => {
   const [saveDescription, setSaveDescription] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage] = useState(7);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const autoDetectedFields = useMemo(() => {
     if (!columns.length) return {};
@@ -478,19 +489,14 @@ const MLUpload = () => {
     return { treatment, preOutcome, postOutcome, outcome };
   }, [columns]);
 
-  const activeStep = analysisResults ? 4 : isAnalyzing ? 3 : file ? 2 : 1;
-  const stepItems = [
-    { id: 1, title: 'Upload', description: 'Drag & drop your CSV or XLSX file', icon: '⬆' },
-    { id: 2, title: 'Configure', description: 'Select treatment, outcome & feature filter', icon: '⚗' },
-    { id: 3, title: 'Analyze', description: 'Get PS scores, balance, SHAP & impact', icon: '📊' },
-    { id: 4, title: 'Save', description: 'Store or download results for later', icon: '💾' },
-  ];
+  const currentStep = analysisResults ? 4 : isAnalyzing ? 3 : showPreview ? 2 : 1;
 
   const resetAnalysisState = () => {
     setAnalysisResults(null);
     setShowPreview(false);
     setIsAnalyzing(false);
     setCurrentPage(1);
+    setSaveSuccess(false);
   };
 
   const parseCSV = (selectedFile) => {
@@ -696,6 +702,7 @@ const MLUpload = () => {
     setShowSaveModal(false);
     setSaveName('');
     setSaveDescription('');
+    setSaveSuccess(true);
   };
 
   const totalPages = Math.max(1, Math.ceil(csvData.length / rowsPerPage));
@@ -703,237 +710,540 @@ const MLUpload = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="px-6 pb-24 pt-8 sm:px-8 lg:px-10">
-        <header className="sticky top-0 z-40 mb-8 -mx-6 border-b border-slate-200/80 bg-white/80 px-6 py-3 backdrop-blur-xl sm:-mx-8 sm:px-8 lg:-mx-10 lg:px-10">
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')} className="text-slate-600">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Dashboard
-            </Button>
-            <span className="hidden text-xs font-medium text-slate-400 md:block">PSM · SES Impact · General Assessment</span>
+      <div className="px-4 pb-24 pt-0 sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/dashboard')}
+                className="gap-1.5 text-slate-500 hover:text-slate-900"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Dashboard</span>
+              </Button>
+              <div className="h-5 w-px bg-slate-200" />
+              <h1 className="text-sm font-semibold text-slate-900 sm:text-base">ML Data Upload</h1>
+            </div>
+
+            <nav className="hidden items-center gap-1 md:flex">
+              {STEPS.map((step, index) => {
+                const isCompleted = currentStep > step.id;
+                const isActive = currentStep === step.id;
+                return (
+                  <React.Fragment key={step.id}>
+                    <div className="flex items-center gap-2 rounded-full px-3 py-1.5 transition-colors">
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
+                          isCompleted
+                            ? 'bg-emerald-500 text-white'
+                            : isActive
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-100 text-slate-400'
+                        }`}
+                      >
+                        {isCompleted ? <Check className="h-3 w-3" /> : step.id}
+                      </span>
+                      <span
+                        className={`text-xs font-medium ${
+                          isCompleted ? 'text-emerald-600' : isActive ? 'text-blue-600' : 'text-slate-400'
+                        }`}
+                      >
+                        {step.label}
+                      </span>
+                    </div>
+                    {index < STEPS.length - 1 && (
+                      <div
+                        className={`h-px w-6 transition-colors ${
+                          currentStep > step.id ? 'bg-emerald-300' : 'bg-slate-200'
+                        }`}
+                      />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </nav>
+
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="hidden border-slate-200 text-[10px] text-slate-400 sm:inline-flex">
+                PSM · SES Impact
+              </Badge>
+            </div>
           </div>
         </header>
 
-        <section className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-center text-white shadow-2xl shadow-slate-900/20 sm:p-10">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
-          <div className="relative">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 17L8 12L12 15L21 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+        <div className="mx-auto max-w-7xl pt-6">
+          {error && (
+            <div className="mb-6 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span className="flex-1">{error}</span>
+              <button onClick={() => setError(null)} className="rounded-md p-1 text-red-400 hover:text-red-600">
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
-            <p className="mb-1 text-sm font-medium uppercase tracking-[0.2em] text-cyan-300">Machine learning workspace</p>
-            <h1 className="text-3xl font-bold sm:text-4xl">ML Analysis</h1>
-            <p className="mx-auto mt-2 max-w-lg text-base text-slate-300">Upload your dataset for propensity-score matching and impact assessment.</p>
-          </div>
-        </section>
+          )}
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <div className="grid gap-[0px] md:grid-cols-4">
-            {stepItems.map((step, index) => {
-              const isActive = activeStep === step.id;
-              const isDone = activeStep > step.id;
-              const background = isDone ? '#f0fdf4' : isActive ? '#eff6ff' : 'transparent';
-              const badgeColor = isDone ? '#16a34a' : isActive ? '#2563eb' : '#94a3b8';
-              const textColor = isDone ? '#16a34a' : isActive ? '#2563eb' : '#334155';
-              return (
-                <div key={step.title} className={`flex items-start gap-[12px] border-b border-[#f1f5f9] p-[18px_20px] md:border-b-0 md:border-r ${index === stepItems.length - 1 ? 'md:border-r-0' : ''}`} style={{ background }}>
-                  <div className="flex h-[38px] w-[38px] items-center justify-center rounded-[8px]" style={{ background: isDone ? '#f0fdf4' : isActive ? '#eff6ff' : '#f8fafc', color: badgeColor }}>
-                    {isDone ? <Check className="h-4 w-4" /> : <span className="text-[13px] font-[700]">{step.icon}</span>}
-                  </div>
-                  <div>
-                    <div className="text-[14px] font-[700]" style={{ color: textColor }}>{step.title}</div>
-                    <div className="mt-[3px] text-[12px] font-[400] leading-[1.4] text-[#94a3b8]">{step.description}</div>
+          {currentStep === 1 && (
+            <Card className="border-slate-200 shadow-sm">
+              <CardContent className="p-0">
+                <div className="border-b border-slate-100 px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+                      <Upload className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-semibold text-slate-900">Import File</h2>
+                      <p className="text-xs text-slate-500">Upload CSV or XLSX to prepare the analysis</p>
+                    </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mt-8 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-          <div className="flex items-center gap-2 border-b border-slate-100 px-6 py-5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#dbeafe] text-[#2563eb]">
-              <Upload className="h-4 w-4" />
-            </div>
-            <div>
-              <div className="text-[15px] font-[700] text-[#1e293b]">Import File</div>
-              <div className="text-[12px] font-[400] text-[#94a3b8]">Upload CSV or XLSX to prepare the analysis</div>
-            </div>
-          </div>
-          <div className="px-6 py-6">
-            {error ? (
-              <div className="mb-4 flex items-start gap-2 rounded-[10px] border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700">
-                <AlertCircle className="mt-0.5 h-4 w-4" />
-                <span>{error}</span>
-              </div>
-            ) : null}
-
-            {!file ? (
-              <div className={`rounded-[10px] border border-dashed p-[60px_24px] text-center transition-all ${isDragging ? 'border-[#2563eb] bg-[#eff6ff]' : 'border-[#c7d2de] bg-[#f8fafc]'}`} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#dbeafe] text-[#2563eb]">
-                  <Upload className="h-8 w-8" />
+                <div className="p-6">
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`group relative cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center transition-all duration-200 ${
+                      isDragging
+                        ? 'border-blue-400 bg-blue-50/50'
+                        : 'border-slate-200 bg-slate-50/50 hover:border-blue-300 hover:bg-blue-50/30'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-4">
+                      <div
+                        className={`flex h-16 w-16 items-center justify-center rounded-2xl transition-colors ${
+                          isDragging ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-600'
+                        }`}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="h-8 w-8 animate-spin" />
+                        ) : (
+                          <FolderOpen className="h-8 w-8" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-base font-semibold text-slate-700">
+                          {isLoading ? 'Processing file...' : 'Drag & drop your file here'}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-400">
+                          or click to browse
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
+                          <FileSpreadsheet className="h-3 w-3" /> .csv
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
+                          <FileSpreadsheet className="h-3 w-3" /> .xlsx
+                        </span>
+                        <span className="text-xs text-slate-300">Max 10MB</span>
+                      </div>
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".csv,.xlsx,.xls"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                  </div>
                 </div>
-                <div className="mt-4 text-[15px] font-[700] text-[#1e293b]">Drop your CSV or XLSX file here</div>
-                <div className="mt-1 text-[12px] font-[400] text-[#94a3b8]">or click to browse (max 10MB)</div>
-                <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFileSelect} className="hidden" />
-                <div className="mt-6 flex justify-center">
-                  <Button onClick={() => fileInputRef.current?.click()} className="rounded-xl bg-cyan-600 px-[28px] py-[10px] text-[13px] font-[600] text-white shadow-lg shadow-cyan-600/20 hover:bg-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 focus-visible:outline-offset-2">
-                    <Upload className="mr-2 h-4 w-4" /> Choose File
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep >= 2 && file && (
+            <Card className="mb-6 border-slate-200 shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50">
+                      <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900">{file.name}</h3>
+                      <p className="text-xs text-slate-500">
+                        {(file.size / 1024).toFixed(1)} KB
+                      </p>
+                      <div className="mt-1.5 flex items-center gap-3">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600">
+                          <Check className="h-3 w-3" /> {csvData.length.toLocaleString()} rows
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-600">
+                          {columns.length} columns
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleChangeFile}
+                    className="gap-1.5 text-slate-500"
+                  >
+                    Change File
                   </Button>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-[#e2e8f0] bg-[#f8fafc] p-5">
+
+                <div className="mt-5 grid gap-4 border-t border-slate-100 pt-5 sm:grid-cols-3">
+                  <div>
+                    <Label className="mb-1.5 block text-xs font-medium text-slate-500">
+                      Group / Treatment Column
+                    </Label>
+                    <Select
+                      value={treatmentColumn}
+                      onValueChange={setTreatmentColumn}
+                    >
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue placeholder={`Auto-detect → ${autoDetectedFields.treatment || 'A2:GROUP'}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {columns.map((column) => (
+                          <SelectItem key={column} value={column} className="text-xs">
+                            {column}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="mb-1.5 block text-xs font-medium text-slate-500">
+                      Outcome Column
+                    </Label>
+                    <Select
+                      value={outcomeColumn}
+                      onValueChange={setOutcomeColumn}
+                    >
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue placeholder="Auto-detect → Outcome" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {columns.map((column) => (
+                          <SelectItem key={column} value={column} className="text-xs">
+                            {column}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1.5 text-[11px] text-slate-400">
+                      Treatment: <span className="font-medium text-slate-600">{autoDetectedFields.treatment || '—'}</span>
+                      {' · '}
+                      Outcome: <span className="font-medium text-slate-600">{autoDetectedFields.postOutcome || autoDetectedFields.outcome || '—'}</span>
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="mb-1.5 block text-xs font-medium text-slate-500">
+                      Include Features
+                    </Label>
+                    <Input
+                      value={includeFeatures}
+                      onChange={(e) => setIncludeFeatures(e.target.value)}
+                      placeholder="B3:AGE, B5:SEX, B6:M-STATUS, B7:EDUCATION"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep >= 2 && showPreview && csvData.length > 0 && (
+            <Card className="mb-6 border-slate-200 shadow-sm">
+              <CardContent className="p-0">
+                <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-[54px] w-[54px] items-center justify-center rounded-full bg-[#d1fae5] text-[24px]">📄</div>
-                    <div>
-                      <div className="text-[14px] font-[700] text-[#1e293b]">{file.name}</div>
-                      <div className="text-[12px] font-[400] text-[#94a3b8]">{(file.size / 1024).toFixed(2)} KB</div>
-                      <div className="mt-2 text-[12px] font-[600] text-[#0db890]">✓ {csvData.length.toLocaleString()} rows · {columns.length} columns detected</div>
-                    </div>
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      Data Preview
+                    </h3>
+                    <Badge variant="secondary" className="bg-slate-100 text-[10px] font-medium text-slate-500">
+                      {csvData.length.toLocaleString()} rows × {columns.length} cols
+                    </Badge>
                   </div>
-                  <Button variant="outline" className="rounded-[6px] border-[#e2e8f0] bg-white px-4 py-2 text-[12px] font-[500] text-[#475569]" onClick={handleChangeFile}>Change File</Button>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </Button>
+                    <span className="min-w-[80px] text-center text-xs text-slate-500">
+                      Page {currentPage} / {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="sticky top-0 z-10 bg-slate-50">
+                        {columns.map((column) => (
+                          <th
+                            key={column}
+                            className="whitespace-nowrap border-b border-slate-200 px-4 py-2.5 text-left font-semibold text-slate-600"
+                          >
+                            {column}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {previewRows.map((row, rowIndex) => (
+                        <tr
+                          key={`${rowIndex}-${currentPage}`}
+                          className="transition-colors hover:bg-slate-50/50"
+                        >
+                          {columns.map((column) => {
+                            const value = row[column] ?? '';
+                            const normalized = String(value).trim();
+                            const name = column.toLowerCase();
+                            if (name.includes('group')) {
+                              const normalizedGroup =
+                                normalized === '1' || normalized.toLowerCase() === 'treated' || normalized.toLowerCase() === 'b' || normalized.toLowerCase() === 'beneficiary'
+                                  ? 'B'
+                                  : 'NB';
+                              return (
+                                <td key={`${column}-${rowIndex}`} className="whitespace-nowrap px-4 py-2">
+                                  <span
+                                    className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                                      normalizedGroup === 'B'
+                                        ? 'bg-blue-50 text-blue-600'
+                                        : 'bg-slate-100 text-slate-500'
+                                    }`}
+                                  >
+                                    {normalizedGroup}
+                                  </span>
+                                </td>
+                              );
+                            }
+                            if (name.includes('ses') && name.includes('a')) {
+                              return (
+                                <td key={`${column}-${rowIndex}`} className="whitespace-nowrap px-4 py-2 font-mono text-slate-500">
+                                  {normalized || '—'}
+                                </td>
+                              );
+                            }
+                            if (name.includes('ses') && name.includes('b')) {
+                              const pairedA = parseNumericValue(row[column.replace(/B$/i, 'A')]);
+                              const currentB = parseNumericValue(value);
+                              const arrow =
+                                currentB !== null && pairedA !== null
+                                  ? currentB > pairedA
+                                    ? ' ▲'
+                                    : currentB < pairedA
+                                      ? ' ▼'
+                                      : ''
+                                  : '';
+                              const color =
+                                currentB !== null && pairedA !== null
+                                  ? currentB > pairedA
+                                    ? 'text-emerald-600'
+                                    : currentB < pairedA
+                                      ? 'text-red-500'
+                                      : 'text-slate-500'
+                                  : 'text-slate-500';
+                              return (
+                                <td key={`${column}-${rowIndex}`} className={`whitespace-nowrap px-4 py-2 font-mono text-xs font-semibold ${color}`}>
+                                  {normalized || '—'}{arrow}
+                                </td>
+                              );
+                            }
+                            return (
+                              <td key={`${column}-${rowIndex}`} className="whitespace-nowrap px-4 py-2 text-slate-600">
+                                {normalized || '—'}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-                <div className="grid gap-[16px] md:grid-cols-3">
-                  <div>
-                    <Label htmlFor="treatment" className="mb-[5px] block text-[11px] font-[600] uppercase tracking-[0.03em] text-[#94a3b8]">Group / Treatment</Label>
-                    <select id="treatment" value={treatmentColumn} onChange={(event) => setTreatmentColumn(event.target.value)} className="w-full rounded-[6px] border border-[#dde3ec] bg-white px-[10px] py-[8px] text-[12.5px] text-[#475569] focus:border-[#2563eb] focus:outline-none">
-                      <option value="">Auto-detect → A2:GROUP</option>
-                      {columns.map((column) => <option key={column} value={column}>{column}</option>)}
-                    </select>
+          {currentStep === 3 && (
+            <div className="mb-6 flex items-center justify-center py-12">
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="flex flex-col items-center gap-4 p-12">
+                  <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+                  <div className="text-center">
+                    <h3 className="text-sm font-semibold text-slate-900">Analyzing Data</h3>
+                    <p className="text-xs text-slate-500">Running propensity score matching and impact assessment...</p>
                   </div>
-                  <div>
-                    <Label htmlFor="outcome" className="mb-[5px] block text-[11px] font-[600] uppercase tracking-[0.03em] text-[#94a3b8]">Outcome</Label>
-                    <select id="outcome" value={outcomeColumn} onChange={(event) => setOutcomeColumn(event.target.value)} className="w-full rounded-[6px] border border-[#dde3ec] bg-white px-[10px] py-[8px] text-[12.5px] text-[#475569] focus:border-[#2563eb] focus:outline-none">
-                      <option value="">Auto-detect → Outcome / Post column</option>
-                      {columns.map((column) => <option key={column} value={column}>{column}</option>)}
-                    </select>
-                    <div className="mt-2 text-[11px] text-[#64748b]">
-                      Auto-detected: Treatment = <strong>{autoDetectedFields.treatment || 'none'}</strong>, Outcome = <strong>{autoDetectedFields.postOutcome || autoDetectedFields.outcome || 'none'}</strong>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {showPreview && csvData.length > 0 && currentStep < 3 && (
+            <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
+              <Button
+                onClick={handleImportForm}
+                variant="outline"
+                className="gap-2 border-slate-200 text-sm"
+              >
+                <Import className="h-4 w-4" /> Create Form from CSV
+              </Button>
+              <Button
+                onClick={handleAnalyze}
+                disabled={isAnalyzing}
+                className="gap-2 bg-blue-600 text-sm shadow-sm hover:bg-blue-700"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <BarChart3 className="h-4 w-4" /> Analyze Data
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {analysisResults && (
+            <>
+              <RespondentAnalytics columns={columns} rows={csvData} analysis={analysisResults} />
+
+              <Card className="mt-6 border-slate-200 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900">Analysis Complete</h3>
+                        <p className="text-xs text-slate-500">
+                          Results are included above. Ready to save or export.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge className="bg-emerald-50 text-[10px] font-semibold text-emerald-600">
+                        <Check className="mr-1 h-3 w-3" /> Complete
+                      </Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadJSON}
+                        className="gap-1.5 text-slate-600"
+                      >
+                        <Download className="h-3.5 w-3.5" /> JSON
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => setShowSaveModal(true)}
+                        className="gap-1.5 bg-blue-600 shadow-sm hover:bg-blue-700"
+                      >
+                        <Save className="h-3.5 w-3.5" /> Save Results
+                      </Button>
                     </div>
                   </div>
-                  <div>
-                    <Label htmlFor="includeFeatures" className="mb-[5px] block text-[11px] font-[600] uppercase tracking-[0.03em] text-[#94a3b8]">Include only</Label>
-                    <Input id="includeFeatures" value={includeFeatures} onChange={(event) => setIncludeFeatures(event.target.value)} placeholder="B3:AGE, B5:SEX, B6:M-STATUS, B7:EDUCATION" className="rounded-[6px] border-[#dde3ec] text-[12.5px] text-[#475569]" />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+
+                  {saveSuccess && (
+                    <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Results saved successfully.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {showPreview && csvData.length > 0 && (
+            <div className="mt-6 flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleChangeFile}
+                className="gap-1.5 text-slate-500"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" /> Start Over
+              </Button>
+              {analysisResults && (
+                <Button
+                  size="sm"
+                  onClick={() => setShowSaveModal(true)}
+                  className="gap-1.5 bg-blue-600 shadow-sm hover:bg-blue-700"
+                >
+                  <Save className="h-3.5 w-3.5" /> Save Results
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+          )}
         </div>
-
-        {showPreview && csvData.length > 0 ? (
-          <div className="mt-8 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f1f5f9] px-6 py-5">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f1f5f9] text-[#64748b]">🗄</div>
-                <div>
-                  <div className="text-[14px] font-[700] text-[#1e293b]">Data Preview ({csvData.length} rows, {columns.length} columns)</div>
-                  <div className="text-[12px] font-[400] text-[#94a3b8]">Parsed and ready for matching analysis</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge className="rounded-full bg-[#dcfce7] px-[9px] py-[2px] text-[11px] font-[600] text-[#0db890]">✓ Parsed</Badge>
-                <Button variant="outline" size="icon" className="h-8 w-8 rounded-[6px] border-[#e2e8f0]" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
-                <Button variant="outline" size="icon" className="h-8 w-8 rounded-[6px] border-[#e2e8f0]" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages}><ChevronRight className="h-4 w-4" /></Button>
-              </div>
-            </div>
-            <div className="overflow-x-auto px-6 py-6">
-              <table className="min-w-full border-collapse text-[12px]">
-                <thead>
-                  <tr className="bg-[#f8fafc] text-[11px] uppercase tracking-[0.03em] text-[#475569]">
-                    {columns.map((column) => <th key={column} className="border-b border-[#f1f5f9] px-3 py-2 text-left font-[700]">{column}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewRows.map((row, rowIndex) => (
-                    <tr key={`${rowIndex}-${currentPage}`} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}>
-                      {columns.map((column) => {
-                        const value = row[column] ?? '';
-                        const normalized = String(value).trim();
-                        const name = column.toLowerCase();
-                        if (name.includes('group')) {
-                          const normalizedGroup = normalized === '1' || normalized.toLowerCase() === 'treated' || normalized.toLowerCase() === 'b' || normalized.toLowerCase() === 'beneficiary' ? 'B' : 'NB';
-                          return <td key={`${column}-${rowIndex}`} className="border-b border-[#f8fafc] px-3 py-2"><span className={`rounded-[5px] px-2 py-0.5 text-[11px] font-[700] ${normalizedGroup === 'B' ? 'bg-[#dbeafe] text-[#2563eb]' : 'bg-[#f1f5f9] text-[#475569]'}`}>{normalizedGroup}</span></td>;
-                        }
-                        if (name.includes('ses') && name.includes('a')) {
-                          return <td key={`${column}-${rowIndex}`} className="border-b border-[#f8fafc] px-3 py-2 font-mono text-[11px] text-[#64748b]">{normalized || '—'}</td>;
-                        }
-                        if (name.includes('ses') && name.includes('b')) {
-                          const pairedA = parseNumericValue(row[column.replace(/B$/i, 'A')]);
-                          const currentB = parseNumericValue(value);
-                          const arrow = currentB !== null && pairedA !== null ? (currentB > pairedA ? ' ▲' : currentB < pairedA ? ' ▼' : '') : '';
-                          const color = currentB !== null && pairedA !== null ? (currentB > pairedA ? '#16a34a' : currentB < pairedA ? '#dc2626' : '#64748b') : '#64748b';
-                          return <td key={`${column}-${rowIndex}`} className="border-b border-[#f8fafc] px-3 py-2 font-mono text-[11px] font-[600]" style={{ color }}>{normalized || '—'}{arrow}</td>;
-                        }
-                        return <td key={`${column}-${rowIndex}`} className="border-b border-[#f8fafc] px-3 py-2 text-[12px] text-[#334155]">{normalized || '—'}</td>;
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : null}
-
-        {csvData.length > 0 ? (
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Button onClick={handleImportForm} className="rounded-xl bg-teal-500 px-[22px] py-[10px] text-[13px] font-[600] text-white shadow-lg shadow-teal-500/20 hover:bg-teal-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-500 focus-visible:outline-offset-2">
-              <Import className="mr-2 h-4 w-4" /> Create Form from CSV
-            </Button>
-            <Button onClick={handleAnalyze} disabled={isAnalyzing} className={`rounded-xl px-[26px] py-[10px] text-[13px] font-[600] text-white shadow-lg ${isAnalyzing ? 'bg-cyan-300' : 'bg-cyan-600 shadow-cyan-600/20 hover:bg-cyan-700'}`}>
-              {isAnalyzing ? '⏳ Analyzing…' : <><BarChart3 className="mr-2 h-4 w-4" /> Analyze Data</>}
-            </Button>
-          </div>
-        ) : null}
-
-        {analysisResults ? <RespondentAnalytics columns={columns} rows={csvData} analysis={analysisResults} /> : null}
-
-        {analysisResults ? (
-          <div className="mt-10 flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-white px-6 py-5 shadow-sm">
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#dcfce7] text-[#0db890]">📈</div>
-              <div>
-                <div className="text-[15px] font-[800] text-[#1e293b]">Matching & Impact Results</div>
-                <div className="text-[12px] font-[400] text-[#94a3b8]">Included in the dashboard above · Ready to save or export</div>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge className="rounded-full bg-[#dcfce7] px-[9px] py-[2px] text-[11px] font-[600] text-[#0db890]">✓ Complete</Badge>
-              <Button variant="outline" className="rounded-[6px] border-[#e2e8f0] bg-white px-[12px] py-[8px] text-[12px] font-[600] text-[#475569]" onClick={handleDownloadJSON}><Download className="mr-2 h-4 w-4" /> JSON</Button>
-              <Button className="rounded-xl bg-cyan-600 px-[12px] py-[8px] text-[13px] font-[600] text-white shadow-lg shadow-cyan-600/20 hover:bg-cyan-700" onClick={() => setShowSaveModal(true)}><Save className="mr-2 h-4 w-4" /> Save</Button>
-            </div>
-          </div>
-        ) : null}
       </div>
 
-      {showSaveModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <div className="text-[15px] font-[700] text-[#1e293b]">Save Results</div>
-              <button className="rounded-full p-1 text-[#94a3b8] hover:bg-[#f1f5f9]" onClick={() => setShowSaveModal(false)}>×</button>
+      <Dialog open={showSaveModal} onOpenChange={setShowSaveModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Save Analysis Results</DialogTitle>
+            <DialogDescription>
+              Store your results locally to access them later from your dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="saveName" className="text-xs font-medium text-slate-700">
+                Name
+              </Label>
+              <Input
+                id="saveName"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                placeholder="e.g. General Assessment Baseline"
+                className="mt-1.5 h-9 text-sm"
+              />
             </div>
-            <div className="mt-4 space-y-3">
-              <div>
-                <Label htmlFor="saveName">Name</Label>
-                <Input id="saveName" value={saveName} onChange={(event) => setSaveName(event.target.value)} placeholder="e.g. General Assessment baseline" className="mt-1 rounded-[6px] border-[#dde3ec]" />
-              </div>
-              <div>
-                <Label htmlFor="saveDescription">Description</Label>
-                <Textarea id="saveDescription" value={saveDescription} onChange={(event) => setSaveDescription(event.target.value)} placeholder="Notes for this run" className="mt-1 rounded-[6px] border-[#dde3ec]" rows={3} />
-              </div>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" className="rounded-[6px] border-[#e2e8f0] bg-white text-[#475569]" onClick={() => setShowSaveModal(false)}>Cancel</Button>
-              <Button className="rounded-xl bg-cyan-600 text-white shadow-lg shadow-cyan-600/20 hover:bg-cyan-700" onClick={handleSaveResults} disabled={!saveName.trim()}>Save</Button>
+            <div>
+              <Label htmlFor="saveDescription" className="text-xs font-medium text-slate-700">
+                Description
+              </Label>
+              <Textarea
+                id="saveDescription"
+                value={saveDescription}
+                onChange={(e) => setSaveDescription(e.target.value)}
+                placeholder="Optional notes for this analysis run..."
+                className="mt-1.5 text-sm"
+                rows={3}
+              />
             </div>
           </div>
-        </div>
-      ) : null}
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowSaveModal(false)}
+              className="gap-1.5"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveResults}
+              disabled={!saveName.trim()}
+              className="gap-1.5 bg-blue-600 hover:bg-blue-700"
+            >
+              <Save className="h-3.5 w-3.5" /> Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
