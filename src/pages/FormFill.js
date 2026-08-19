@@ -556,7 +556,7 @@ const FormFill = () => {
     return (
       <div
         key={question.id}
-        className="group rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md sm:p-7"
+        className="group rounded-2xl border border-slate-200/80 bg-white p-8 shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md"
       >
         <div className="mb-4">
           <div className="mb-1 flex items-start gap-3">
@@ -588,7 +588,7 @@ const FormFill = () => {
               }
               required={question.required}
               placeholder="Type your answer here..."
-              className="h-11 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-blue-100"
+              className="h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-blue-100"
             />
           )}
 
@@ -684,7 +684,7 @@ const FormFill = () => {
               }
               required={question.required}
             >
-              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 focus:border-blue-400 focus:ring-blue-100">
+              <SelectTrigger className="h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 focus:border-blue-400 focus:ring-blue-100">
                 <SelectValue placeholder="Select an option" />
               </SelectTrigger>
               <SelectContent className="rounded-xl border-slate-200">
@@ -706,7 +706,7 @@ const FormFill = () => {
                   setAnswers({ ...answers, [question.id]: e.target.value })
                 }
                 required={question.required}
-                className="h-11 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 focus:border-blue-400 focus:ring-blue-100"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 focus:border-blue-400 focus:ring-blue-100"
               />
             </div>
           )}
@@ -756,7 +756,7 @@ const FormFill = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">
       <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
         {/* Progress Steps */}
-        <div className="mb-8">
+        <div className="mb-8 rounded-2xl bg-white px-6 py-4 shadow-sm">
           <div className="flex items-center justify-between">
             {stepLabels.map((label, i) => {
               const isActive = i === currentSectionIndex;
@@ -857,7 +857,7 @@ const FormFill = () => {
         </div>
 
         {/* Form Content */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* Demographics Section */}
           {currentSection?.section_type === 'demographics' && (
             <>
@@ -905,7 +905,7 @@ const FormFill = () => {
                       }}
                       required
                       autoComplete="name"
-                      className={`h-11 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-blue-100 ${
+                      className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-blue-100 ${
                         nameAttempted && !hasRespondentName
                           ? 'border-rose-300 ring-2 ring-rose-100'
                           : ''
@@ -948,7 +948,7 @@ const FormFill = () => {
                         >
                           <SelectTrigger
                             id={`respondent-${field.key}`}
-                            className={`h-11 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 focus:border-blue-400 focus:ring-blue-100 ${
+                            className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 focus:border-blue-400 focus:ring-blue-100 ${
                               locationHasError(field)
                                 ? 'border-rose-300 ring-2 ring-rose-100'
                                 : ''
@@ -1000,7 +1000,7 @@ const FormFill = () => {
                             }
                           }}
                           required
-                          className={`h-11 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-blue-100 ${
+                          className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-blue-100 ${
                             locationHasError(field)
                               ? 'border-rose-300 ring-2 ring-rose-100'
                               : ''
@@ -1164,7 +1164,7 @@ const FormFill = () => {
               onClick={handlePrevious}
               disabled={isFirst}
               variant="outline"
-              className="h-11 rounded-xl border-slate-200 px-5 font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40"
+              className="h-12 rounded-xl border-slate-200 px-6 py-3 font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40"
             >
               <ChevronLeft className="mr-1.5 h-4 w-4" />
               Previous
@@ -1175,7 +1175,7 @@ const FormFill = () => {
                 type="button"
                 onClick={handleNext}
                 disabled={!hasRespondentName || !allLocationsFilled}
-                className="h-11 rounded-xl bg-slate-900 px-6 font-medium text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-12 rounded-xl bg-slate-900 px-6 py-3 font-medium text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Next
                 <ChevronRight className="ml-1.5 h-4 w-4" />
