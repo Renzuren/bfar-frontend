@@ -5,17 +5,12 @@ import {
   Layers,
   Eye,
   ExternalLink,
-  Copy,
   Trash2,
   Pencil,
   BarChart3,
   Inbox,
-  CalendarDays,
-  HelpCircle,
-  MoreVertical,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,13 +21,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import { useProject } from '../context/ProjectContext';
@@ -102,6 +90,18 @@ const BeforeTab = () => {
     return 'Active';
   };
 
+  const getLastResponseDate = () => {
+    if (responses.length === 0) return 'N/A';
+    const latest = responses.reduce((best, r) => {
+      const d = r.createdAt || r.submittedAt;
+      if (!d) return best;
+      const date = typeof d === 'object' && typeof d._seconds === 'number' ? d._seconds : new Date(d).getTime() / 1000;
+      if (!best || date > best.ts) return { ts: date, raw: d };
+      return best;
+    }, null);
+    return latest ? formatDate(latest.raw) : 'N/A';
+  };
+
   const handleDeleteForm = async () => {
     if (!project?.before_form) return;
     try {
@@ -128,19 +128,19 @@ const BeforeTab = () => {
   if (!project?.before_form) {
     return (
       <div className="space-y-8">
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-indigo-400/20 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-600 via-blue-600 to-blue-700 p-8 text-white shadow-2xl shadow-blue-900/20 sm:p-10">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-300/20 blur-3xl" />
           <div className="relative">
-            <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-indigo-300">Before Questionnaires</p>
+            <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Before Questionnaires</p>
             <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">Before Intervention</h2>
-            <p className="max-w-2xl text-base text-slate-300">
+            <p className="max-w-2xl text-base text-blue-100">
               Create a questionnaire to be distributed to respondents before the intervention or program begins.
             </p>
             <div className="mt-6">
               <Button
                 onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=before`)}
-                className="bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-400"
+                className="bg-white text-blue-700 shadow-lg shadow-blue-500/30 hover:bg-blue-50"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Create Before Questionnaire
@@ -150,7 +150,7 @@ const BeforeTab = () => {
         </section>
 
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-100 to-blue-100 text-indigo-600">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 to-blue-100 text-cyan-600">
             <Inbox className="h-10 w-10" />
           </div>
           <h3 className="mb-2 text-xl font-bold text-slate-900">No Before Questionnaire Yet</h3>
@@ -159,7 +159,7 @@ const BeforeTab = () => {
           </p>
           <Button
             onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=before`)}
-            className="bg-indigo-600 text-white hover:bg-indigo-700"
+            className="bg-cyan-600 text-white hover:bg-cyan-700"
           >
             <Plus className="mr-2 h-4 w-4" />
             Create Before Questionnaire
@@ -173,143 +173,115 @@ const BeforeTab = () => {
 
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-indigo-400/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
-        <div className="relative">
-          <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-indigo-300">Before Questionnaires</p>
-          <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">Before Intervention</h2>
-          <p className="max-w-2xl text-base text-slate-300">
-            All questionnaires distributed before the intervention to collect baseline data.
-          </p>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Total Forms</p>
-          <p className="mt-1.5 text-3xl font-bold text-indigo-600">1</p>
-        </Card>
-        <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Questions</p>
-          <p className="mt-1.5 text-3xl font-bold text-cyan-600">{getQuestionCount()}</p>
-        </Card>
-        <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Responses</p>
-          <p className="mt-1.5 text-3xl font-bold text-emerald-600">{responses.length}</p>
-        </Card>
-        <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Status</p>
-          <p className={`mt-1.5 text-3xl font-bold ${status === 'Active' ? 'text-emerald-600' : 'text-amber-500'}`}>{status}</p>
-        </Card>
-      </section>
-
-      <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
-        <div className="border-b border-slate-100 px-6 py-4">
-          <h3 className="text-lg font-bold text-slate-900">Before Questionnaires</h3>
-        </div>
-
-        <div className="divide-y divide-slate-100">
-          <div className="px-6 py-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                  <Layers className="h-6 w-6" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="text-base font-bold text-slate-900">{form?.title || 'Untitled'}</h4>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${
-                      status === 'Active'
-                        ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                        : 'bg-amber-50 text-amber-700 ring-amber-200'
-                    }`}>
-                      <span className={`mr-1 h-1 w-1 rounded-full ${status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                      {status}
-                    </span>
-                  </div>
-                  {form?.description && (
-                    <p className="mt-1 text-sm text-slate-500">{form.description}</p>
-                  )}
-                  <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-slate-400">
-                    <span className="inline-flex items-center gap-1">
-                      <Layers className="h-3.5 w-3.5" /> {getQuestionCount()} questions
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <BarChart3 className="h-3.5 w-3.5" /> {responses.length} responses
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <CalendarDays className="h-3.5 w-3.5" /> Created {formatDate(form?.createdAt)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex shrink-0 items-center gap-2">
-                <Button
-                  onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=before`)}
-                  size="sm"
-                  variant="outline"
-                  className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                >
-                  <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
-                </Button>
-                <Button
-                  onClick={() => navigate(`/forms/${project.before_form}/analytics`, { state: { project_id: projectId, questionnaire_type: 'before' } })}
-                  size="sm"
-                  variant="outline"
-                  className="border-cyan-200 text-cyan-700 hover:bg-cyan-50"
-                >
-                  <BarChart3 className="mr-1.5 h-3.5 w-3.5" /> Analytics
-                </Button>
-                <Button
-                  onClick={() => navigate(`/forms/${project.before_form}/responses`, { state: { project_id: projectId, questionnaire_type: 'before' } })}
-                  size="sm"
-                  variant="outline"
-                >
-                  <Eye className="mr-1.5 h-3.5 w-3.5" /> View
-                </Button>
-                <Button
-                  onClick={copyFormLink}
-                  size="sm"
-                  variant="outline"
-                  className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                >
-                  <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy Link
-                </Button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=before`)}>
-                      <Pencil className="mr-2 h-4 w-4" /> Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate(`/forms/${project.before_form}/analytics`, { state: { project_id: projectId, questionnaire_type: 'before' } })}>
-                      <BarChart3 className="mr-2 h-4 w-4" /> Analytics
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate(`/forms/${project.before_form}/responses`, { state: { project_id: projectId, questionnaire_type: 'before' } })}>
-                      <ExternalLink className="mr-2 h-4 w-4" /> View Responses
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={copyFormLink}>
-                      <Copy className="mr-2 h-4 w-4" /> Copy Link
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => setDeleteDialogOpen(true)}
-                      className="text-rose-600 focus:text-rose-600"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" /> Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+      {/* Hero Header */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-600 via-blue-600 to-blue-700 p-8 text-white shadow-2xl shadow-blue-900/20 sm:p-10">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-300/20 blur-3xl" />
+        <div className="relative flex items-start justify-between">
+          <div className="flex items-start gap-5">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
+              <Layers className="h-7 w-7" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold leading-tight sm:text-4xl">{form?.title || 'Before Assessment'}</h2>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${
+                  status === 'Active'
+                    ? 'bg-emerald-400/20 text-emerald-100 ring-emerald-400/30'
+                    : 'bg-amber-400/20 text-amber-100 ring-amber-400/30'
+                }`}>
+                  <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${status === 'Active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                  {status}
+                </span>
+                <span className="inline-flex items-center gap-1 text-sm text-blue-200">
+                  <BarChart3 className="h-3.5 w-3.5" /> {responses.length} {responses.length === 1 ? 'response' : 'responses'}
+                </span>
               </div>
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Info Grid */}
+      <section className="grid grid-cols-3 gap-4">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Questions</p>
+          <p className="mt-1.5 text-3xl font-bold text-cyan-600">{getQuestionCount()}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Responses</p>
+          <p className="mt-1.5 text-3xl font-bold text-emerald-600">{responses.length}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Last Response</p>
+          <p className="mt-1.5 text-lg font-bold text-slate-700">{getLastResponseDate()}</p>
+        </div>
+      </section>
+
+      {/* Action Grid */}
+      <section className="grid grid-cols-2 gap-4">
+        <button
+          onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=before`)}
+          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-blue-200"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-100">
+            <Pencil className="h-5 w-5" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-slate-900">Edit</p>
+            <p className="text-xs text-slate-500">Modify questions and settings</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => navigate(`/forms/${project.before_form}/responses`, { state: { project_id: projectId, questionnaire_type: 'before' } })}
+          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-emerald-200"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-100">
+            <Eye className="h-5 w-5" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-slate-900">View Responses</p>
+            <p className="text-xs text-slate-500">Browse submitted responses</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => navigate(`/forms/${project.before_form}/analytics`, { state: { project_id: projectId, questionnaire_type: 'before' } })}
+          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-violet-200"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 transition-colors group-hover:bg-violet-100">
+            <BarChart3 className="h-5 w-5" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-slate-900">Analytics</p>
+            <p className="text-xs text-slate-500">View charts and insights</p>
+          </div>
+        </button>
+
+        <button
+          onClick={copyFormLink}
+          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-amber-200"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 transition-colors group-hover:bg-amber-100">
+            <ExternalLink className="h-5 w-5" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-slate-900">Copy Link</p>
+            <p className="text-xs text-slate-500">Share questionnaire URL</p>
+          </div>
+        </button>
+      </section>
+
+      {/* Delete Button */}
+      <div className="flex justify-start">
+        <button
+          onClick={() => setDeleteDialogOpen(true)}
+          className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 transition-all hover:bg-red-50 hover:border-red-300"
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete Questionnaire
+        </button>
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
