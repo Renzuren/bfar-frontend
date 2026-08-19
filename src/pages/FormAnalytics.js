@@ -163,8 +163,6 @@ const FormAnalytics = () => {
     );
   };
 
-  // Question definitions by id so analytics entries (which may lack a code)
-  // can still render the "{code}: {title}" label consistently.
   const questionCodeMap = useMemo(() => {
     const map = new Map();
     const questions = form?.questions?.length
@@ -176,7 +174,6 @@ const FormAnalytics = () => {
     return map;
   }, [form]);
 
-  // Separate demographics from questionnaire questions
   const { demographicsQuestions, questionnaireQuestions } = useMemo(() => {
     if (!form) return { demographicsQuestions: [], questionnaireQuestions: [] };
 
@@ -199,7 +196,6 @@ const FormAnalytics = () => {
       (questSection.questions || []).forEach(q => questIds.add(q.id));
     }
 
-    // Fallback: if no section_type metadata, split by index
     if (demoIds.size === 0 && questIds.size === 0) {
       const systemFields = ['RESP-01', 'RESP-02', 'A1', 'A2', 'A3'];
       allQuestions.forEach(q => {
@@ -230,7 +226,6 @@ const FormAnalytics = () => {
     rows.push(['Total Submissions', totalResponses]);
     rows.push([]);
 
-    // Demographics section
     if (demographicsData.length > 0) {
       rows.push(['--- DEMOGRAPHICS ---']);
       rows.push([]);
@@ -262,7 +257,6 @@ const FormAnalytics = () => {
       });
     }
 
-    // Questionnaire section
     if (questionnaireData.length > 0) {
       rows.push(['--- QUESTIONNAIRE ---']);
       rows.push([]);
@@ -297,7 +291,6 @@ const FormAnalytics = () => {
       });
     }
 
-    // Profile photos section
     if (profilePhotos.length > 0) {
       rows.push(['--- PROFILE PHOTOS ---']);
       rows.push(['Respondent', 'Photo URL']);
@@ -320,7 +313,6 @@ const FormAnalytics = () => {
 
   const getChartColors = (count) => CHART_COLORS.slice(0, Math.max(count, 1));
 
-  // Demographics summary stats (must be before early return)
   const locationStats = useMemo(() => {
     const stats = { municipalities: {}, barangays: {}, provinces: {} };
     responses.forEach(r => {
@@ -331,7 +323,6 @@ const FormAnalytics = () => {
     return stats;
   }, [responses]);
 
-  // Location distribution chart data (must be before early return)
   const locationChartData = useMemo(() => {
     const data = [];
     Object.entries(locationStats.provinces || {}).forEach(([name, count]) => {
@@ -340,20 +331,22 @@ const FormAnalytics = () => {
     Object.entries(locationStats.municipalities || {}).forEach(([name, count]) => {
       data.push({ name, value: count, type: 'Municipality' });
     });
-    return data.slice(0, 20); // Top 20
+    return data.slice(0, 20);
   }, [locationStats]);
 
   if (loading || !form || !analytics) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">
-        <p>Loading analytics...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-cyan-600" />
+          <p className="text-sm font-medium text-slate-400">Loading analytics...</p>
+        </div>
       </div>
     );
   }
 
   const totalResponses = analytics.total_responses || 0;
 
-  // Split analytics into demographics and questionnaire
   const allAnalyticsData = (analytics.questions || []).filter(questionData => {
     if (!questionData) return false;
     const mapped = questionCodeMap.get(questionData.question_id) || questionData;
@@ -370,7 +363,6 @@ const FormAnalytics = () => {
     return questionnaireQuestions.some(qq => qq.id === qDef.id || qq.id === q.question_id);
   });
 
-  // Profile photos from responses
   const profilePhotos = responses
     .filter(r => r.profile_photo_url)
     .map(r => ({
@@ -379,66 +371,41 @@ const FormAnalytics = () => {
       respondentId: r.respondent_id || '',
     }));
 
-  const StatCard = ({ label, value, tint }) => (
-    <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
-      <p className={`mt-1.5 text-3xl font-bold ${tint}`}>{value}</p>
-    </Card>
-  );
-
-  const QuestionHeader = ({ questionData, badgeText, index, badgeColor = 'cyan' }) => {
-    const colorClasses = {
-      cyan: 'bg-cyan-50 text-cyan-700 ring-cyan-100',
-      purple: 'bg-purple-50 text-purple-700 ring-purple-100',
-      emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
-      blue: 'bg-blue-50 text-blue-700 ring-blue-100',
-    };
-    return (
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ring-1 ${colorClasses[badgeColor] || colorClasses.cyan}`}>
-            {badgeText}
-          </span>
-          <h3 className="text-lg font-bold text-slate-900">{getQuestionAnalyticsLabel(questionData, index)}</h3>
-        </div>
-        <div className="text-sm text-slate-500">
-          <span className="font-semibold text-emerald-600">{questionData.totalAnswered || 0} answered</span>
-          <span className="mx-2 text-slate-300">|</span>
-          <span className="text-slate-400">{questionData.totalNoAnswer || 0} not answered</span>
-        </div>
-      </div>
-    );
-  };
+  const totalBeneficiaries = responses.filter(r => r.is_beneficiary === true || r.is_beneficiary === 'true').length;
+  const totalNonBeneficiaries = totalResponses - totalBeneficiaries;
 
   const ChartFooter = ({ chartData }) => (
-    <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-      {chartData.map((item, idx) => (
-        <div key={idx} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ backgroundColor: getChartColors(chartData.length)[idx] }} />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-slate-800">{item.name}</p>
-            <p className="text-sm text-slate-500">{item.value} responses</p>
+    <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Answer Distribution</p>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {chartData.map((item, idx) => (
+          <div key={idx} className="flex items-center gap-3 rounded-lg bg-white p-3 ring-1 ring-slate-100">
+            <span className="h-3 w-3 shrink-0 rounded-full ring-2 ring-white" style={{ backgroundColor: getChartColors(chartData.length)[idx] }} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-slate-700">{item.name}</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600">{item.value}</span>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 
   const ChoiceChart = ({ data }) => (
-    <ResponsiveContainer width="100%" height={320}>
+    <ResponsiveContainer width="100%" height={300}>
       {chartType === "bar" ? (
         <BarChart data={data} margin={{ top: 10, right: 20, left: -12, bottom: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 12 }} interval={0} angle={-30} textAnchor="end" height={60} />
-          <YAxis tick={{ fill: '#64748b' }} />
-          <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(14, 165, 233, 0.06)' }} />
-          <Bar dataKey="value" name="Responses" radius={[8, 8, 0, 0]}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+          <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 11 }} interval={0} angle={-30} textAnchor="end" height={60} />
+          <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+          <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(14, 165, 233, 0.04)' }} />
+          <Bar dataKey="value" name="Responses" radius={[6, 6, 0, 0]} maxBarSize={56}>
             {data.map((entry, i) => <Cell key={`cell-${i}`} fill={getChartColors(data.length)[i]} />)}
           </Bar>
         </BarChart>
       ) : (
         <PieChart>
-          <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={4} labelLine={false} label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>
+          <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={65} outerRadius={105} paddingAngle={3} labelLine={false} label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>
             {data.map((entry, i) => <Cell key={`cell-${i}`} fill={getChartColors(data.length)[i]} />)}
           </Pie>
           <Tooltip content={renderTooltip} />
@@ -449,20 +416,20 @@ const FormAnalytics = () => {
   );
 
   const RatingChart = ({ data }) => (
-    <ResponsiveContainer width="100%" height={320}>
+    <ResponsiveContainer width="100%" height={300}>
       {chartType === "bar" ? (
         <BarChart data={data} margin={{ top: 10, right: 20, left: -12, bottom: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 12 }} />
-          <YAxis tick={{ fill: '#64748b' }} />
-          <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(14, 165, 233, 0.06)' }} />
-          <Bar dataKey="value" name="Responses" radius={[8, 8, 0, 0]}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+          <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 11 }} />
+          <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+          <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(14, 165, 233, 0.04)' }} />
+          <Bar dataKey="value" name="Responses" radius={[6, 6, 0, 0]} maxBarSize={56}>
             {data.map((entry, i) => <Cell key={`cell-${i}`} fill={getChartColors(data.length)[i]} />)}
           </Bar>
         </BarChart>
       ) : (
         <PieChart>
-          <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={4} labelLine={false} label={({ percent }) => `${(percent * 100).toFixed(0)}%`}>
+          <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={65} outerRadius={105} paddingAngle={3} labelLine={false} label={({ percent }) => `${(percent * 100).toFixed(0)}%`}>
             {data.map((entry, i) => <Cell key={`cell-${i}`} fill={getChartColors(data.length)[i]} />)}
           </Pie>
           <Tooltip content={renderTooltip} />
@@ -477,10 +444,25 @@ const FormAnalytics = () => {
       const chartData = (questionData.responses || []).map(r => ({ name: r.option, value: r.count }));
       if (chartData.length === 0) return null;
       return (
-        <Card key={index} className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-          <QuestionHeader questionData={questionData} badgeText={questionData.type.replace('_', ' ')} index={index} badgeColor={badgeColor} />
-          <ChoiceChart data={chartData} />
-          <ChartFooter chartData={chartData} />
+        <Card key={index} className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm transition-shadow hover:shadow-md">
+          <div className="border-b border-slate-100 px-6 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className={`inline-flex rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${badgeColor === 'purple' ? 'bg-purple-50 text-purple-600' : 'bg-sky-50 text-sky-600'}`}>
+                  {questionData.type.replace('_', ' ')}
+                </span>
+                <h3 className="text-[15px] font-semibold text-slate-800">{getQuestionAnalyticsLabel(questionData, index)}</h3>
+              </div>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-600">{questionData.totalAnswered || 0} answered</span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-500">{questionData.totalNoAnswer || 0} not answered</span>
+              </div>
+            </div>
+          </div>
+          <div className="p-6">
+            <ChoiceChart data={chartData} />
+            <ChartFooter chartData={chartData} />
+          </div>
         </Card>
       );
     }
@@ -494,66 +476,117 @@ const FormAnalytics = () => {
       const avgRating = validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(1) : '-';
       if (chartData.length === 0) return null;
       return (
-        <Card key={index} className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-          <QuestionHeader questionData={questionData} badgeText="Rating" index={index} badgeColor={badgeColor} />
-          <div className="mb-4 flex items-center gap-2">
-            <span className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-sm font-bold text-amber-700 ring-1 ring-amber-200">
-              Avg {avgRating} / 5
-            </span>
-            <span className="text-xs text-slate-400">excluding not answered</span>
+        <Card key={index} className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm transition-shadow hover:shadow-md">
+          <div className="border-b border-slate-100 px-6 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex rounded-lg bg-amber-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-600">
+                  Rating
+                </span>
+                <h3 className="text-[15px] font-semibold text-slate-800">{getQuestionAnalyticsLabel(questionData, index)}</h3>
+              </div>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 font-bold text-amber-600">
+                  <svg className="h-3.5 w-3.5 fill-amber-400" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                  Avg {avgRating} / 5
+                </span>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-600">{questionData.totalAnswered || 0} answered</span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-500">{questionData.totalNoAnswer || 0} not answered</span>
+              </div>
+            </div>
           </div>
-          <RatingChart data={chartData} />
-          <ChartFooter chartData={chartData} />
+          <div className="p-6">
+            <RatingChart data={chartData} />
+            <ChartFooter chartData={chartData} />
+          </div>
         </Card>
       );
     }
 
     if ((questionData.responses || []).length === 0 && (questionData.totalNoAnswer || 0) > 0) {
       return (
-        <Card key={index} className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-          <QuestionHeader questionData={questionData} badgeText={questionData.type.replace('_', ' ')} index={index} badgeColor={badgeColor} />
+        <Card key={index} className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
+          <div className="mb-3 flex items-center gap-3">
+            <span className={`inline-flex rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${badgeColor === 'purple' ? 'bg-purple-50 text-purple-600' : 'bg-sky-50 text-sky-600'}`}>
+              {questionData.type.replace('_', ' ')}
+            </span>
+            <h3 className="text-[15px] font-semibold text-slate-800">{getQuestionAnalyticsLabel(questionData, index)}</h3>
+          </div>
           <p className="text-sm italic text-slate-400">No responses provided.</p>
         </Card>
       );
     }
 
     return (
-      <Card key={index} className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-        <QuestionHeader questionData={questionData} badgeText={questionData.type.replace('_', ' ')} index={index} badgeColor={badgeColor} />
-        <div className="grid gap-2 sm:grid-cols-2">
-          {(questionData.responses || []).map((response, idx) => (
-            <div key={idx} className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
-              <p className="text-sm text-slate-700">{response}</p>
+      <Card key={index} className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm transition-shadow hover:shadow-md">
+        <div className="border-b border-slate-100 px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className={`inline-flex rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${badgeColor === 'purple' ? 'bg-purple-50 text-purple-600' : 'bg-sky-50 text-sky-600'}`}>
+                {questionData.type.replace('_', ' ')}
+              </span>
+              <h3 className="text-[15px] font-semibold text-slate-800">{getQuestionAnalyticsLabel(questionData, index)}</h3>
             </div>
-          ))}
+            <div className="flex items-center gap-3 text-xs">
+              <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-600">{questionData.totalAnswered || 0} answered</span>
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-500">{questionData.totalNoAnswer || 0} not answered</span>
+            </div>
+          </div>
+        </div>
+        <div className="p-6">
+          <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Responses</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(questionData.responses || []).map((response, idx) => (
+                <div key={idx} className="rounded-lg bg-white p-3 ring-1 ring-slate-100">
+                  <p className="text-sm text-slate-700">{response}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </Card>
     );
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl">
-        <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-          <Button variant="ghost" onClick={goBack} className="text-slate-600">
-            <ArrowLeft className="mr-2 h-4 w-4" /> {backState?.project_id ? 'Back' : 'Dashboard'}
-          </Button>
-          {totalResponses > 0 && (
-            <Button variant="outline" onClick={downloadAnalyticsCSV} className="border-cyan-300 text-cyan-700 hover:bg-cyan-50">
-              <Download className="mr-2 h-4 w-4" /> Download CSV
+    <div className="min-h-screen bg-slate-50/80">
+      <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={goBack} className="gap-1.5 text-slate-500 hover:text-slate-900">
+              <ArrowLeft className="h-4 w-4" />
+              {backState?.project_id ? 'Back' : 'Dashboard'}
             </Button>
-          )}
+            <div className="h-5 w-px bg-slate-200" />
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-semibold text-slate-900">{form.title}</h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {totalResponses > 0 && (
+              <span className="hidden rounded-full bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-600 ring-1 ring-cyan-100 sm:inline-flex">
+                {totalResponses} {totalResponses === 1 ? 'response' : 'responses'}
+              </span>
+            )}
+            {totalResponses > 0 && (
+              <Button variant="outline" size="sm" onClick={downloadAnalyticsCSV} className="gap-1.5 border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900">
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Export CSV</span>
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
-      <div ref={exportRef} className="px-4 py-8 sm:px-6 lg:px-8">
+      <div ref={exportRef} className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <section className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
-          <p className="mb-1 text-sm font-medium uppercase tracking-[0.2em] text-cyan-300">Analytics overview</p>
-          <h2 className="mb-2 text-2xl font-bold sm:text-3xl">{form.title}</h2>
+          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-500/15 blur-3xl" />
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Analytics Overview</p>
+          <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{form.title}</h2>
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 font-medium text-white ring-1 ring-white/20">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 font-medium text-white/90 ring-1 ring-white/10">
               <BarChart3 className="h-3.5 w-3.5" />
               {totalResponses} {totalResponses === 1 ? 'submission' : 'submissions'}
             </span>
@@ -561,22 +594,35 @@ const FormAnalytics = () => {
         </section>
 
         {totalResponses > 0 && (
-          <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatCard label="Total Submissions" value={totalResponses} tint="text-cyan-600" />
-            <StatCard label="Questions Analyzed" value={allAnalyticsData.length} tint="text-blue-600" />
-            <StatCard label="Demographics" value={demographicsData.length} tint="text-purple-600" />
-            <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm">
+          <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-5">
+            <Card className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Responses</p>
+              <p className="mt-1.5 text-3xl font-bold text-cyan-600">{totalResponses}</p>
+            </Card>
+            <Card className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Beneficiaries</p>
+              <p className="mt-1.5 text-3xl font-bold text-emerald-600">{totalBeneficiaries}</p>
+            </Card>
+            <Card className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Non-Beneficiaries</p>
+              <p className="mt-1.5 text-3xl font-bold text-violet-600">{totalNonBeneficiaries}</p>
+            </Card>
+            <Card className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Questions</p>
+              <p className="mt-1.5 text-3xl font-bold text-blue-600">{allAnalyticsData.length}</p>
+            </Card>
+            <div className="flex items-stretch rounded-2xl border border-slate-200/60 bg-white p-1.5 shadow-sm">
               <button
                 type="button"
                 onClick={() => setChartType('bar')}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-3 text-sm font-semibold transition ${chartType === 'bar' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${chartType === 'bar' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
               >
                 <ChartColumnBig className="h-4 w-4" /> Bar
               </button>
               <button
                 type="button"
                 onClick={() => setChartType('pie')}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-3 text-sm font-semibold transition ${chartType === 'pie' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${chartType === 'pie' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
               >
                 <ChartPie className="h-4 w-4" /> Pie
               </button>
@@ -585,100 +631,105 @@ const FormAnalytics = () => {
         )}
 
         {totalResponses === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
-            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 to-blue-100 text-cyan-600">
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center shadow-sm">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 text-slate-400">
               <Inbox className="h-10 w-10" />
             </div>
-            <h3 className="mb-2 text-xl font-bold text-slate-900">No data to analyze yet</h3>
-            <p className="mx-auto max-w-md text-sm text-slate-500">
-              Share your form and start collecting responses — analytics will appear here automatically.
+            <h3 className="mb-2 text-xl font-bold text-slate-900">No responses yet</h3>
+            <p className="mx-auto max-w-sm text-sm leading-relaxed text-slate-400">
+              Share your form and start collecting responses. Analytics will appear here automatically once data comes in.
             </p>
           </div>
         ) : (
-          <div className="space-y-10">
-            {/* Demographics Section */}
+          <div className="space-y-12">
             {demographicsData.length > 0 && (
               <div>
                 <div className="mb-6 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
-                    <User className="h-5 w-5" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
+                    <User className="h-4.5 w-4.5" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-slate-900">Demographics</h2>
-                    <p className="text-sm text-slate-500">Respondent information and profile data</p>
+                    <h2 className="text-lg font-bold text-slate-900">Demographics</h2>
+                    <p className="text-xs text-slate-400">Respondent information and profile data</p>
                   </div>
                 </div>
 
-                {/* Profile Photos Gallery */}
                 {profilePhotos.length > 0 && (
-                  <Card className="mb-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-                    <div className="mb-4 flex items-center gap-2">
-                      <Camera className="h-4 w-4 text-purple-600" />
-                      <h3 className="text-lg font-bold text-slate-900">Profile Photos ({profilePhotos.length})</h3>
+                  <Card className="mb-6 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+                    <div className="border-b border-slate-100 px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Camera className="h-4 w-4 text-purple-500" />
+                        <h3 className="text-sm font-bold text-slate-800">Profile Photos</h3>
+                        <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-600">{profilePhotos.length}</span>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                      {profilePhotos.map((photo, idx) => (
-                        <div key={idx} className="group relative">
-                          <div className="aspect-square overflow-hidden rounded-2xl border-2 border-slate-200 bg-slate-100 shadow-sm transition group-hover:border-cyan-400 group-hover:shadow-md">
-                            <img
-                              src={photo.photoUrl}
-                              alt={photo.respondentName}
-                              className="h-full w-full object-cover"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'flex';
-                              }}
-                            />
-                            <div className="hidden h-full w-full items-center justify-center bg-slate-100">
-                              <User className="h-8 w-8 text-slate-300" />
+                    <div className="p-6">
+                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                        {profilePhotos.map((photo, idx) => (
+                          <div key={idx} className="group relative">
+                            <div className="aspect-square overflow-hidden rounded-2xl border-2 border-slate-100 bg-slate-50 transition-all group-hover:border-cyan-300 group-hover:shadow-md">
+                              <img
+                                src={photo.photoUrl}
+                                alt={photo.respondentName}
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'flex';
+                                }}
+                              />
+                              <div className="hidden h-full w-full items-center justify-center bg-slate-50">
+                                <User className="h-8 w-8 text-slate-200" />
+                              </div>
                             </div>
+                            <p className="mt-2 truncate text-center text-xs font-medium text-slate-600">{photo.respondentName}</p>
+                            {photo.respondentId && (
+                              <p className="truncate text-center text-[10px] text-slate-300">{photo.respondentId}</p>
+                            )}
                           </div>
-                          <p className="mt-2 truncate text-center text-xs font-medium text-slate-600">{photo.respondentName}</p>
-                          {photo.respondentId && (
-                            <p className="truncate text-center text-[10px] text-slate-400">{photo.respondentId}</p>
-                          )}
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </Card>
                 )}
 
-                {/* Location Distribution */}
                 {locationChartData.length > 0 && (
-                  <Card className="mb-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-                    <div className="mb-4 flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-emerald-600" />
-                      <h3 className="text-lg font-bold text-slate-900">Location Distribution</h3>
+                  <Card className="mb-6 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+                    <div className="border-b border-slate-100 px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-emerald-500" />
+                        <h3 className="text-sm font-bold text-slate-800">Location Distribution</h3>
+                      </div>
                     </div>
-                    <ResponsiveContainer width="100%" height={Math.max(200, locationChartData.length * 35)}>
-                      {chartType === 'bar' ? (
-                        <BarChart data={locationChartData} layout="vertical" margin={{ top: 5, right: 20, left: 120, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis type="number" tick={{ fill: '#64748b' }} />
-                          <YAxis dataKey="name" type="category" tick={{ fill: '#64748b', fontSize: 12 }} width={110} />
-                          <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(14, 165, 233, 0.06)' }} />
-                          <Bar dataKey="value" name="Count" radius={[0, 8, 8, 0]}>
-                            {locationChartData.map((entry, i) => (
-                              <Cell key={`cell-${i}`} fill={entry.type === 'Province' ? '#8b5cf6' : '#0ea5e9'} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      ) : (
-                        <PieChart>
-                          <Pie data={locationChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={4} labelLine={false} label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>
-                            {locationChartData.map((entry, i) => (
-                              <Cell key={`cell-${i}`} fill={entry.type === 'Province' ? '#8b5cf6' : '#0ea5e9'} />
-                            ))}
-                          </Pie>
-                          <Tooltip content={renderTooltip} />
-                          <Legend layout="vertical" verticalAlign="middle" align="right" iconType="circle" />
-                        </PieChart>
-                      )}
-                    </ResponsiveContainer>
+                    <div className="p-6">
+                      <ResponsiveContainer width="100%" height={Math.max(200, locationChartData.length * 35)}>
+                        {chartType === 'bar' ? (
+                          <BarChart data={locationChartData} layout="vertical" margin={{ top: 5, right: 20, left: 120, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                            <YAxis dataKey="name" type="category" tick={{ fill: '#64748b', fontSize: 11 }} width={110} axisLine={false} tickLine={false} />
+                            <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(14, 165, 233, 0.04)' }} />
+                            <Bar dataKey="value" name="Count" radius={[0, 6, 6, 0]} maxBarSize={28}>
+                              {locationChartData.map((entry, i) => (
+                                <Cell key={`cell-${i}`} fill={entry.type === 'Province' ? '#8b5cf6' : '#0ea5e9'} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        ) : (
+                          <PieChart>
+                            <Pie data={locationChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={65} outerRadius={105} paddingAngle={3} labelLine={false} label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>
+                              {locationChartData.map((entry, i) => (
+                                <Cell key={`cell-${i}`} fill={entry.type === 'Province' ? '#8b5cf6' : '#0ea5e9'} />
+                              ))}
+                            </Pie>
+                            <Tooltip content={renderTooltip} />
+                            <Legend layout="vertical" verticalAlign="middle" align="right" iconType="circle" />
+                          </PieChart>
+                        )}
+                      </ResponsiveContainer>
+                    </div>
                   </Card>
                 )}
 
-                {/* Demographics Questions */}
                 <div className="space-y-6">
                   {demographicsData.map((questionData, index) =>
                     renderQuestionChart(questionData, index, 'purple')
@@ -687,16 +738,15 @@ const FormAnalytics = () => {
               </div>
             )}
 
-            {/* Questionnaire Section */}
             {questionnaireData.length > 0 && (
               <div>
                 <div className="mb-6 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-100 text-cyan-600">
-                    <BarChart3 className="h-5 w-5" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+                    <BarChart3 className="h-4.5 w-4.5" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-slate-900">Questionnaire Results</h2>
-                    <p className="text-sm text-slate-500">Survey questions and response analytics</p>
+                    <h2 className="text-lg font-bold text-slate-900">Questionnaire Results</h2>
+                    <p className="text-xs text-slate-400">Survey questions and response analytics</p>
                   </div>
                 </div>
 
@@ -708,7 +758,6 @@ const FormAnalytics = () => {
               </div>
             )}
 
-            {/* If no section split worked, show all */}
             {demographicsData.length === 0 && questionnaireData.length === 0 && allAnalyticsData.length > 0 && (
               <div className="space-y-6">
                 {allAnalyticsData.map((questionData, index) =>
