@@ -122,6 +122,7 @@ const FormFill = () => {
   });
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [sections, setSections] = useState([]);
+  const stepsRef = useRef(null);
   const [existingResponses, setExistingResponses] = useState([]);
   const [submittedRespondentId, setSubmittedRespondentId] = useState(null);
 
@@ -305,6 +306,14 @@ const FormFill = () => {
   useEffect(() => {
     fetchForm();
   }, [fetchForm]);
+
+  useEffect(() => {
+    if (!stepsRef.current) return;
+    const active = stepsRef.current.querySelector('[data-active="true"]');
+    if (active) {
+      active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [currentSectionIndex]);
 
   const handleCheckboxChange = (questionId, option, checked) => {
     const current = answers[questionId] || [];
@@ -757,16 +766,26 @@ const FormFill = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">
       <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
         {/* Progress Steps */}
-        <div className="mb-8 rounded-2xl bg-white px-6 py-4 shadow-sm">
-          <div className="flex items-center justify-between">
+        <div className="mb-8 rounded-2xl bg-white px-4 py-4 shadow-sm sm:px-6">
+          <div
+            ref={stepsRef}
+            className="scrollbar-hide flex items-center gap-1 overflow-x-auto px-2 py-2"
+            style={{ scrollBehavior: 'smooth' }}
+          >
             {stepLabels.map((label, i) => {
               const isActive = i === currentSectionIndex;
               const isCompleted = i < currentSectionIndex;
+              const isCompact = sections.length > 8;
               return (
                 <React.Fragment key={i}>
-                  <div className="flex flex-col items-center gap-2">
+                  <div
+                    data-active={isActive ? 'true' : 'false'}
+                    className={`flex shrink-0 flex-col items-center ${isCompact ? 'gap-1' : 'gap-2'}`}
+                  >
                     <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold transition-all duration-300 ${
+                      className={`flex items-center justify-center rounded-full border-2 text-sm font-bold transition-all duration-300 ${
+                        isCompact ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm'
+                      } ${
                         isCompleted
                           ? 'border-emerald-500 bg-emerald-500 text-white'
                           : isActive
@@ -775,13 +794,15 @@ const FormFill = () => {
                       }`}
                     >
                       {isCompleted ? (
-                        <Check className="h-5 w-5" />
+                        <Check className={isCompact ? 'h-3.5 w-3.5' : 'h-5 w-5'} />
                       ) : (
                         i + 1
                       )}
                     </div>
                     <span
-                      className={`text-xs font-medium ${
+                      className={`max-w-[64px] truncate text-center font-medium ${
+                        isCompact ? 'text-[10px]' : 'text-xs'
+                      } ${
                         isActive
                           ? 'text-blue-600'
                           : isCompleted
@@ -793,9 +814,11 @@ const FormFill = () => {
                     </span>
                   </div>
                   {i < stepLabels.length - 1 && (
-                    <div className="mx-2 mb-6 flex-1">
+                    <div className={`mb-6 shrink-0 ${isCompact ? 'w-3' : 'mx-1 flex-1'}`}>
                       <div
-                        className={`h-0.5 rounded-full transition-all duration-500 ${
+                        className={`rounded-full transition-all duration-500 ${
+                          isCompact ? 'h-0.5 w-3' : 'h-0.5 w-full'
+                        } ${
                           i < currentSectionIndex
                             ? 'bg-emerald-400'
                             : i === currentSectionIndex
