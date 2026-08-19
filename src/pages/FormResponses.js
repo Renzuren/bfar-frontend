@@ -325,7 +325,7 @@ const FormResponses = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
             <button
               onClick={goBack}
@@ -348,7 +348,7 @@ const FormResponses = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {/* Page Title Banner */}
         <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
           <div className="relative px-6 py-5 sm:px-8">
@@ -365,8 +365,8 @@ const FormResponses = () => {
         </div>
 
         {/* Stats Row */}
-        <section className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Card className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition hover:shadow-md">
+        <section className="mb-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
+          <Card className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm transition hover:shadow-md">
             <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-cyan-50 opacity-0 transition group-hover:opacity-100" />
             <div className="relative flex items-center justify-between">
               <div>
@@ -379,7 +379,7 @@ const FormResponses = () => {
             </div>
           </Card>
 
-          <Card className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition hover:shadow-md">
+          <Card className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm transition hover:shadow-md">
             <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-emerald-50 opacity-0 transition group-hover:opacity-100" />
             <div className="relative flex items-center justify-between">
               <div>
@@ -392,7 +392,7 @@ const FormResponses = () => {
             </div>
           </Card>
 
-          <Card className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition hover:shadow-md">
+          <Card className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm transition hover:shadow-md">
             <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-amber-50 opacity-0 transition group-hover:opacity-100" />
             <div className="relative flex items-center justify-between">
               <div>
@@ -407,7 +407,7 @@ const FormResponses = () => {
         </section>
 
         {/* Controls Bar */}
-        <section className="mb-5 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm">
+        <section className="mb-5 rounded-2xl border border-slate-200/60 bg-white px-6 py-4 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -501,7 +501,7 @@ const FormResponses = () => {
         ) : (
           <>
             {/* Pagination Top Bar */}
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/60 bg-white px-4 py-3 shadow-sm">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/60 bg-white px-6 py-4 shadow-sm">
               <div className="flex items-center gap-2 text-sm text-slate-500">
                 <span>Rows per page:</span>
                 <Select value={rowsPerPage.toString()} onValueChange={(v) => { setRowsPerPage(Number(v)); setCurrentPage(1); }}>
@@ -529,13 +529,13 @@ const FormResponses = () => {
                 <table className="min-w-full divide-y divide-slate-200">
                   <thead>
                     <tr className="bg-slate-50/80">
-                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Submitted At</th>
-                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Respondent ID</th>
-                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Respondent Name</th>
-                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Municipality</th>
-                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Barangay</th>
-                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Province</th>
-                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Status</th>
+                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Submitted At</th>
+                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Respondent ID</th>
+                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Respondent Name</th>
+                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Municipality</th>
+                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Barangay</th>
+                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Province</th>
+                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Status</th>
                       {tableSections.map(section => (
                         <th key={section.id} colSpan={section.questions.length} className="sticky top-0 z-10 border-b border-slate-200 bg-slate-100/90 px-5 py-2.5 text-center text-xs font-bold text-slate-600 backdrop-blur-sm">
                           {section.title}
@@ -547,7 +547,7 @@ const FormResponses = () => {
                         section.questions.map((q, qIdx) => {
                           const isLastCol = (secIdx === tableSections.length - 1 && qIdx === section.questions.length - 1);
                           return (
-                            <th key={q.id} className={`sticky top-[37px] z-10 bg-slate-50/80 px-5 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 backdrop-blur-sm ${!isLastCol ? 'border-r border-slate-200/80' : ''}`}>
+                            <th key={q.id} className={`sticky top-[37px] z-10 bg-slate-50/80 px-6 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 backdrop-blur-sm ${!isLastCol ? 'border-r border-slate-200/80' : ''}`}>
                               <div className="max-w-[180px] truncate" title={getQuestionLabel(q, allQuestions.findIndex(qq => qq.id === q.id))}>
                                 {getQuestionLabel(q, allQuestions.findIndex(qq => qq.id === q.id))}
                               </div>
@@ -564,13 +564,13 @@ const FormResponses = () => {
                       const respondentId = getRespondentIdForRow(resp);
                       return (
                         <tr key={resp.id} className={`transition hover:bg-cyan-50/30 ${rowIdx % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'}`}>
-                          <td className="whitespace-nowrap px-5 py-3.5 text-sm text-slate-500">{submittedAt}</td>
-                          <td className="whitespace-nowrap px-5 py-3.5 text-sm font-semibold text-slate-900">{respondentId}</td>
-                          <td className="whitespace-nowrap px-5 py-3.5 text-sm font-medium text-slate-800">{resp.full_name || '—'}</td>
-                          <td className="whitespace-nowrap px-5 py-3.5 text-sm text-slate-600">{getLocationForRow(resp, 'municipality')}</td>
-                          <td className="whitespace-nowrap px-5 py-3.5 text-sm text-slate-600">{getLocationForRow(resp, 'barangay')}</td>
-                          <td className="whitespace-nowrap px-5 py-3.5 text-sm text-slate-600">{getLocationForRow(resp, 'province')}</td>
-                          <td className="whitespace-nowrap px-5 py-3.5">
+                          <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{submittedAt}</td>
+                          <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-900">{respondentId}</td>
+                          <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-800">{resp.full_name || '—'}</td>
+                          <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{getLocationForRow(resp, 'municipality')}</td>
+                          <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{getLocationForRow(resp, 'barangay')}</td>
+                          <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{getLocationForRow(resp, 'province')}</td>
+                          <td className="whitespace-nowrap px-6 py-4">
                             {status === 'Yes' ? (
                               <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200/60">
                                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Beneficiary
@@ -587,7 +587,7 @@ const FormResponses = () => {
                             const ans = getAnswerForQuestion(resp, q);
                             const hasRightBorder = sectionLastIndices.includes(colIdx);
                             return (
-                              <td key={q.id} className={`max-w-[180px] truncate px-5 py-3.5 text-sm text-slate-600 ${hasRightBorder ? 'border-r border-slate-200/80' : ''}`} title={formatAnswerForTable(ans)}>
+                              <td key={q.id} className={`max-w-[180px] truncate px-6 py-4 text-sm text-slate-600 ${hasRightBorder ? 'border-r border-slate-200/80' : ''}`} title={formatAnswerForTable(ans)}>
                                 {formatAnswerForTable(ans)}
                               </td>
                             );
