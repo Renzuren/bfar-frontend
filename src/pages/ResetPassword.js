@@ -60,7 +60,7 @@ const ResetPassword = () => {
           features: [],
         }}
       >
-        <div className="text-center">
+        <div className="text-left">
           <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100">
             <AlertTriangle className="h-8 w-8 text-amber-600" />
           </div>
@@ -146,7 +146,7 @@ const ResetPassword = () => {
         </Button>
       </form>
 
-      <p className="mt-8 text-center text-sm text-slate-500">
+      <p className="mt-8 text-left text-sm text-slate-500">
         <Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">
           Back to sign in
         </Link>
