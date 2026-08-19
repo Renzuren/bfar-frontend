@@ -672,7 +672,7 @@ const NarrativeReport = () => {
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto space-y-6 px-6 lg:px-8">
       <section className="relative overflow-hidden rounded-3xl bg-white shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900" />
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
