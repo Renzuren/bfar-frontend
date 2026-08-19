@@ -119,7 +119,7 @@ const VerifyResetCode = () => {
         </Button>
       </form>
 
-      <div className="mt-8 space-y-3 text-center text-sm text-slate-500">
+      <div className="mt-8 space-y-3 text-left text-sm text-slate-500">
         <p>
           Didn't receive a code?{' '}
           <Link to="/forgot-password" className="font-medium text-blue-600 hover:text-blue-700">
