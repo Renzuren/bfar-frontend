@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import {
@@ -17,6 +17,11 @@ import {
   MapPin,
   Camera,
   Users,
+  ArrowLeft,
+  Calendar,
+  TrendingUp,
+  ClipboardList,
+  Hash,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -96,6 +101,7 @@ const computeQuestionAnalytics = (responses, question) => {
 const NarrativeReport = () => {
   const outletCtx = useOutletContext();
   const project = outletCtx?.project;
+  const navigate = useNavigate();
   const reportRef = useRef(null);
   const [beforeForm, setBeforeForm] = useState(null);
   const [afterForm, setAfterForm] = useState(null);
@@ -150,7 +156,6 @@ const NarrativeReport = () => {
     return normalizeLocationCodes(qs).filter((q) => !isReservedField(q));
   }, [afterForm]);
 
-  // Separate demographics from questionnaire questions
   const { beforeDemographics, beforeQuestionnaire, afterDemographics, afterQuestionnaire } = useMemo(() => {
     const splitQuestions = (form, questions) => {
       if (!form) return { demographics: [], questionnaire: [] };
@@ -247,11 +252,10 @@ const NarrativeReport = () => {
     return paired;
   }, [beforeQuestionnaire, afterQuestionnaire, beforeResponses, afterResponses]);
 
-  // Demographics comparison data
   const demographicsComparison = useMemo(() => {
     const paired = [];
     beforeDemographics.forEach((bq) => {
-      if (bq.type === 'profile_photo') return; // skip photo type in comparison
+      if (bq.type === 'profile_photo') return;
       const aq = afterDemographics.find((a) => a.code === bq.code || a.title === bq.title);
       if (!aq) return;
       if (['multiple_choice', 'checkboxes', 'dropdown'].includes(bq.type)) {
@@ -289,7 +293,6 @@ const NarrativeReport = () => {
     return paired;
   }, [beforeDemographics, afterDemographics, beforeResponses, afterResponses]);
 
-  // Profile photos from both
   const beforeProfilePhotos = useMemo(() =>
     beforeResponses.filter(r => r.profile_photo_url).map(r => ({
       photoUrl: r.profile_photo_url,
@@ -306,7 +309,6 @@ const NarrativeReport = () => {
     })),
   [afterResponses]);
 
-  // Location distribution
   const locationComparison = useMemo(() => {
     const countBy = (responses, field) => {
       const counts = {};
@@ -400,6 +402,10 @@ const NarrativeReport = () => {
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const saveReport = async () => {
     try {
       const reportPayload = {
@@ -419,42 +425,73 @@ const NarrativeReport = () => {
     }
   };
 
+  const generatedDate = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
   if (loading || !project) {
     return (
-      <div className="flex items-center justify-center py-20 text-slate-500">
-        Loading report data...
+      <div className="space-y-6 p-1">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 animate-pulse rounded-xl bg-slate-200" />
+          <div className="space-y-2">
+            <div className="h-4 w-48 animate-pulse rounded-lg bg-slate-200" />
+            <div className="h-3 w-32 animate-pulse rounded-lg bg-slate-100" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-28 animate-pulse rounded-2xl bg-slate-100" />
+          ))}
+        </div>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="space-y-3">
+            <div className="h-6 w-64 animate-pulse rounded-lg bg-slate-200" />
+            <div className="h-72 w-full animate-pulse rounded-2xl bg-slate-100" />
+          </div>
+        ))}
       </div>
     );
   }
 
   if (!project.before_form || !project.after_form) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
-        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 to-blue-100 text-cyan-600">
-          <Inbox className="h-10 w-10" />
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-slate-100 to-slate-50 ring-1 ring-slate-200">
+          <Inbox className="h-12 w-12 text-slate-300" />
         </div>
-        <h3 className="mb-2 text-xl font-bold text-slate-900">Incomplete Data</h3>
-        <p className="mx-auto max-w-md text-sm text-slate-500">
+        <h3 className="mb-3 text-2xl font-bold text-slate-900">Incomplete Setup</h3>
+        <p className="max-w-md text-center text-sm leading-relaxed text-slate-500">
           {!project.before_form && !project.after_form
             ? 'Create both Before and After questionnaires to generate a narrative report.'
             : !project.before_form
-            ? 'Create the Before questionnaire first.'
-            : 'Create the After questionnaire to compare results.'}
+            ? 'Create the Before questionnaire first to begin comparison analysis.'
+            : 'Create the After questionnaire to compare results with the Before survey.'}
         </p>
+        <Button onClick={() => navigate(-1)} variant="outline" className="mt-6 rounded-xl">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Go Back
+        </Button>
       </div>
     );
   }
 
   if (comparisonData.length === 0 && beforeResponses.length === 0 && afterResponses.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
-        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 to-blue-100 text-cyan-600">
-          <Inbox className="h-10 w-10" />
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-slate-100 to-slate-50 ring-1 ring-slate-200">
+          <ClipboardList className="h-12 w-12 text-slate-300" />
         </div>
-        <h3 className="mb-2 text-xl font-bold text-slate-900">No responses yet</h3>
-        <p className="mx-auto max-w-md text-sm text-slate-500">
+        <h3 className="mb-3 text-2xl font-bold text-slate-900">No Responses Yet</h3>
+        <p className="max-w-md text-center text-sm leading-relaxed text-slate-500">
           Collect responses from both Before and After questionnaires to see comparison data here.
         </p>
+        <Button onClick={() => navigate(-1)} variant="outline" className="mt-6 rounded-xl">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Go Back
+        </Button>
       </div>
     );
   }
@@ -473,199 +510,271 @@ const NarrativeReport = () => {
         After: item.afterDistribution[rating] || 0,
       }));
 
+      const beforeBarData = distData.map((d) => ({ name: d.name, value: d.Before }));
+      const afterBarData = distData.map((d) => ({ name: d.name, value: d.After }));
+
       return (
-        <Card key={index} className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700 ring-1 ring-amber-100">
-                Rating
-              </span>
-              <h3 className="text-lg font-bold text-slate-900">{qLabel}</h3>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-center">
-                <p className="text-xs text-slate-400">Before</p>
-                <p className="text-lg font-bold text-indigo-600">{item.beforeAvg.toFixed(1)}</p>
+        <Card key={index} className="overflow-hidden rounded-2xl border-0 bg-white shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
+          <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white px-6 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200/50">
+                  <TrendingUp className="h-3 w-3" />
+                  Rating
+                </span>
+                <h3 className="text-base font-bold text-slate-900">{qLabel}</h3>
               </div>
-              <ChangeIcon className={`h-5 w-5 ${change.color}`} />
-              <div className="text-center">
-                <p className="text-xs text-slate-400">After</p>
-                <p className="text-lg font-bold text-emerald-600">{item.afterAvg.toFixed(1)}</p>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">Before</p>
+                  <p className="text-xl font-bold text-blue-600">{item.beforeAvg.toFixed(1)}</p>
+                </div>
+                <div className={`flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 ring-1 ring-slate-200/50 ${change.color}`}>
+                  <ChangeIcon className="h-4 w-4" />
+                </div>
+                <div className="text-left">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">After</p>
+                  <p className="text-xl font-bold text-teal-600">{item.afterAvg.toFixed(1)}</p>
+                </div>
               </div>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={distData} margin={{ top: 10, right: 20, left: -12, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 12 }} />
-              <YAxis tick={{ fill: '#64748b' }} />
-              <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(14, 165, 233, 0.06)' }} />
-              <Legend />
-              <Bar dataKey="Before" fill="#818cf8" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="After" fill="#34d399" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="p-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                  <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">Before</p>
+                </div>
+                <div className="rounded-xl bg-blue-50/40 p-4">
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={beforeBarData} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 11 }} />
+                      <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                      <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(59, 130, 246, 0.06)' }} />
+                      <Bar dataKey="value" name="Responses" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <div className="h-2.5 w-2.5 rounded-full bg-teal-500" />
+                  <p className="text-xs font-semibold uppercase tracking-wider text-teal-600">After</p>
+                </div>
+                <div className="rounded-xl bg-teal-50/40 p-4">
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={afterBarData} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#ccfbf1" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 11 }} />
+                      <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                      <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(20, 184, 166, 0.06)' }} />
+                      <Bar dataKey="value" name="Responses" fill="#14b8a6" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
         </Card>
       );
     }
 
+    const beforeBarData = item.data.map((d) => ({ option: d.option, value: parseFloat(d.before) }));
+    const afterBarData = item.data.map((d) => ({ option: d.option, value: parseFloat(d.after) }));
+
     return (
-      <Card key={index} className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <Card key={index} className="overflow-hidden rounded-2xl border-0 bg-white shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white px-6 py-4">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="inline-flex rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cyan-700 ring-1 ring-cyan-100">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-200/50">
+              <BarChart3 className="h-3 w-3" />
               {item.type.replace('_', ' ')}
             </span>
-            <h3 className="text-lg font-bold text-slate-900">{qLabel}</h3>
+            <h3 className="text-base font-bold text-slate-900">{qLabel}</h3>
           </div>
         </div>
 
-        {chartType === 'bar' ? (
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={item.data} margin={{ top: 10, right: 20, left: -12, bottom: 40 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="option" tick={{ fill: '#64748b', fontSize: 11 }} interval={0} angle={-30} textAnchor="end" height={60} />
-              <YAxis tick={{ fill: '#64748b' }} label={{ value: '%', position: 'insideTopLeft', offset: 10 }} />
-              <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(14, 165, 233, 0.06)' }} />
-              <Legend />
-              <Bar dataKey="before" name="Before" fill="#818cf8" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="after" name="After" fill="#34d399" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="grid grid-cols-2 gap-4">
+        <div className="p-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div>
-              <p className="mb-2 text-center text-sm font-semibold text-indigo-700">Before</p>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={item.data.map((d) => ({ name: d.option, value: parseInt(d.before) || 0 }))}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={90}
-                    paddingAngle={3}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    labelLine={false}
-                  >
-                    {item.data.map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="mb-3 flex items-center gap-2">
+                <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">Before</p>
+              </div>
+              <div className="rounded-xl bg-blue-50/40 p-4">
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={beforeBarData} margin={{ top: 10, right: 10, left: -10, bottom: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" vertical={false} />
+                    <XAxis dataKey="option" tick={{ fill: '#64748b', fontSize: 11 }} interval={0} angle={-30} textAnchor="end" height={60} />
+                    <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} label={{ value: '%', position: 'insideTopLeft', offset: 10 }} />
+                    <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(59, 130, 246, 0.06)' }} />
+                    <Bar dataKey="value" name="Before" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
             <div>
-              <p className="mb-2 text-center text-sm font-semibold text-emerald-700">After</p>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={item.data.map((d) => ({ name: d.option, value: parseInt(d.after) || 0 }))}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={90}
-                    paddingAngle={3}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    labelLine={false}
-                  >
-                    {item.data.map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="mb-3 flex items-center gap-2">
+                <div className="h-2.5 w-2.5 rounded-full bg-teal-500" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-teal-600">After</p>
+              </div>
+              <div className="rounded-xl bg-teal-50/40 p-4">
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={afterBarData} margin={{ top: 10, right: 10, left: -10, bottom: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#ccfbf1" vertical={false} />
+                    <XAxis dataKey="option" tick={{ fill: '#64748b', fontSize: 11 }} interval={0} angle={-30} textAnchor="end" height={60} />
+                    <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} label={{ value: '%', position: 'insideTopLeft', offset: 10 }} />
+                    <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(20, 184, 166, 0.06)' }} />
+                    <Bar dataKey="value" name="After" fill="#14b8a6" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
-        )}
 
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200">
-                <th className="px-4 py-2 text-left font-semibold text-slate-600">Option</th>
-                <th className="px-4 py-2 text-right font-semibold text-indigo-600">Before</th>
-                <th className="px-4 py-2 text-right font-semibold text-emerald-600">After</th>
-                <th className="px-4 py-2 text-right font-semibold text-slate-600">Change</th>
-              </tr>
-            </thead>
-            <tbody>
-              {item.data.map((d, i) => {
-                const diff = parseFloat(d.after) - parseFloat(d.before);
-                const diffColor = diff > 0 ? 'text-emerald-600' : diff < 0 ? 'text-rose-600' : 'text-slate-400';
-                return (
-                  <tr key={i} className="border-b border-slate-100">
-                    <td className="px-4 py-2 text-slate-800">{d.option}</td>
-                    <td className="px-4 py-2 text-right text-indigo-600">{d.before}% ({d.beforeCount})</td>
-                    <td className="px-4 py-2 text-right text-emerald-600">{d.after}% ({d.afterCount})</td>
-                    <td className={`px-4 py-2 text-right font-medium ${diffColor}`}>
-                      {diff > 0 ? '+' : ''}{diff.toFixed(1)}%
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="mt-6 overflow-x-auto rounded-xl ring-1 ring-slate-200/60">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50/80">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Option</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-blue-600">Before</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-teal-600">After</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Change</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {item.data.map((d, i) => {
+                  const diff = parseFloat(d.after) - parseFloat(d.before);
+                  const diffColor = diff > 0 ? 'text-emerald-600' : diff < 0 ? 'text-rose-600' : 'text-slate-400';
+                  const DiffIcon = diff > 0 ? ArrowUpRight : diff < 0 ? ArrowDownRight : Minus;
+                  return (
+                    <tr key={i} className="transition-colors hover:bg-slate-50/50">
+                      <td className="px-4 py-3 font-medium text-slate-800">{d.option}</td>
+                      <td className="px-4 py-3 text-right text-blue-600">{d.before}% <span className="text-blue-400/70">({d.beforeCount})</span></td>
+                      <td className="px-4 py-3 text-right text-teal-600">{d.after}% <span className="text-teal-400/70">({d.afterCount})</span></td>
+                      <td className={`px-4 py-3 text-right font-semibold ${diffColor}`}>
+                        <span className="inline-flex items-center gap-1">
+                          <DiffIcon className="h-3.5 w-3.5" />
+                          {diff > 0 ? '+' : ''}{diff.toFixed(1)}%
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </Card>
     );
   };
 
   return (
-    <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
-        <div className="relative">
-          <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-cyan-300">Narrative Report</p>
-          <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">{project.title}</h2>
-          <p className="max-w-2xl text-base text-slate-300">
-            Comparison of Before vs. After intervention results.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button onClick={generatePDF} disabled={generating} className="bg-cyan-500 text-white shadow-lg shadow-cyan-500/30 hover:bg-cyan-400">
-              <Download className="mr-2 h-4 w-4" />
-              {generating ? 'Generating...' : 'Download PDF'}
-            </Button>
-            <Button onClick={saveReport} className="bg-white/10 text-white ring-1 ring-white/20 backdrop-blur hover:bg-white/20">
-              <FileText className="mr-2 h-4 w-4" />
-              Save Report
-            </Button>
+    <div className="space-y-6">
+      <section className="relative overflow-hidden rounded-2xl bg-white shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900" />
+        <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-10 h-72 w-72 rounded-full bg-teal-400/10 blur-3xl" />
+        <div className="relative p-6 sm:p-8">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-white/60 transition hover:text-white/90"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Project
+              </button>
+              <div className="flex items-center gap-2.5">
+                <span className="inline-flex items-center rounded-full bg-blue-500/20 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-widest text-blue-300 ring-1 ring-blue-400/20">
+                  Narrative Report
+                </span>
+              </div>
+              <h1 className="mt-2 text-2xl font-bold text-white sm:text-3xl">{project.title}</h1>
+              <div className="mt-2 flex items-center gap-2 text-sm text-white/50">
+                <Calendar className="h-3.5 w-3.5" />
+                Generated {generatedDate}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                onClick={generatePDF}
+                disabled={generating}
+                className="rounded-xl bg-white text-slate-900 shadow-lg shadow-black/10 hover:bg-slate-50"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {generating ? 'Generating...' : 'Export PDF'}
+              </Button>
+              <Button
+                onClick={handlePrint}
+                variant="outline"
+                className="rounded-xl border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20"
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Print
+              </Button>
+            </div>
           </div>
         </div>
       </section>
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Before Responses</p>
-          <p className="mt-1.5 text-3xl font-bold text-indigo-600">{beforeResponses.length}</p>
+        <Card className="rounded-2xl border-0 bg-white p-5 shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 ring-1 ring-blue-200/50">
+              <ArrowDownRight className="h-4 w-4 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Before Responses</p>
+              <p className="text-2xl font-bold text-blue-600">{beforeResponses.length}</p>
+            </div>
+          </div>
         </Card>
-        <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">After Responses</p>
-          <p className="mt-1.5 text-3xl font-bold text-emerald-600">{afterResponses.length}</p>
+        <Card className="rounded-2xl border-0 bg-white p-5 shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 ring-1 ring-teal-200/50">
+              <ArrowUpRight className="h-4 w-4 text-teal-500" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">After Responses</p>
+              <p className="text-2xl font-bold text-teal-600">{afterResponses.length}</p>
+            </div>
+          </div>
         </Card>
-        <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Questions Compared</p>
-          <p className="mt-1.5 text-3xl font-bold text-cyan-600">{comparisonData.length}</p>
+        <Card className="rounded-2xl border-0 bg-white p-5 shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 ring-1 ring-violet-200/50">
+              <Hash className="h-4 w-4 text-violet-500" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Compared</p>
+              <p className="text-2xl font-bold text-violet-600">{comparisonData.length}</p>
+            </div>
+          </div>
         </Card>
-        <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm">
+        <div className="flex items-center gap-1 rounded-2xl border-0 bg-white p-1.5 shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
           <button
             type="button"
             onClick={() => setChartType('bar')}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-3 text-sm font-semibold transition ${chartType === 'bar' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
+              chartType === 'bar'
+                ? 'bg-slate-900 text-white shadow-md'
+                : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
+            }`}
           >
             <ChartColumnBig className="h-4 w-4" /> Bar
           </button>
           <button
             type="button"
             onClick={() => setChartType('pie')}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-3 text-sm font-semibold transition ${chartType === 'pie' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
+              chartType === 'pie'
+                ? 'bg-slate-900 text-white shadow-md'
+                : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
+            }`}
           >
             <ChartPie className="h-4 w-4" /> Pie
           </button>
@@ -673,102 +782,112 @@ const NarrativeReport = () => {
       </section>
 
       <div ref={reportRef} className="space-y-10">
-        {/* Demographics Comparison Section */}
         {hasDemographicsData && (
           <div>
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
-                <User className="h-5 w-5" />
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100">
+                <User className="h-4.5 w-4.5 text-violet-600" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Demographics Comparison</h2>
-                <p className="text-sm text-slate-500">Respondent profiles and location distribution</p>
+                <h2 className="text-lg font-bold text-slate-900">Demographics Comparison</h2>
+                <p className="text-xs text-slate-500">Respondent profiles and location distribution</p>
               </div>
             </div>
 
-            {/* Profile Photos Side by Side */}
             {(beforeProfilePhotos.length > 0 || afterProfilePhotos.length > 0) && (
-              <Card className="mb-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-                <div className="mb-4 flex items-center gap-2">
-                  <Camera className="h-4 w-4 text-purple-600" />
-                  <h3 className="text-lg font-bold text-slate-900">Profile Photos</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <p className="mb-3 text-sm font-semibold text-indigo-700">Before ({beforeProfilePhotos.length})</p>
-                    {beforeProfilePhotos.length === 0 ? (
-                      <p className="text-sm italic text-slate-400">No photos collected</p>
-                    ) : (
-                      <div className="grid grid-cols-3 gap-3">
-                        {beforeProfilePhotos.map((photo, idx) => (
-                          <div key={idx} className="text-center">
-                            <div className="aspect-square overflow-hidden rounded-xl border-2 border-indigo-200 bg-slate-100">
-                              <img src={photo.photoUrl} alt={photo.name} className="h-full w-full object-cover"
-                                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
-                              <div className="hidden h-full w-full items-center justify-center"><User className="h-6 w-6 text-slate-300" /></div>
-                            </div>
-                            <p className="mt-1 truncate text-[10px] text-slate-500">{photo.name}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+              <Card className="mb-6 overflow-hidden rounded-2xl border-0 bg-white shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
+                <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    <Camera className="h-4 w-4 text-violet-500" />
+                    <h3 className="text-base font-bold text-slate-900">Profile Photos</h3>
                   </div>
-                  <div>
-                    <p className="mb-3 text-sm font-semibold text-emerald-700">After ({afterProfilePhotos.length})</p>
-                    {afterProfilePhotos.length === 0 ? (
-                      <p className="text-sm italic text-slate-400">No photos collected</p>
-                    ) : (
-                      <div className="grid grid-cols-3 gap-3">
-                        {afterProfilePhotos.map((photo, idx) => (
-                          <div key={idx} className="text-center">
-                            <div className="aspect-square overflow-hidden rounded-xl border-2 border-emerald-200 bg-slate-100">
-                              <img src={photo.photoUrl} alt={photo.name} className="h-full w-full object-cover"
-                                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
-                              <div className="hidden h-full w-full items-center justify-center"><User className="h-6 w-6 text-slate-300" /></div>
-                            </div>
-                            <p className="mt-1 truncate text-[10px] text-slate-500">{photo.name}</p>
-                          </div>
-                        ))}
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div>
+                      <div className="mb-3 flex items-center gap-2">
+                        <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                        <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">Before ({beforeProfilePhotos.length})</p>
                       </div>
-                    )}
+                      {beforeProfilePhotos.length === 0 ? (
+                        <p className="rounded-xl bg-slate-50 py-8 text-center text-sm italic text-slate-400">No photos collected</p>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-3">
+                          {beforeProfilePhotos.map((photo, idx) => (
+                            <div key={idx} className="text-center">
+                              <div className="aspect-square overflow-hidden rounded-xl bg-slate-100 ring-1 ring-blue-200/50">
+                                <img src={photo.photoUrl} alt={photo.name} className="h-full w-full object-cover"
+                                  onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+                                <div className="hidden h-full w-full items-center justify-center"><User className="h-6 w-6 text-slate-300" /></div>
+                              </div>
+                              <p className="mt-1.5 truncate text-[10px] font-medium text-slate-500">{photo.name}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="mb-3 flex items-center gap-2">
+                        <div className="h-2.5 w-2.5 rounded-full bg-teal-500" />
+                        <p className="text-xs font-semibold uppercase tracking-wider text-teal-600">After ({afterProfilePhotos.length})</p>
+                      </div>
+                      {afterProfilePhotos.length === 0 ? (
+                        <p className="rounded-xl bg-slate-50 py-8 text-center text-sm italic text-slate-400">No photos collected</p>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-3">
+                          {afterProfilePhotos.map((photo, idx) => (
+                            <div key={idx} className="text-center">
+                              <div className="aspect-square overflow-hidden rounded-xl bg-slate-100 ring-1 ring-teal-200/50">
+                                <img src={photo.photoUrl} alt={photo.name} className="h-full w-full object-cover"
+                                  onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+                                <div className="hidden h-full w-full items-center justify-center"><User className="h-6 w-6 text-slate-300" /></div>
+                              </div>
+                              <p className="mt-1.5 truncate text-[10px] font-medium text-slate-500">{photo.name}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </Card>
             )}
 
-            {/* Location Distribution */}
             {locationComparison.provinces.length > 0 && (
-              <Card className="mb-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-                <div className="mb-4 flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-emerald-600" />
-                  <h3 className="text-lg font-bold text-slate-900">Location Distribution</h3>
+              <Card className="mb-6 overflow-hidden rounded-2xl border-0 bg-white shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
+                <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-teal-500" />
+                    <h3 className="text-base font-bold text-slate-900">Location Distribution</h3>
+                  </div>
                 </div>
-                <div className="space-y-6">
+                <div className="space-y-6 p-6">
                   {[
                     { label: 'Provinces', data: locationComparison.provinces },
                     { label: 'Municipalities', data: locationComparison.municipalities },
                     { label: 'Barangays', data: locationComparison.barangays },
                   ].filter(section => section.data.length > 0).map((section) => (
                     <div key={section.label}>
-                      <p className="mb-2 text-sm font-semibold text-slate-700">{section.label}</p>
-                      <ResponsiveContainer width="100%" height={Math.max(200, section.data.length * 30)}>
-                        <BarChart data={section.data} layout="vertical" margin={{ top: 5, right: 20, left: 100, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis type="number" tick={{ fill: '#64748b' }} />
-                          <YAxis dataKey="name" type="category" tick={{ fill: '#64748b', fontSize: 11 }} width={90} />
-                          <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(14, 165, 233, 0.06)' }} />
-                          <Legend />
-                          <Bar dataKey="Before" fill="#818cf8" radius={[0, 8, 8, 0]} />
-                          <Bar dataKey="After" fill="#34d399" radius={[0, 8, 8, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">{section.label}</p>
+                      <div className="rounded-xl bg-slate-50/50 p-4">
+                        <ResponsiveContainer width="100%" height={Math.max(180, section.data.length * 30)}>
+                          <BarChart data={section.data} layout="vertical" margin={{ top: 5, right: 20, left: 100, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                            <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                            <YAxis dataKey="name" type="category" tick={{ fill: '#64748b', fontSize: 11 }} width={90} />
+                            <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(14, 165, 233, 0.06)' }} />
+                            <Legend />
+                            <Bar dataKey="Before" fill="#3b82f6" radius={[0, 6, 6, 0]} />
+                            <Bar dataKey="After" fill="#14b8a6" radius={[0, 6, 6, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   ))}
                 </div>
               </Card>
             )}
 
-            {/* Demographics Questions Comparison */}
             {demographicsComparison.length > 0 && (
               <div className="space-y-6">
                 {demographicsComparison.map((item, index) => renderComparisonCard(item, index))}
@@ -777,16 +896,15 @@ const NarrativeReport = () => {
           </div>
         )}
 
-        {/* Questionnaire Comparison Section */}
         {comparisonData.length > 0 && (
           <div>
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-100 text-cyan-600">
-                <BarChart3 className="h-5 w-5" />
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100">
+                <BarChart3 className="h-4.5 w-4.5 text-blue-600" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Questionnaire Comparison</h2>
-                <p className="text-sm text-slate-500">Before vs. After survey question responses</p>
+                <h2 className="text-lg font-bold text-slate-900">Questionnaire Comparison</h2>
+                <p className="text-xs text-slate-500">Before vs. After survey question responses</p>
               </div>
             </div>
 
@@ -798,9 +916,17 @@ const NarrativeReport = () => {
       </div>
 
       {(comparisonData.length > 0 || hasDemographicsData) && (
-        <div className="flex justify-center">
-          <Button onClick={saveReport} className="bg-cyan-600 text-white hover:bg-cyan-700">
-            <FileText className="mr-2 h-4 w-4" /> Save This Report
+        <div className="flex flex-col items-center gap-3 border-t border-slate-200/60 pt-8 sm:flex-row sm:justify-center">
+          <Button onClick={saveReport} className="rounded-xl bg-slate-900 text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800">
+            <FileText className="mr-2 h-4 w-4" /> Save Report
+          </Button>
+          <Button onClick={generatePDF} disabled={generating} variant="outline" className="rounded-xl">
+            <Download className="mr-2 h-4 w-4" />
+            {generating ? 'Generating...' : 'Download PDF'}
+          </Button>
+          <Button onClick={handlePrint} variant="outline" className="rounded-xl">
+            <Printer className="mr-2 h-4 w-4" />
+            Print Report
           </Button>
         </div>
       )}
