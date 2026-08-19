@@ -43,7 +43,7 @@ const AuthLayout = ({ children, subtitle }) => {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex w-full items-center justify-center p-6 sm:p-10 lg:w-1/2">
+      <div className="flex w-full items-center justify-center p-8 sm:p-12 lg:w-1/2 lg:p-16">
         <div className="w-full max-w-md">
           {/* Mobile brand header */}
           <div className="mb-8 flex items-center gap-3 lg:hidden">
