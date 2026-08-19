@@ -32,9 +32,6 @@ const MLUpload = () => {
 
   const ML_API_URL = process.env.REACT_APP_ML_API_URL || 'http://localhost:8000';
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResults, setAnalysisResults] = useState(null);
   const [activeTab, setActiveTab] = useState('summary');
@@ -105,7 +102,7 @@ const MLUpload = () => {
           return rowObj;
         }).filter(row => Object.values(row).some(value => value.trim()));
         setCsvData(data);
-        setCurrentPage(1);
+        setShowPreview(true);
         setIsLoading(false);
       } catch (err) {
         setError('Failed to parse CSV');
@@ -141,10 +138,7 @@ const MLUpload = () => {
         const processedData = jsonData.slice(1).map(row => {
           const rowObj = {};
           headers.forEach((header, headerIndex) => {
-            const cellKey = Object.keys(row).find(key =>
-              row[key] !== undefined && row[key] !== null
-            );
-            const cellValue = cellKey ? row[cellKey] : '';
+            const cellValue = row[headerIndex];
             rowObj[header] = cellValue !== undefined && cellValue !== null
               ? cellValue.toString()
               : '';
@@ -152,7 +146,7 @@ const MLUpload = () => {
           return rowObj;
         }).filter(row => Object.values(row).some(value => value && value.toString().trim()));
         setCsvData(processedData);
-        setCurrentPage(1);
+        setShowPreview(true);
         setIsLoading(false);
       } catch (err) {
         setError(`Failed to parse XLSX: ${err.message}`);
@@ -1272,7 +1266,7 @@ const MLUpload = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {csvData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((row, rowIndex) => (
+                    {csvData.map((row, rowIndex) => (
                       <tr key={rowIndex} className="transition-colors hover:bg-slate-50/50">
                         {columns.map((column, colIndex) => (
                           <td key={colIndex} className="whitespace-nowrap px-6 py-3 text-sm text-slate-600">

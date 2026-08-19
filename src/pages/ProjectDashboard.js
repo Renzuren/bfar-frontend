@@ -12,7 +12,6 @@ import {
   Layers,
 } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
-import { useAuth } from '../context/AuthContext';
 
 const SIDEBAR_ITEMS = [
   {
@@ -47,8 +46,8 @@ const ProjectDashboard = () => {
   const { id } = useParams();
   const location = useLocation();
   const { fetchProject, currentProject, setCurrentProject } = useProject();
-  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -86,26 +85,39 @@ const ProjectDashboard = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-white border-r border-slate-200 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out lg:static lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        } ${sidebarCollapsed ? 'lg:w-[68px]' : 'lg:w-72'}`}
       >
         {/* Sidebar header */}
-        <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-6">
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-              Project
-            </p>
-            <h2 className="truncate text-sm font-bold text-slate-900">
-              {currentProject?.title || 'Loading...'}
-            </h2>
-          </div>
+        <div className={`flex items-center gap-3 border-b border-slate-100 ${sidebarCollapsed ? 'justify-center px-2 py-6' : 'px-6 py-6'}`}>
+          {!sidebarCollapsed && (
+            <>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  Project
+                </p>
+                <h2 className="truncate text-sm font-bold text-slate-900">
+                  {currentProject?.title || 'Loading...'}
+                </h2>
+              </div>
+            </>
+          )}
+          {sidebarCollapsed && (
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              title="Back to Dashboard"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+          )}
           <button
             onClick={() => setSidebarOpen(false)}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 lg:hidden"
@@ -115,7 +127,7 @@ const ProjectDashboard = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
+        <nav className="flex-1 overflow-y-auto px-2 py-4">
           <ul className="space-y-1">
             {SIDEBAR_ITEMS.map((item) => {
               const Icon = item.icon;
@@ -125,8 +137,11 @@ const ProjectDashboard = () => {
                   <NavLink
                     to={to}
                     onClick={() => setSidebarOpen(false)}
+                    title={sidebarCollapsed ? item.label : undefined}
                     className={({ isActive }) =>
-                      `group flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-150 ${
+                      `group relative flex items-center rounded-lg text-sm font-medium transition-all duration-150 ${
+                        sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-4 py-3'
+                      } ${
                         isActive
                           ? 'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100'
                           : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -143,7 +158,7 @@ const ProjectDashboard = () => {
                             isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'
                           }`}
                         />
-                        <span>{item.label}</span>
+                        {!sidebarCollapsed && <span>{item.label}</span>}
                       </>
                     )}
                   </NavLink>
@@ -154,17 +169,19 @@ const ProjectDashboard = () => {
         </nav>
 
         {/* Sidebar footer */}
-        <div className="border-t border-slate-100 px-6 py-6">
-          {currentProject?.description ? (
-            <p className="text-xs leading-relaxed text-slate-400">
-              {currentProject.description.length > 100
-                ? currentProject.description.slice(0, 100) + '...'
-                : currentProject.description}
-            </p>
-          ) : (
-            <p className="text-xs text-slate-300 italic">No description</p>
-          )}
-        </div>
+        {!sidebarCollapsed && (
+          <div className="border-t border-slate-100 px-6 py-6">
+            {currentProject?.description ? (
+              <p className="text-xs leading-relaxed text-slate-400">
+                {currentProject.description.length > 100
+                  ? currentProject.description.slice(0, 100) + '...'
+                  : currentProject.description}
+              </p>
+            ) : (
+              <p className="text-xs text-slate-300 italic">No description</p>
+            )}
+          </div>
+        )}
       </aside>
 
       {/* Main content area */}
@@ -178,6 +195,19 @@ const ProjectDashboard = () => {
               className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 lg:hidden"
             >
               <Menu className="h-5 w-5" />
+            </button>
+
+            {/* Desktop sidebar toggle */}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="hidden h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 lg:flex"
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
             </button>
 
             {/* Breadcrumb */}
@@ -221,13 +251,11 @@ const ProjectDashboard = () => {
 
         {/* Page content */}
         <main className="flex-1 px-6 py-6 lg:px-8">
-          <div className="max-w-7xl mx-auto">
           {isOverview ? (
             <ProjectOverview project={currentProject} />
           ) : (
             <Outlet context={{ project: currentProject }} />
           )}
-          </div>
         </main>
       </div>
     </div>

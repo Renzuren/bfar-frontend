@@ -11,13 +11,11 @@ import {
   X,
   User,
   MapPin,
-  Calendar,
   Star,
   Loader2,
   CheckCircle2,
   AlertCircle,
   Upload,
-  Image as ImageIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -338,12 +336,14 @@ const FormFill = () => {
       toast.error('Image must be 5MB or smaller');
       return;
     }
+    if (profilePhotoPreview) URL.revokeObjectURL(profilePhotoPreview);
     setProfilePhotoFile(file);
     setProfilePhotoPreview(URL.createObjectURL(file));
     setPhotoAttempted(false);
   };
 
   const handlePhotoRemove = () => {
+    if (profilePhotoPreview) URL.revokeObjectURL(profilePhotoPreview);
     setProfilePhotoFile(null);
     setProfilePhotoPreview(null);
     setProfilePhotoUrl(null);
@@ -940,6 +940,105 @@ const FormFill = () => {
           {/* Demographics Section */}
           {currentSection?.section_type === 'demographics' && (
             <>
+              {/* Profile Photo Card */}
+              {profilePhotoQuestion && (
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-7">
+                  <div className="mb-5 flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 ring-1 ring-purple-100">
+                      <Camera className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">
+                        {profilePhotoQuestion.title || 'Profile Photo'}
+                        {profilePhotoQuestion.required && (
+                          <span className="ml-1 text-rose-500">*</span>
+                        )}
+                      </h3>
+                      {profilePhotoQuestion.description && (
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {profilePhotoQuestion.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {profilePhotoPreview ? (
+                    <div className="flex items-center gap-5">
+                      <div className="relative">
+                        <img
+                          src={profilePhotoPreview}
+                          alt="Profile preview"
+                          className="h-28 w-28 rounded-2xl border-2 border-slate-200 object-cover shadow-md"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <p className="mb-3 text-sm font-medium text-slate-700">
+                          Photo ready for upload
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handlePhotoRemove}
+                          className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-600 transition hover:bg-rose-100"
+                        >
+                          <X className="h-4 w-4" />
+                          Remove & Choose Different
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png"
+                        onChange={handlePhotoSelect}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`flex w-full items-center justify-center gap-4 rounded-2xl border-2 border-dashed p-8 transition-all duration-200 ${
+                          photoAttempted
+                            ? 'border-rose-300 bg-rose-50/50 hover:border-rose-400'
+                            : 'border-slate-200 bg-slate-50/50 hover:border-blue-300 hover:bg-blue-50/50'
+                        }`}
+                      >
+                        <div
+                          className={`flex h-14 w-14 items-center justify-center rounded-2xl ${
+                            photoAttempted ? 'bg-rose-100' : 'bg-blue-100'
+                          }`}
+                        >
+                          <Upload
+                            className={`h-6 w-6 ${
+                              photoAttempted
+                                ? 'text-rose-500'
+                                : 'text-blue-500'
+                            }`}
+                          />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-semibold text-slate-700">
+                            Click to upload a photo
+                          </p>
+                          <p className="mt-0.5 text-xs text-slate-400">
+                            JPG, JPEG, or PNG — max 5MB
+                          </p>
+                        </div>
+                      </button>
+                      {photoAttempted && !profilePhotoFile && (
+                        <p
+                          role="alert"
+                          className="mt-2 flex items-center gap-1.5 text-sm font-medium text-rose-500"
+                        >
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          Profile photo is required
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Respondent Info Card */}
               <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-7">
                 <div className="mb-6 flex items-center gap-3 border-b border-slate-100 pb-5">
@@ -1101,105 +1200,6 @@ const FormFill = () => {
                   </div>
                 </div>
               </div>
-
-              {/* Profile Photo Card */}
-              {profilePhotoQuestion && (
-                <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-7">
-                  <div className="mb-5 flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 ring-1 ring-purple-100">
-                      <Camera className="h-4 w-4 text-purple-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-slate-900">
-                        {profilePhotoQuestion.title || 'Profile Photo'}
-                        {profilePhotoQuestion.required && (
-                          <span className="ml-1 text-rose-500">*</span>
-                        )}
-                      </h3>
-                      {profilePhotoQuestion.description && (
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          {profilePhotoQuestion.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {profilePhotoPreview ? (
-                    <div className="flex items-center gap-5">
-                      <div className="relative">
-                        <img
-                          src={profilePhotoPreview}
-                          alt="Profile preview"
-                          className="h-28 w-28 rounded-2xl border-2 border-slate-200 object-cover shadow-md"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <p className="mb-3 text-sm font-medium text-slate-700">
-                          Photo ready for upload
-                        </p>
-                        <button
-                          type="button"
-                          onClick={handlePhotoRemove}
-                          className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-600 transition hover:bg-rose-100"
-                        >
-                          <X className="h-4 w-4" />
-                          Remove & Choose Different
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/jpeg,image/jpg,image/png"
-                        onChange={handlePhotoSelect}
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className={`flex w-full items-center justify-center gap-4 rounded-2xl border-2 border-dashed p-8 transition-all duration-200 ${
-                          photoAttempted
-                            ? 'border-rose-300 bg-rose-50/50 hover:border-rose-400'
-                            : 'border-slate-200 bg-slate-50/50 hover:border-blue-300 hover:bg-blue-50/50'
-                        }`}
-                      >
-                        <div
-                          className={`flex h-14 w-14 items-center justify-center rounded-2xl ${
-                            photoAttempted ? 'bg-rose-100' : 'bg-blue-100'
-                          }`}
-                        >
-                          <Upload
-                            className={`h-6 w-6 ${
-                              photoAttempted
-                                ? 'text-rose-500'
-                                : 'text-blue-500'
-                            }`}
-                          />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm font-semibold text-slate-700">
-                            Click to upload a photo
-                          </p>
-                          <p className="mt-0.5 text-xs text-slate-400">
-                            JPG, JPEG, or PNG — max 5MB
-                          </p>
-                        </div>
-                      </button>
-                      {photoAttempted && !profilePhotoFile && (
-                        <p
-                          role="alert"
-                          className="mt-2 flex items-center gap-1.5 text-sm font-medium text-rose-500"
-                        >
-                          <AlertCircle className="h-3.5 w-3.5" />
-                          Profile photo is required
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Other Demographics Questions */}
               {(() => {
