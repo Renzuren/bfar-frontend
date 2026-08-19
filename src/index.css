@@ -1,119 +1,189 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;800&family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
+@layer base {
+  :root {
+    --background: 210 100% 99%;
+    --foreground: 210 100% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 210 100% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 100% 10%;
+    --primary: 210 100% 20%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 195 100% 47%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 6 93% 71%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 210 100% 20%;
+    --radius: 0.5rem;
+    --chart-1: 210 100% 20%;
+    --chart-2: 210 100% 30%;
+    --chart-3: 210 100% 40%;
+    --chart-4: 195 100% 47%;
+    --chart-5: 195 100% 60%;
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 0 0% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 0 0% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 212 100% 50%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
     margin: 0;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-        sans-serif;
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-}
-
-code {
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+  }
+  code {
     font-family: 'JetBrains Mono', source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
-}
-
-h1, h2, h3, h4, h5, h6 {
-    font-family: 'Manrope', sans-serif;
+  }
 }
 
 @layer base {
-    :root {
-        --background: 210 100% 99%;
-        --foreground: 210 100% 10%;
-        --card: 0 0% 100%;
-        --card-foreground: 210 100% 10%;
-        --popover: 0 0% 100%;
-        --popover-foreground: 210 100% 10%;
-        --primary: 210 100% 20%;
-        --primary-foreground: 0 0% 100%;
-        --secondary: 195 100% 47%;
-        --secondary-foreground: 0 0% 100%;
-        --muted: 210 40% 96.1%;
-        --muted-foreground: 215 16% 47%;
-        --accent: 6 93% 71%;
-        --accent-foreground: 0 0% 100%;
-        --destructive: 0 84.2% 60.2%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 214 32% 91%;
-        --input: 214 32% 91%;
-        --ring: 210 100% 20%;
-        --chart-1: 210 100% 20%;
-        --chart-2: 210 100% 30%;
-        --chart-3: 210 100% 40%;
-        --chart-4: 195 100% 47%;
-        --chart-5: 195 100% 60%;
-        --radius: 0.5rem;
-    }
-    .dark {
-        --background: 222 47% 11%;
-        --foreground: 0 0% 98%;
-        --card: 222 47% 11%;
-        --card-foreground: 0 0% 98%;
-        --popover: 222 47% 11%;
-        --popover-foreground: 0 0% 98%;
-        --primary: 0 0% 98%;
-        --primary-foreground: 222 47% 11%;
-        --secondary: 217 33% 17%;
-        --secondary-foreground: 0 0% 98%;
-        --muted: 217 33% 17%;
-        --muted-foreground: 215 20% 65%;
-        --accent: 217 33% 17%;
-        --accent-foreground: 0 0% 98%;
-        --destructive: 0 62.8% 30.6%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 217 33% 17%;
-        --input: 217 33% 17%;
-        --ring: 212 100% 50%;
-        --chart-1: 220 70% 50%;
-        --chart-2: 160 60% 45%;
-        --chart-3: 30 80% 55%;
-        --chart-4: 280 65% 60%;
-        --chart-5: 340 75% 55%;
-    }
+  [data-debug-wrapper="true"] {
+    display: contents !important;
+  }
+  [data-debug-wrapper="true"] > * {
+    margin-left: inherit;
+    margin-right: inherit;
+    margin-top: inherit;
+    margin-bottom: inherit;
+    padding-left: inherit;
+    padding-right: inherit;
+    padding-top: inherit;
+    padding-bottom: inherit;
+    column-gap: inherit;
+    row-gap: inherit;
+    gap: inherit;
+    border-left-width: inherit;
+    border-right-width: inherit;
+    border-top-width: inherit;
+    border-bottom-width: inherit;
+    border-left-style: inherit;
+    border-right-style: inherit;
+    border-top-style: inherit;
+    border-bottom-style: inherit;
+    border-left-color: inherit;
+    border-right-color: inherit;
+    border-top-color: inherit;
+    border-bottom-color: inherit;
+  }
 }
 
-@layer base {
-    * {
-        @apply border-border;
-    }
-    body {
-        @apply bg-background text-foreground;
-    }
+/* Smooth scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 #f1f5f9;
 }
 
-@layer base {
-    [data-debug-wrapper="true"] {
-        display: contents !important;
-    }
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
 
-    [data-debug-wrapper="true"] > * {
-        margin-left: inherit;
-        margin-right: inherit;
-        margin-top: inherit;
-        margin-bottom: inherit;
-        padding-left: inherit;
-        padding-right: inherit;
-        padding-top: inherit;
-        padding-bottom: inherit;
-        column-gap: inherit;
-        row-gap: inherit;
-        gap: inherit;
-        border-left-width: inherit;
-        border-right-width: inherit;
-        border-top-width: inherit;
-        border-bottom-width: inherit;
-        border-left-style: inherit;
-        border-right-style: inherit;
-        border-top-style: inherit;
-        border-bottom-style: inherit;
-        border-left-color: inherit;
-        border-right-color: inherit;
-        border-top-color: inherit;
-        border-bottom-color: inherit;
-    }
+*::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #94a3b8;
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #64748b;
+}
+
+/* Leaflet container fix */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 0.75rem;
+  z-index: 0;
+}
+
+/* Animation utilities */
+@layer utilities {
+  .fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+  }
+  .slide-up {
+    animation: slideUp 0.3s ease-out forwards;
+  }
+  .slide-right {
+    animation: slideRight 0.3s ease-out forwards;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideRight {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
