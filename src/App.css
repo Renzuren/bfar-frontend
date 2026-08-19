@@ -1,64 +1,64 @@
 .ocean-gradient {
-    background: linear-gradient(to bottom, #003366, #001a33);
+  background: linear-gradient(to bottom, #003366, #001a33);
 }
 
 .glass-card {
-    backdrop-filter: blur(12px);
-    background: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .btn-primary {
-    @apply bg-[#003366] hover:bg-[#002244] text-white rounded-lg px-6 py-3 font-medium transition-all shadow-lg hover:shadow-xl;
+  @apply bg-[#003366] hover:bg-[#002244] text-white rounded-lg px-6 py-3 font-medium transition-all shadow-lg hover:shadow-xl;
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
+  transform: translateY(-2px);
 }
 
 .btn-secondary {
-    @apply bg-white border border-slate-200 text-slate-900 hover:bg-slate-50 rounded-lg px-6 py-3 font-medium transition-all;
+  @apply bg-white border border-slate-200 text-slate-900 hover:bg-slate-50 rounded-lg px-6 py-3 font-medium transition-all;
 }
 
 .hero-section {
-    position: relative;
-    min-height: 100vh;
-    background-size: cover;
-    background-position: center;
+  position: relative;
+  min-height: 100vh;
+  background-size: cover;
+  background-position: center;
 }
 
 .hero-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(to bottom, rgba(0, 51, 102, 0.9), rgba(0, 26, 51, 0.95));
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to bottom, rgba(0, 51, 102, 0.9), rgba(0, 26, 51, 0.95));
 }
 
 .hero-content {
-    position: relative;
-    z-index: 1;
+  position: relative;
+  z-index: 1;
 }
 
 .form-input {
-    @apply flex h-12 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500;
+  @apply flex h-12 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500;
 }
 
 .form-input:focus-visible {
-    @apply outline-none ring-2 ring-[#003366] ring-offset-2;
+  @apply outline-none ring-2 ring-[#003366] ring-offset-2;
 }
 
 .dashboard-card {
-    @apply bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow duration-200 p-6;
+  @apply bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow duration-200 p-6;
 }
 
 .feature-card {
-    @apply bg-white/80 backdrop-blur-md rounded-2xl border border-white/50 shadow-xl p-8 transition-all duration-300;
+  @apply bg-white/80 backdrop-blur-md rounded-2xl border border-white/50 shadow-xl p-8 transition-all duration-300;
 }
 
 .feature-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 20px 40px rgba(0, 51, 102, 0.2);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 51, 102, 0.2);
 }
