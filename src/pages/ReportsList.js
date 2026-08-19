@@ -107,13 +107,13 @@ const ReportsList = () => {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8">
       {/* Hero Header */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 px-8 py-10 text-white shadow-2xl shadow-slate-900/20 sm:px-12 sm:py-12">
         <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-blue-400/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
-        <div className="relative">
-          <div className="mb-4 flex items-center gap-3">
+        <div className="relative text-left">
+          <div className="mb-4 flex items-center gap-3 text-left">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm">
               <ClipboardList className="h-6 w-6 text-blue-300" />
             </div>
@@ -122,7 +122,7 @@ const ReportsList = () => {
               <p className="mt-1 text-sm font-medium text-blue-300">Report Management</p>
             </div>
           </div>
-          <p className="max-w-2xl text-base text-slate-300">
+          <p className="max-w-2xl text-left text-base text-slate-300">
             View, manage, and download narrative reports generated for this project. 
             Track before and after response data with comprehensive insights.
           </p>
@@ -130,15 +130,15 @@ const ReportsList = () => {
       </section>
 
       {/* Stats Row */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <section className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <Card className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md">
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
               <FileText className="h-6 w-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Total Reports</p>
-              <p className="mt-1 text-3xl font-bold text-slate-900">{reports.length}</p>
+              <p className="text-left text-xs font-medium uppercase tracking-wide text-slate-400">Total Reports</p>
+              <p className="mt-1 text-left text-3xl font-bold text-slate-900">{reports.length}</p>
             </div>
           </div>
         </Card>
@@ -149,8 +149,8 @@ const ReportsList = () => {
               <Clock className="h-6 w-6 text-cyan-600" />
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Before Responses</p>
-              <p className="mt-1 text-3xl font-bold text-cyan-600">
+              <p className="text-left text-xs font-medium uppercase tracking-wide text-slate-400">Before Responses</p>
+              <p className="mt-1 text-left text-3xl font-bold text-cyan-600">
                 {project?.before_form ? 'Available' : 'None'}
               </p>
             </div>
@@ -163,8 +163,8 @@ const ReportsList = () => {
               <AlertCircle className="h-6 w-6 text-violet-600" />
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">After Responses</p>
-              <p className="mt-1 text-3xl font-bold text-violet-600">
+              <p className="text-left text-xs font-medium uppercase tracking-wide text-slate-400">After Responses</p>
+              <p className="mt-1 text-left text-3xl font-bold text-violet-600">
                 {project?.after_form ? 'Available' : 'None'}
               </p>
             </div>
@@ -192,7 +192,7 @@ const ReportsList = () => {
             </Button>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {reports.map((report) => (
               <Card
                 key={report.id}
@@ -212,7 +212,7 @@ const ReportsList = () => {
                   </div>
                   
                   {/* Report Title */}
-                  <h3 className="mb-2 text-lg font-bold text-slate-900 transition-colors group-hover:text-blue-900">
+                  <h3 className="mb-2 text-left text-lg font-bold text-slate-900 transition-colors group-hover:text-blue-900">
                     {report.title || 'Untitled Report'}
                   </h3>
                   
