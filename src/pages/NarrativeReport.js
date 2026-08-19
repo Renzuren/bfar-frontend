@@ -672,12 +672,12 @@ const NarrativeReport = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-2xl bg-white shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
+    <div className="mx-auto max-w-6xl space-y-6">
+      <section className="relative overflow-hidden rounded-3xl bg-white shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900" />
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-10 h-72 w-72 rounded-full bg-teal-400/10 blur-3xl" />
-        <div className="relative p-6 sm:p-8">
+        <div className="relative px-8 py-10 sm:px-12 sm:py-12">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
               <button
@@ -703,7 +703,7 @@ const NarrativeReport = () => {
               <Button
                 onClick={generatePDF}
                 disabled={generating}
-                className="rounded-xl bg-white text-slate-900 shadow-lg shadow-black/10 hover:bg-slate-50"
+                className="rounded-xl px-5 py-2.5 bg-white text-slate-900 shadow-lg shadow-black/10 hover:bg-slate-50"
               >
                 <Download className="mr-2 h-4 w-4" />
                 {generating ? 'Generating...' : 'Export PDF'}
@@ -711,7 +711,7 @@ const NarrativeReport = () => {
               <Button
                 onClick={handlePrint}
                 variant="outline"
-                className="rounded-xl border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20"
+                className="rounded-xl px-5 py-2.5 border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20"
               >
                 <Printer className="mr-2 h-4 w-4" />
                 Print
@@ -721,8 +721,8 @@ const NarrativeReport = () => {
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card className="rounded-2xl border-0 bg-white p-5 shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
+      <section className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+        <Card className="rounded-2xl border-0 bg-white p-6 shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 ring-1 ring-blue-200/50">
               <ArrowDownRight className="h-4 w-4 text-blue-500" />
@@ -733,7 +733,7 @@ const NarrativeReport = () => {
             </div>
           </div>
         </Card>
-        <Card className="rounded-2xl border-0 bg-white p-5 shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
+        <Card className="rounded-2xl border-0 bg-white p-6 shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 ring-1 ring-teal-200/50">
               <ArrowUpRight className="h-4 w-4 text-teal-500" />
@@ -744,7 +744,7 @@ const NarrativeReport = () => {
             </div>
           </div>
         </Card>
-        <Card className="rounded-2xl border-0 bg-white p-5 shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
+        <Card className="rounded-2xl border-0 bg-white p-6 shadow-md shadow-slate-200/60 ring-1 ring-slate-200/60">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 ring-1 ring-violet-200/50">
               <Hash className="h-4 w-4 text-violet-500" />
@@ -810,7 +810,7 @@ const NarrativeReport = () => {
                         <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">Before ({beforeProfilePhotos.length})</p>
                       </div>
                       {beforeProfilePhotos.length === 0 ? (
-                        <p className="rounded-xl bg-slate-50 py-8 text-center text-sm italic text-slate-400">No photos collected</p>
+                        <p className="rounded-xl bg-slate-50 py-8 text-left text-sm italic text-slate-400">No photos collected</p>
                       ) : (
                         <div className="grid grid-cols-3 gap-3">
                           {beforeProfilePhotos.map((photo, idx) => (
@@ -832,7 +832,7 @@ const NarrativeReport = () => {
                         <p className="text-xs font-semibold uppercase tracking-wider text-teal-600">After ({afterProfilePhotos.length})</p>
                       </div>
                       {afterProfilePhotos.length === 0 ? (
-                        <p className="rounded-xl bg-slate-50 py-8 text-center text-sm italic text-slate-400">No photos collected</p>
+                        <p className="rounded-xl bg-slate-50 py-8 text-left text-sm italic text-slate-400">No photos collected</p>
                       ) : (
                         <div className="grid grid-cols-3 gap-3">
                           {afterProfilePhotos.map((photo, idx) => (
@@ -917,14 +917,14 @@ const NarrativeReport = () => {
 
       {(comparisonData.length > 0 || hasDemographicsData) && (
         <div className="flex flex-col items-center gap-3 border-t border-slate-200/60 pt-8 sm:flex-row sm:justify-center">
-          <Button onClick={saveReport} className="rounded-xl bg-slate-900 text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800">
+          <Button onClick={saveReport} className="rounded-xl px-5 py-2.5 bg-slate-900 text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800">
             <FileText className="mr-2 h-4 w-4" /> Save Report
           </Button>
-          <Button onClick={generatePDF} disabled={generating} variant="outline" className="rounded-xl">
+          <Button onClick={generatePDF} disabled={generating} variant="outline" className="rounded-xl px-5 py-2.5">
             <Download className="mr-2 h-4 w-4" />
             {generating ? 'Generating...' : 'Download PDF'}
           </Button>
-          <Button onClick={handlePrint} variant="outline" className="rounded-xl">
+          <Button onClick={handlePrint} variant="outline" className="rounded-xl px-5 py-2.5">
             <Printer className="mr-2 h-4 w-4" />
             Print Report
           </Button>
