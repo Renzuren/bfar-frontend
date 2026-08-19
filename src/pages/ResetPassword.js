@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FileText, KeyRound, AlertTriangle } from 'lucide-react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { Lock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import axios from 'axios';
 import { api } from '../lib/apiMiddleware';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import AuthLayout from '../components/AuthLayout';
 
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
@@ -56,84 +53,105 @@ const ResetPassword = () => {
 
   if (!token) {
     return (
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-4">
-        <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-cyan-200/40 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-blue-200/40 blur-3xl" />
-        <div className="relative w-full max-w-md rounded-3xl border border-slate-200/80 bg-white p-10 text-center shadow-xl">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30">
-            <AlertTriangle className="h-10 w-10" />
+      <AuthLayout
+        subtitle={{
+          title: 'Link expired',
+          description: 'This password reset link is invalid or has expired. Request a new one to continue.',
+          features: [],
+        }}
+      >
+        <div className="text-center">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100">
+            <AlertTriangle className="h-8 w-8 text-amber-600" />
           </div>
-          <h2 className="mb-3 text-2xl font-bold text-slate-900">Invalid Reset Link</h2>
-          <p className="mb-8 text-slate-500">This password reset link is invalid or expired.</p>
-          <Button onClick={() => navigate('/forgot-password')} className="w-full bg-cyan-600 text-white shadow-lg shadow-cyan-600/20 hover:bg-cyan-700">
-            Request New Link
+          <h2 className="text-2xl font-bold text-slate-900">Invalid reset link</h2>
+          <p className="mt-2 text-sm text-slate-500">
+            This password reset link is invalid or has expired.
+          </p>
+          <Button
+            onClick={() => navigate('/forgot-password')}
+            className="mt-8 h-12 w-full rounded-xl bg-slate-900 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            Request new link
           </Button>
         </div>
-      </div>
+      </AuthLayout>
     );
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-4">
-      <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-cyan-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-blue-200/40 blur-3xl" />
+    <AuthLayout
+      subtitle={{
+        title: 'Create a new\npassword',
+        description: 'Choose a strong password to secure your account.',
+        features: [
+          'At least 6 characters long',
+          'Mix of letters, numbers, and symbols recommended',
+          'Never share your password with others',
+        ],
+      }}
+    >
+      <h2 className="text-2xl font-bold tracking-tight text-slate-900">Set new password</h2>
+      <p className="mt-1.5 text-sm text-slate-500">Enter your new password below</p>
 
-      <div className="relative w-full max-w-md rounded-3xl border border-slate-200/80 bg-white p-8 shadow-xl sm:p-10">
-        <div className="mb-8 flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
-            <FileText className="h-7 w-7" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">General Assessment e-Forms</h1>
-            <p className="text-sm text-slate-500">Account security</p>
-          </div>
-        </div>
-
-        <div className="mb-6 flex items-start gap-3 rounded-2xl bg-cyan-50/70 p-4 ring-1 ring-cyan-100">
-          <KeyRound className="mt-0.5 h-5 w-5 shrink-0 text-cyan-600" />
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Set New Password</h2>
-            <p className="text-sm text-slate-500">Enter your new password below.</p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <Label htmlFor="password">New Password</Label>
+      <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+        <div>
+          <Label htmlFor="password" className="text-sm font-medium text-slate-700">New password</Label>
+          <div className="relative mt-1.5">
+            <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               id="password"
               type="password"
-              placeholder="••••••••"
+              placeholder="Min 6 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="h-12 rounded-xl border-slate-200 bg-white pl-11 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
               required
-              className="mt-2"
             />
           </div>
+        </div>
 
-          <div>
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
+        <div>
+          <Label htmlFor="confirmPassword" className="text-sm font-medium text-slate-700">Confirm password</Label>
+          <div className="relative mt-1.5">
+            <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               id="confirmPassword"
               type="password"
-              placeholder="••••••••"
+              placeholder="Re-enter password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
+              className="h-12 rounded-xl border-slate-200 bg-white pl-11 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
               required
-              className="mt-2"
             />
           </div>
+          {confirmPassword && password !== confirmPassword && (
+            <p className="mt-1.5 text-xs text-red-500">Passwords do not match</p>
+          )}
+        </div>
 
-          <Button
-            type="submit"
-            className="w-full bg-cyan-600 text-white shadow-lg shadow-cyan-600/20 hover:bg-cyan-700"
-            disabled={loading}
-          >
-            {loading ? 'Resetting...' : 'Reset Password'}
-          </Button>
-        </form>
-      </div>
-    </div>
+        <Button
+          type="submit"
+          className="h-12 w-full rounded-xl bg-slate-900 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={loading}
+        >
+          {loading ? (
+            <span className="inline-flex items-center gap-2">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              Resetting...
+            </span>
+          ) : (
+            'Reset password'
+          )}
+        </Button>
+      </form>
+
+      <p className="mt-8 text-center text-sm text-slate-500">
+        <Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">
+          Back to sign in
+        </Link>
+      </p>
+    </AuthLayout>
   );
 };
 
