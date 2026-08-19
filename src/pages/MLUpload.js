@@ -710,9 +710,9 @@ const MLUpload = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="px-4 pb-24 pt-0 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 pb-24 pt-0 sm:px-6 lg:px-8">
         <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
@@ -733,7 +733,7 @@ const MLUpload = () => {
                 const isActive = currentStep === step.id;
                 return (
                   <React.Fragment key={step.id}>
-                    <div className="flex items-center gap-2 rounded-full px-3 py-1.5 transition-colors">
+                    <div className="flex items-center gap-3 rounded-full px-3 py-1.5 transition-colors">
                       <span
                         className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
                           isCompleted
@@ -755,7 +755,7 @@ const MLUpload = () => {
                     </div>
                     {index < STEPS.length - 1 && (
                       <div
-                        className={`h-px w-6 transition-colors ${
+                        className={`h-px w-8 transition-colors ${
                           currentStep > step.id ? 'bg-emerald-300' : 'bg-slate-200'
                         }`}
                       />
@@ -773,7 +773,7 @@ const MLUpload = () => {
           </div>
         </header>
 
-        <div className="mx-auto max-w-7xl pt-6">
+        <div className="mx-auto max-w-6xl pt-6">
           {error && (
             <div className="mb-6 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               <AlertCircle className="h-4 w-4 shrink-0" />
@@ -949,7 +949,7 @@ const MLUpload = () => {
           )}
 
           {currentStep >= 2 && showPreview && csvData.length > 0 && (
-            <Card className="mb-6 border-slate-200 shadow-sm">
+            <Card className="mb-6 rounded-2xl overflow-hidden border-slate-200 shadow-sm">
               <CardContent className="p-0">
                 <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
                   <div className="flex items-center gap-3">
@@ -991,7 +991,7 @@ const MLUpload = () => {
                         {columns.map((column) => (
                           <th
                             key={column}
-                            className="whitespace-nowrap border-b border-slate-200 px-4 py-2.5 text-left font-semibold text-slate-600"
+                            className="whitespace-nowrap border-b border-slate-200 px-6 py-4 text-left font-semibold text-slate-600"
                           >
                             {column}
                           </th>
@@ -1014,7 +1014,7 @@ const MLUpload = () => {
                                   ? 'B'
                                   : 'NB';
                               return (
-                                <td key={`${column}-${rowIndex}`} className="whitespace-nowrap px-4 py-2">
+                                <td key={`${column}-${rowIndex}`} className="whitespace-nowrap px-6 py-4">
                                   <span
                                     className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${
                                       normalizedGroup === 'B'
@@ -1029,7 +1029,7 @@ const MLUpload = () => {
                             }
                             if (name.includes('ses') && name.includes('a')) {
                               return (
-                                <td key={`${column}-${rowIndex}`} className="whitespace-nowrap px-4 py-2 font-mono text-slate-500">
+                                <td key={`${column}-${rowIndex}`} className="whitespace-nowrap px-6 py-4 font-mono text-slate-500">
                                   {normalized || '—'}
                                 </td>
                               );
@@ -1054,13 +1054,13 @@ const MLUpload = () => {
                                       : 'text-slate-500'
                                   : 'text-slate-500';
                               return (
-                                <td key={`${column}-${rowIndex}`} className={`whitespace-nowrap px-4 py-2 font-mono text-xs font-semibold ${color}`}>
+                                <td key={`${column}-${rowIndex}`} className={`whitespace-nowrap px-6 py-4 font-mono text-xs font-semibold ${color}`}>
                                   {normalized || '—'}{arrow}
                                 </td>
                               );
                             }
                             return (
-                              <td key={`${column}-${rowIndex}`} className="whitespace-nowrap px-4 py-2 text-slate-600">
+                              <td key={`${column}-${rowIndex}`} className="whitespace-nowrap px-6 py-4 text-slate-600">
                                 {normalized || '—'}
                               </td>
                             );
@@ -1119,7 +1119,7 @@ const MLUpload = () => {
             <>
               <RespondentAnalytics columns={columns} rows={csvData} analysis={analysisResults} />
 
-              <Card className="mt-6 border-slate-200 shadow-sm">
+              <Card className="mt-6 rounded-2xl border-slate-200 shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
