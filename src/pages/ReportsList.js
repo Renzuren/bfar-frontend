@@ -107,7 +107,7 @@ const ReportsList = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="mx-auto space-y-8 px-6 lg:px-8">
       {/* Hero Header */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 px-8 py-10 text-white shadow-2xl shadow-slate-900/20 sm:px-12 sm:py-12">
         <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-blue-400/20 blur-3xl" />
