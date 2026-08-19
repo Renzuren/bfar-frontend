@@ -66,7 +66,7 @@ const VerifyAccount = () => {
             <p className="mb-8 text-sm text-slate-500">{message}</p>
             <Button
               onClick={() => navigate('/login')}
-              className="w-full bg-cyan-600 text-white shadow-lg shadow-cyan-600/20 hover:bg-cyan-700"
+              className="h-12 w-full rounded-xl bg-cyan-600 text-sm font-semibold text-white shadow-lg shadow-cyan-600/20 hover:bg-cyan-700"
             >
               Go to Login
             </Button>
@@ -82,7 +82,7 @@ const VerifyAccount = () => {
             <p className="mb-8 text-sm text-slate-500">{message}</p>
             <Button
               onClick={() => navigate('/')}
-              className="w-full bg-slate-900 text-white hover:bg-slate-800"
+              className="h-12 w-full rounded-xl bg-slate-900 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
               Back to Home
             </Button>
