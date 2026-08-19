@@ -127,7 +127,7 @@ const BeforeTab = () => {
 
   if (!project?.before_form) {
     return (
-      <div className="max-w-5xl mx-auto space-y-8">
+      <div className="mx-auto space-y-8 px-6 lg:px-8">
         <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-600 via-blue-600 to-blue-700 px-8 py-10 text-white shadow-2xl shadow-blue-900/20 sm:px-12 sm:py-12">
           <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-300/20 blur-3xl" />
