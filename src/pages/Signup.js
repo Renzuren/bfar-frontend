@@ -90,7 +90,7 @@ const Signup = () => {
       <h2 className="text-2xl font-bold tracking-tight text-slate-900">Create your account</h2>
       <p className="mt-1.5 text-sm text-slate-500">Get started with your free account</p>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-4" data-testid="signup-form">
+      <form onSubmit={handleSubmit} className="mt-8 space-y-5" data-testid="signup-form">
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="firstName" className="text-sm font-medium text-slate-700">First Name</Label>
@@ -249,7 +249,7 @@ const Signup = () => {
         </Button>
       </form>
 
-      <p className="mt-8 text-center text-sm text-slate-500">
+      <p className="mt-8 text-left text-sm text-slate-500">
         Already have an account?{' '}
         <Link to="/login" data-testid="signup-login-link" className="font-medium text-blue-600 hover:text-blue-700">
           Sign in
