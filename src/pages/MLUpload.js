@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useMemo } from 'react';
+﻿import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +17,7 @@ import {
 import * as XLSX from 'xlsx';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, Cell, PieChart, Pie, ScatterChart, Scatter, LineChart, Line
+  ResponsiveContainer, Cell
 } from 'recharts';
 
 const MLUpload = () => {
@@ -48,8 +48,10 @@ const MLUpload = () => {
   const [saveName, setSaveName] = useState('');
   const [saveDescription, setSaveDescription] = useState('');
 
-  const [scrollPosition, setScrollPosition] = useState(0);
+  const scrollPositionRef = useRef(0);
+  const [tablePage, setTablePage] = useState(0);
   const tableRef = useRef(null);
+  const ROWS_PER_PAGE = 100;
 
   // ---------- File handling (unchanged) ----------
   const handleFileSelect = (event) => {
@@ -94,6 +96,7 @@ const MLUpload = () => {
         setColumns(headers);
         setTreatmentColumn('');
         setOutcomeColumn('');
+        setTablePage(0);
         const data = rows.slice(1).map(row => {
           const rowObj = {};
           headers.forEach((header, index) => {
@@ -135,6 +138,7 @@ const MLUpload = () => {
         setColumns(headers);
         setTreatmentColumn('');
         setOutcomeColumn('');
+        setTablePage(0);
         const processedData = jsonData.slice(1).map(row => {
           const rowObj = {};
           headers.forEach((header, headerIndex) => {
@@ -199,31 +203,27 @@ const MLUpload = () => {
   // Scroll helpers
   const handleScrollLeft = () => {
     if (tableRef.current) {
-      const newScrollPosition = Math.max(0, scrollPosition - 200);
+      const newScrollPosition = Math.max(0, scrollPositionRef.current - 200);
       tableRef.current.scrollLeft = newScrollPosition;
-      setScrollPosition(newScrollPosition);
+      scrollPositionRef.current = newScrollPosition;
     }
   };
   const handleScrollRight = () => {
     if (tableRef.current) {
       const maxScroll = tableRef.current.scrollWidth - tableRef.current.clientWidth;
-      const newScrollPosition = Math.min(maxScroll, scrollPosition + 200);
+      const newScrollPosition = Math.min(maxScroll, scrollPositionRef.current + 200);
       tableRef.current.scrollLeft = newScrollPosition;
-      setScrollPosition(newScrollPosition);
+      scrollPositionRef.current = newScrollPosition;
     }
   };
-  const handleTableScroll = (e) => {
-    const newScrollPosition = e.target.scrollLeft;
-    setScrollPosition(newScrollPosition);
-  };
-  const getMaxScroll = () => {
-    if (!tableRef.current) return 0;
-    return tableRef.current.scrollWidth - tableRef.current.clientWidth;
-  };
+  const handleTableScroll = useCallback((e) => {
+    scrollPositionRef.current = e.target.scrollLeft;
+  }, []);
   const getScrollPercentage = () => {
-    const maxScroll = getMaxScroll();
+    if (!tableRef.current) return 0;
+    const maxScroll = tableRef.current.scrollWidth - tableRef.current.clientWidth;
     if (maxScroll <= 0) return 0;
-    return Math.round((scrollPosition / maxScroll) * 100);
+    return Math.round((scrollPositionRef.current / maxScroll) * 100);
   };
 
   // ---------- Convert XLSX to CSV for backend ----------
@@ -351,85 +351,6 @@ const MLUpload = () => {
       importance: item.importance,
     }));
   };
-
-  // ---------- Auto-generated Data Insights ----------
-  const isNumeric = (values) => {
-    let numCount = 0;
-    const sample = values.filter(v => v !== '' && v !== null && v !== undefined).slice(0, 50);
-    if (sample.length === 0) return false;
-    for (const v of sample) { if (!isNaN(Number(v))) numCount++; }
-    return numCount / sample.length > 0.8;
-  };
-
-  const dataInsights = useMemo(() => {
-    if (csvData.length === 0 || columns.length === 0) return { distributions: [], correlations: [], numericColumns: [] };
-
-    const distributions = [];
-    const numericCols = [];
-    const MAX_BARS = 20;
-
-    for (const col of columns) {
-      const values = csvData.map(r => r[col]).filter(v => v !== '' && v !== null && v !== undefined);
-      if (values.length === 0) continue;
-
-      if (isNumeric(values)) {
-        numericCols.push(col);
-        const nums = values.map(Number).filter(n => !isNaN(n));
-        const min = Math.min(...nums);
-        const max = Math.max(...nums);
-        const binCount = Math.min(MAX_BARS, Math.ceil(Math.sqrt(nums.length)));
-        const step = (max - min) / binCount || 1;
-        const bins = Array(binCount).fill(null).map((_, i) => ({
-          range: `${(min + i * step).toFixed(1)}`,
-          count: 0,
-          binStart: min + i * step,
-          binEnd: min + (i + 1) * step,
-        }));
-        for (const n of nums) {
-          const idx = Math.min(Math.floor((n - min) / step), binCount - 1);
-          if (idx >= 0 && idx < binCount) bins[idx].count++;
-        }
-        distributions.push({ column: col, type: 'numeric', data: bins });
-      } else {
-        const freq = {};
-        for (const v of values) { freq[v] = (freq[v] || 0) + 1; }
-        const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
-        const top = sorted.slice(0, MAX_BARS).map(([label, count]) => ({
-          name: String(label).length > 18 ? String(label).slice(0, 16) + '…' : String(label),
-          fullName: String(label),
-          count,
-        }));
-        distributions.push({ column: col, type: 'categorical', data: top });
-      }
-    }
-
-    const correlations = [];
-    if (numericCols.length >= 2) {
-      const colsToUse = numericCols.slice(0, 8);
-      for (let i = 0; i < colsToUse.length; i++) {
-        for (let j = i + 1; j < colsToUse.length; j++) {
-          const aVals = csvData.map(r => Number(r[colsToUse[i]])).filter(n => !isNaN(n));
-          const bVals = csvData.map(r => Number(r[colsToUse[j]])).filter(n => !isNaN(n));
-          const len = Math.min(aVals.length, bVals.length);
-          if (len < 3) continue;
-          const a = aVals.slice(0, len), b = bVals.slice(0, len);
-          const meanA = a.reduce((s, v) => s + v, 0) / len;
-          const meanB = b.reduce((s, v) => s + v, 0) / len;
-          let num = 0, denA = 0, denB = 0;
-          for (let k = 0; k < len; k++) {
-            const da = a[k] - meanA, db = b[k] - meanB;
-            num += da * db; denA += da * da; denB += db * db;
-          }
-          const r = (denA && denB) ? num / Math.sqrt(denA * denB) : 0;
-          correlations.push({ col1: colsToUse[i], col2: colsToUse[j], r: Math.round(r * 1000) / 1000 });
-        }
-      }
-    }
-
-    return { distributions, correlations, numericColumns: numericCols };
-  }, [csvData, columns]);
-
-  const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
   // ---------- Render Summary (unchanged) ----------
   const renderSummary = () => {
@@ -1311,7 +1232,10 @@ const MLUpload = () => {
         </div>
 
         {/* Data Preview */}
-        {csvData.length > 0 && showPreview && (
+        {csvData.length > 0 && showPreview && (() => {
+          const totalPages = Math.ceil(csvData.length / ROWS_PER_PAGE);
+          const pageData = csvData.slice(tablePage * ROWS_PER_PAGE, (tablePage + 1) * ROWS_PER_PAGE);
+          return (
           <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
@@ -1322,18 +1246,18 @@ const MLUpload = () => {
               </div>
               {columns.length > 6 && (
                 <div className="flex items-center gap-1.5">
-                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleScrollLeft} disabled={scrollPosition <= 0}>
+                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleScrollLeft}>
                     <ChevronLeft className="h-3.5 w-3.5" />
                   </Button>
                   <span className="min-w-[60px] text-center text-xs text-slate-500">{getScrollPercentage()}%</span>
-                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleScrollRight} disabled={getScrollPercentage() >= 99}>
+                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleScrollRight}>
                     <ChevronRight className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               )}
             </div>
             <div className="overflow-x-auto">
-              <div className="h-96 overflow-y-auto" ref={tableRef} onScroll={handleTableScroll}>
+              <div className="max-h-96 overflow-y-auto" ref={tableRef} onScroll={handleTableScroll}>
                 <table className="w-full text-xs">
                   <thead className="sticky top-0 z-20 bg-slate-50">
                     <tr>
@@ -1345,7 +1269,7 @@ const MLUpload = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {csvData.map((row, rowIndex) => (
+                    {pageData.map((row, rowIndex) => (
                       <tr key={rowIndex} className="transition-colors hover:bg-slate-50/50">
                         {columns.map((column, colIndex) => (
                           <td key={colIndex} className="whitespace-nowrap px-6 py-3 text-sm text-slate-600">
@@ -1358,163 +1282,25 @@ const MLUpload = () => {
                 </table>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Auto-generated Data Insights Charts */}
-        {csvData.length > 0 && showPreview && !analysisResults && dataInsights.distributions.length > 0 && (
-          <div className="space-y-6">
-            {/* Distribution Charts */}
-            <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
-              <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50">
-                  <BarChart2 className="h-5 w-5 text-violet-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-900">Auto-Generated Distribution Charts</h3>
-                  <p className="text-xs text-slate-500">Detected {csvData.length.toLocaleString()} rows across {columns.length} columns</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-0 divide-x divide-y divide-slate-100">
-                {dataInsights.distributions.slice(0, 12).map((dist) => (
-                  <div key={dist.column} className="p-5">
-                    <div className="mb-3 flex items-center justify-between">
-                      <h4 className="text-xs font-semibold text-slate-700 truncate max-w-[200px]" title={dist.column}>{dist.column}</h4>
-                      <Badge variant="outline" className="text-[10px] text-slate-500 ml-2 shrink-0">
-                        {dist.type === 'numeric' ? 'Numeric' : 'Categorical'}
-                      </Badge>
-                    </div>
-                    <div className="h-40">
-                      <ResponsiveContainer width="100%" height="100%">
-                        {dist.type === 'numeric' ? (
-                          <BarChart data={dist.data} margin={{ top: 2, right: 4, bottom: 0, left: -20 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis dataKey="range" tick={{ fontSize: 8 }} interval={Math.floor(dist.data.length / 5)} />
-                            <YAxis tick={{ fontSize: 8 }} />
-                            <Tooltip
-                              content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                  const d = payload[0].payload;
-                                  return (
-                                    <div className="rounded-lg border border-slate-200 bg-white p-2 text-xs shadow-md">
-                                      <p className="font-medium text-slate-900">{d.binStart?.toFixed(1)} – {d.binEnd?.toFixed(1)}</p>
-                                      <p className="text-slate-600">Count: {d.count}</p>
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              }}
-                            />
-                            <Bar dataKey="count" fill="#8b5cf6" radius={[3, 3, 0, 0]} />
-                          </BarChart>
-                        ) : dist.data.length <= 8 ? (
-                          <PieChart>
-                            <Pie data={dist.data} dataKey="count" nameKey="fullName" cx="50%" cy="50%" outerRadius={55} innerRadius={25}>
-                              {dist.data.map((_, idx) => (
-                                <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip
-                              content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                  return (
-                                    <div className="rounded-lg border border-slate-200 bg-white p-2 text-xs shadow-md">
-                                      <p className="font-medium text-slate-900">{payload[0].payload.fullName}</p>
-                                      <p className="text-slate-600">Count: {payload[0].value}</p>
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              }}
-                            />
-                          </PieChart>
-                        ) : (
-                          <BarChart data={dist.data} margin={{ top: 2, right: 4, bottom: 0, left: -20 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis dataKey="name" tick={{ fontSize: 8 }} interval={0} angle={-30} textAnchor="end" height={40} />
-                            <YAxis tick={{ fontSize: 8 }} />
-                            <Tooltip
-                              content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                  return (
-                                    <div className="rounded-lg border border-slate-200 bg-white p-2 text-xs shadow-md">
-                                      <p className="font-medium text-slate-900">{payload[0].payload.fullName}</p>
-                                      <p className="text-slate-600">Count: {payload[0].value}</p>
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              }}
-                            />
-                            <Bar dataKey="count" fill="#3b82f6" radius={[3, 3, 0, 0]} />
-                          </BarChart>
-                        )}
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Correlation Matrix */}
-            {dataInsights.correlations.length > 0 && (
-              <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
-                <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50">
-                    <TrendingUp className="h-5 w-5 text-cyan-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-900">Correlation Matrix</h3>
-                    <p className="text-xs text-slate-500">{dataInsights.correlations.length} numeric column pairs detected</p>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <div className="h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={dataInsights.correlations
-                          .sort((a, b) => Math.abs(b.r) - Math.abs(a.r))
-                          .slice(0, 20)
-                          .map(c => ({
-                            name: `${c.col1.slice(0, 10)}×${c.col2.slice(0, 10)}`,
-                            fullName: `${c.col1} × ${c.col2}`,
-                            r: c.r,
-                          }))}
-                        margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis dataKey="name" tick={{ fontSize: 9 }} angle={-25} textAnchor="end" height={50} />
-                        <YAxis domain={[-1, 1]} tick={{ fontSize: 9 }} />
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
-                              const d = payload[0].payload;
-                              return (
-                                <div className="rounded-lg border border-slate-200 bg-white p-2.5 text-xs shadow-md">
-                                  <p className="font-medium text-slate-900">{d.fullName}</p>
-                                  <p className="text-slate-600">r = {d.r}</p>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        <Bar dataKey="r" radius={[4, 4, 0, 0]}>
-                          {dataInsights.correlations
-                            .sort((a, b) => Math.abs(b.r) - Math.abs(a.r))
-                            .slice(0, 20)
-                            .map((entry, idx) => (
-                              <Cell key={idx} fill={entry.r >= 0 ? '#10b981' : '#ef4444'} fillOpacity={Math.min(1, Math.abs(entry.r) + 0.2)} />
-                            ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3">
+                <p className="text-xs text-slate-500">
+                  Showing {(tablePage * ROWS_PER_PAGE + 1).toLocaleString()}–{Math.min((tablePage + 1) * ROWS_PER_PAGE, csvData.length).toLocaleString()} of {csvData.length.toLocaleString()}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setTablePage(p => Math.max(0, p - 1))} disabled={tablePage === 0}>
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="text-xs text-slate-600">{tablePage + 1} / {totalPages}</span>
+                  <Button variant="outline" size="sm" onClick={() => setTablePage(p => Math.min(totalPages - 1, p + 1))} disabled={tablePage >= totalPages - 1}>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               </div>
             )}
           </div>
-        )}
+          );
+        })()}
 
         {/* Empty state – only if no file */}
         {!file && !isLoading && (
