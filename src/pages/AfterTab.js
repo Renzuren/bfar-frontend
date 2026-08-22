@@ -11,8 +11,10 @@ import {
   Inbox,
   Copy,
   Loader2,
+  IdCard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -251,9 +253,9 @@ const AfterTab = () => {
   const status = getStatus();
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="space-y-8 px-6 lg:px-8">
       {/* Hero Header */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-purple-700 px-8 py-10 text-white shadow-2xl shadow-purple-900/20 sm:px-12 sm:py-12">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-purple-700 px-8 py-8 text-white shadow-2xl shadow-purple-900/20 sm:px-10 sm:py-10">
         <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-violet-300/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-purple-300/20 blur-3xl" />
         <div className="relative flex items-start justify-between text-left">
@@ -281,27 +283,48 @@ const AfterTab = () => {
         </div>
       </section>
 
-      {/* Info Grid */}
-      <section className="grid grid-cols-3 gap-5">
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-          <p className="text-left text-xs font-medium uppercase tracking-wide text-slate-400">Questions</p>
-          <p className="mt-1.5 text-left text-3xl font-bold text-violet-600">{getQuestionCount()}</p>
+      {/* Overview */}
+      <Card className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        <div className="flex items-center gap-3 border-b border-slate-100 bg-violet-50/50 px-6 py-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+            <BarChart3 className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Overview</p>
+            <p className="text-sm text-slate-500">Questionnaire statistics at a glance</p>
+          </div>
         </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-          <p className="text-left text-xs font-medium uppercase tracking-wide text-slate-400">Responses</p>
-          <p className="mt-1.5 text-left text-3xl font-bold text-emerald-600">{responses.length}</p>
+        <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-3">
+          <div className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-5">
+            <p className="text-left text-xs font-medium uppercase tracking-wide text-slate-400">Questions</p>
+            <p className="mt-1.5 text-left text-3xl font-bold text-violet-600">{getQuestionCount()}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-5">
+            <p className="text-left text-xs font-medium uppercase tracking-wide text-slate-400">Responses</p>
+            <p className="mt-1.5 text-left text-3xl font-bold text-emerald-600">{responses.length}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-5">
+            <p className="text-left text-xs font-medium uppercase tracking-wide text-slate-400">Last Response</p>
+            <p className="mt-1.5 text-left text-lg font-bold text-slate-700">{getLastResponseDate()}</p>
+          </div>
         </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-          <p className="text-left text-xs font-medium uppercase tracking-wide text-slate-400">Last Response</p>
-          <p className="mt-1.5 text-left text-lg font-bold text-slate-700">{getLastResponseDate()}</p>
-        </div>
-      </section>
+      </Card>
 
-      {/* Action Grid */}
-      <section className="grid grid-cols-2 gap-5">
+      {/* Quick Actions */}
+      <Card className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        <div className="flex items-center gap-3 border-b border-slate-100 bg-purple-50/50 px-6 py-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
+            <Plus className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Quick Actions</p>
+            <p className="text-sm text-slate-500">Manage and share this questionnaire</p>
+          </div>
+        </div>
+        <section className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3">
         <button
           onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=after`)}
-          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-blue-200"
+          className="group flex items-center gap-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-sm hover:border-blue-200"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-100">
             <Pencil className="h-5 w-5" />
@@ -313,8 +336,8 @@ const AfterTab = () => {
         </button>
 
         <button
-          onClick={() => navigate(`/forms/${project.after_form}/responses`, { state: { project_id: projectId, questionnaire_type: 'after' } })}
-          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-emerald-200"
+          onClick={() => navigate(`/projects/${projectId}/responses?type=after`, { state: { project_id: projectId, questionnaire_type: 'after' } })}
+          className="group flex items-center gap-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-sm hover:border-emerald-200"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-100">
             <Eye className="h-5 w-5" />
@@ -326,8 +349,21 @@ const AfterTab = () => {
         </button>
 
         <button
+          onClick={() => navigate(`/projects/${projectId}/profiles?type=after`, { state: { project_id: projectId, questionnaire_type: 'after' } })}
+          className="group flex items-center gap-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-sm hover:border-cyan-200"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600 transition-colors group-hover:bg-cyan-100">
+            <IdCard className="h-5 w-5" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-slate-900">View Profiles</p>
+            <p className="text-xs text-slate-500">Demographics and profile photos</p>
+          </div>
+        </button>
+
+        <button
           onClick={() => navigate(`/forms/${project.after_form}/analytics`, { state: { project_id: projectId, questionnaire_type: 'after' } })}
-          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-violet-200"
+          className="group flex items-center gap-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-sm hover:border-violet-200"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 transition-colors group-hover:bg-violet-100">
             <BarChart3 className="h-5 w-5" />
@@ -340,7 +376,7 @@ const AfterTab = () => {
 
         <button
           onClick={copyFormLink}
-          className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:border-amber-200"
+          className="group flex items-center gap-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-sm hover:border-amber-200"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 transition-colors group-hover:bg-amber-100">
             <ExternalLink className="h-5 w-5" />
@@ -350,7 +386,8 @@ const AfterTab = () => {
             <p className="text-xs text-slate-500">Share questionnaire URL</p>
           </div>
         </button>
-      </section>
+        </section>
+      </Card>
 
       {/* Delete Button */}
       <div className="flex justify-start">
