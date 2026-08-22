@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import FormBuilder from './pages/FormBuilder';
 import FormFill from './pages/FormFill';
 import FormResponses from './pages/FormResponses';
+import FormProfiles from './pages/FormProfiles';
 import FormAnalytics from './pages/FormAnalytics';
 import MLUpload from './pages/MLUpload';
 import ProjectDashboard from './pages/ProjectDashboard';
@@ -58,6 +59,8 @@ function App() {
               <Route path="create-questionnaire" element={<QuestionnaireBuilder />} />
               <Route path="before" element={<BeforeTab />} />
               <Route path="after" element={<AfterTab />} />
+              <Route path="responses" element={<ProtectedRoute><FormResponses embedded /></ProtectedRoute>} />
+              <Route path="profiles" element={<ProtectedRoute><FormProfiles embedded /></ProtectedRoute>} />
               <Route path="narrative-report" element={<NarrativeReport />} />
               <Route path="reports" element={<ReportsList />} />
             </Route>
@@ -66,6 +69,7 @@ function App() {
             <Route path="/forms/new" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
             <Route path="/forms/:id/edit" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
             <Route path="/forms/:id/responses" element={<ProtectedRoute><FormResponses /></ProtectedRoute>} />
+            <Route path="/forms/:id/profiles" element={<ProtectedRoute><FormProfiles /></ProtectedRoute>} />
             <Route path="/forms/:id/analytics" element={<ProtectedRoute><FormAnalytics /></ProtectedRoute>} />
             <Route path="/ml-upload" element={<ProtectedRoute><MLUpload /></ProtectedRoute>} />
             <Route path="/f/:id" element={<FormFill />} />
