@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, useOutletContext, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft, Download, ChevronLeft, ChevronRight, FileSpreadsheet,
-  Inbox, Users, UserCheck, UserX, Search, X,
+  Menu, Download, ChevronLeft, ChevronRight, FileSpreadsheet,
+  Inbox, Users, UserCheck, UserX, Search, X, IdCard,
+  LayoutDashboard, BarChart3, ChevronUp, ChevronDown, ChevronsUpDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -54,6 +55,35 @@ const LOCATION_KEYS = [
   }
 ];
 
+// Sort indicator for table headers
+const SortIcon = ({ active, dir }) =>
+  active ? (
+    dir === 'asc'
+      ? <ChevronUp className="h-3 w-3 text-cyan-600" />
+      : <ChevronDown className="h-3 w-3 text-cyan-600" />
+  ) : (
+    <ChevronsUpDown className="h-3 w-3 shrink-0 text-slate-300 transition group-hover:text-slate-500" />
+  );
+
+// Sortable table header cell (supports rowSpan for the two-row header)
+const SortableTh = ({ label, colKey, sortConfig, onSort, rowSpan, className = '' }) => (
+  <th
+    rowSpan={rowSpan}
+    className={`sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 ${className}`}
+  >
+    <button
+      type="button"
+      onClick={() => onSort(colKey)}
+      className={`group inline-flex items-center gap-1 transition hover:text-slate-700 ${
+        sortConfig.key === colKey ? 'text-cyan-700' : ''
+      }`}
+    >
+      {label}
+      <SortIcon active={sortConfig.key === colKey} dir={sortConfig.dir} />
+    </button>
+  </th>
+);
+
 const getNumericAnswer = (answer, question) => {
   if (isNoAnswer(answer)) return '—';
 
@@ -76,14 +106,29 @@ const getNumericAnswer = (answer, question) => {
 };
 
 // ==================== MAIN COMPONENT ====================
-const FormResponses = () => {
+const FormResponses = ({ embedded = false }) => {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const params = useParams();
   const location = useLocation();
   const backState = location.state;
+  const outletCtx = useOutletContext();
+  const [searchParams] = useSearchParams();
+
+  // Standalone mode: params.id is the FORM id.
+  // Embedded mode (inside the project dashboard layout): params.id is the
+  // PROJECT id and the form id comes from the outlet context (?type=before|after)
+  const qType = searchParams.get('type') || backState?.questionnaire_type || 'before';
+  const projectId = embedded ? params.id : backState?.project_id;
+  const id = embedded
+    ? (outletCtx?.project
+        ? (qType === 'after' ? outletCtx.project.after_form : outletCtx.project.before_form) || ''
+        : '')
+    : params.id;
 
   const goBack = () => {
-    if (backState?.project_id) {
+    if (embedded && projectId) {
+      navigate(`/projects/${projectId}/${qType === 'after' ? 'after' : 'before'}`);
+    } else if (backState?.project_id) {
       navigate(`/projects/${backState.project_id}/${backState.questionnaire_type === 'after' ? 'after' : 'before'}`);
     } else {
       navigate('/dashboard');
@@ -97,8 +142,19 @@ const FormResponses = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [navOpen, setNavOpen] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: null, dir: 'asc' });
+  const [municipalityFilter, setMunicipalityFilter] = useState('all');
+
+  const navItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', action: () => { setNavOpen(false); goBack(); } },
+    { icon: FileSpreadsheet, label: 'View Responses', action: () => { setNavOpen(false); navigate(`/forms/${id}/responses`, { state: backState }); } },
+    { icon: IdCard, label: 'View Profiles', action: () => { setNavOpen(false); navigate(`/forms/${id}/profiles`, { state: backState }); } },
+    { icon: BarChart3, label: 'Analytics', action: () => { setNavOpen(false); navigate(`/forms/${id}/analytics`, { state: backState }); } },
+  ];
 
   const fetchData = useCallback(async () => {
+    if (!id) return; // embedded mode: waiting for project context to load
     try {
       const [formRes, responsesRes] = await Promise.all([
         api.get(`/forms/${id}`),
@@ -180,7 +236,7 @@ const FormResponses = () => {
     });
     const pages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
     setCurrentPage((page) => Math.min(page, pages));
-  }, [responses, filterStatus, rowsPerPage]);
+  }, [responses, filterStatus, rowsPerPage, municipalityFilter, sortConfig]);
 
   const getRespondentIdForRow = (response) => {
     if (response.respondent_id) return response.respondent_id;
@@ -251,7 +307,14 @@ const FormResponses = () => {
 
   const allQuestionCols = normalizeLocationCodes(sections.flatMap(s => s.questions));
   const tableSections = sections
-    .map(sec => ({ ...sec, questions: sec.questions.filter(q => !isReservedField(q)) }))
+    .map(sec => ({
+      ...sec,
+      // Hide reserved fields and the photo upload (redundant with View Profiles)
+      questions: sec.questions.filter(q =>
+        !isReservedField(q) &&
+        q.type !== 'profile_photo'
+      )
+    }))
     .filter(sec => sec.questions.length > 0);
   const allQuestions = normalizeLocationCodes(tableSections.flatMap(s => s.questions));
 
@@ -271,7 +334,45 @@ const FormResponses = () => {
   const beneficiaryCount = responses.filter(r => getBeneficiaryStatus(r) === 'Yes').length;
   const nonBeneficiaryCount = responses.filter(r => getBeneficiaryStatus(r) === 'No').length;
 
-  const filteredResponses = responses.filter(r => {
+  const toggleSort = (key) => {
+    setSortConfig(prev =>
+      prev.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: 'asc' }
+    );
+  };
+
+  const getSortValue = (response, key) => {
+    if (key.startsWith('q:')) {
+      const question = allQuestions.find(q => `q:${q.id}` === key);
+      return question ? formatAnswerForTable(getAnswerForQuestion(response, question)).toLowerCase() : '';
+    }
+    switch (key) {
+      case 'submitted': return response.submitted_at?._seconds || 0;
+      case 'respondent_id': return String(getRespondentIdForRow(response)).toLowerCase();
+      case 'name': return (response.full_name || '').toLowerCase();
+      case 'status': {
+        const s = getBeneficiaryStatus(response);
+        return s === 'Yes' ? 2 : s === 'No' ? 1 : 0;
+      }
+      case 'municipality':
+      case 'barangay':
+      case 'province':
+        return getLocationForRow(response, key).toLowerCase();
+      default: return '';
+    }
+  };
+
+  // Unique municipality values for the filter dropdown
+  const municipalityOptions = Array.from(
+    new Set(
+      responses
+        .map(r => getLocationForRow(r, 'municipality'))
+        .filter(v => v && v !== '—')
+    )
+  ).sort((a, b) => a.localeCompare(b));
+
+  let responseList = responses.filter(r => {
     if (filterStatus === 'all') return true;
     const status = getBeneficiaryStatus(r);
     return filterStatus === 'yes' ? status === 'Yes' : status === 'No';
@@ -291,6 +392,23 @@ const FormResponses = () => {
       province.includes(query)
     );
   });
+
+  if (municipalityFilter !== 'all') {
+    responseList = responseList.filter(r => getLocationForRow(r, 'municipality') === municipalityFilter);
+  }
+
+  if (sortConfig.key) {
+    responseList = [...responseList].sort((a, b) => {
+      const av = getSortValue(a, sortConfig.key);
+      const bv = getSortValue(b, sortConfig.key);
+      let cmp;
+      if (typeof av === 'number' && typeof bv === 'number') cmp = av - bv;
+      else cmp = String(av).localeCompare(String(bv), undefined, { numeric: true });
+      return sortConfig.dir === 'asc' ? cmp : -cmp;
+    });
+  }
+
+  const filteredResponses = responseList;
 
   const totalPages = Math.max(1, Math.ceil(filteredResponses.length / rowsPerPage));
   const start = (currentPage - 1) * rowsPerPage;
@@ -321,25 +439,56 @@ const FormResponses = () => {
   const showingTo = Math.min(start + rowsPerPage, filteredResponses.length);
 
   // ==================== LOADING STATE ====================
+  if (loading) {
+    return embedded ? (
+      <div className="flex items-center justify-center py-20 text-slate-500">Loading responses...</div>
+    ) : (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">Loading responses...</div>
+    );
+  }
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100">
-      {/* Header */}
+    <div className={embedded ? '' : 'min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100'}>
+      {/* Header (standalone mode only — the project layout provides the navbar) */}
+      {!embedded && (
       <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <div className="relative mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
             <button
-              onClick={goBack}
-              className="group flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+              onClick={() => setNavOpen(!navOpen)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+              title="Menu"
             >
-              <ArrowLeft className="h-4 w-4 transition group-hover:-translate-x-0.5" />
-              <span className="hidden sm:inline">{backState?.project_id ? 'Back' : 'Dashboard'}</span>
+              <Menu className="h-5 w-5" />
             </button>
-            <div className="hidden h-6 w-px bg-slate-200 sm:block" />
-            <h1 className="hidden max-w-xs truncate text-sm font-semibold text-slate-800 sm:block">
+            <h1 className="max-w-xs truncate text-sm font-semibold text-slate-800">
               {form.title}
             </h1>
           </div>
+          {navOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setNavOpen(false)} />
+              <div className="absolute left-6 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 shadow-lg">
+                {navItems.map((item) => (
+                  <button
+                    key={item.label}
+                    onClick={item.action}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-cyan-50 hover:text-cyan-700"
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => navigate(`/forms/${id}/profiles`, { state: backState })}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 text-sm font-medium text-violet-700 transition hover:bg-violet-100"
+            >
+              <IdCard className="h-4 w-4" />
+              <span className="hidden sm:inline">View Profiles</span>
+            </button>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200/60">
               <FileSpreadsheet className="h-3.5 w-3.5" />
               {responses.length} {responses.length === 1 ? 'response' : 'responses'}
@@ -347,6 +496,7 @@ const FormResponses = () => {
           </div>
         </div>
       </header>
+      )}
 
       <main className="px-4 py-6 sm:px-6 lg:px-8">
         {/* Page Title Banner */}
@@ -465,6 +615,31 @@ const FormResponses = () => {
                 )}
               </div>
 
+              {/* Municipality Filter */}
+              <Select
+                value={municipalityFilter}
+                onValueChange={(v) => { setMunicipalityFilter(v); setCurrentPage(1); }}
+              >
+                <SelectTrigger className="h-9 w-40 rounded-xl border-slate-200 bg-slate-50 text-sm text-slate-700">
+                  <SelectValue placeholder="All Municipalities" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Municipalities</SelectItem>
+                  {municipalityOptions.map(m => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {municipalityFilter !== 'all' && (
+                <button
+                  onClick={() => { setMunicipalityFilter('all'); setCurrentPage(1); }}
+                  className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                  title="Clear municipality filter"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+
               <button
                 onClick={downloadCSV}
                 disabled={filteredResponses.length === 0}
@@ -529,13 +704,13 @@ const FormResponses = () => {
                 <table className="min-w-full divide-y divide-slate-200">
                   <thead>
                     <tr className="bg-slate-50/80">
-                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Submitted At</th>
-                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Respondent ID</th>
-                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Respondent Name</th>
-                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Municipality</th>
-                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Barangay</th>
-                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Province</th>
-                      <th rowSpan={2} className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Status</th>
+                      <SortableTh label="Submitted At" colKey="submitted" sortConfig={sortConfig} onSort={toggleSort} rowSpan={2} />
+                      <SortableTh label="Respondent ID" colKey="respondent_id" sortConfig={sortConfig} onSort={toggleSort} rowSpan={2} />
+                      <SortableTh label="Respondent Name" colKey="name" sortConfig={sortConfig} onSort={toggleSort} rowSpan={2} />
+                      <SortableTh label="Municipality" colKey="municipality" sortConfig={sortConfig} onSort={toggleSort} rowSpan={2} />
+                      <SortableTh label="Barangay" colKey="barangay" sortConfig={sortConfig} onSort={toggleSort} rowSpan={2} />
+                      <SortableTh label="Province" colKey="province" sortConfig={sortConfig} onSort={toggleSort} rowSpan={2} />
+                      <SortableTh label="Status" colKey="status" sortConfig={sortConfig} onSort={toggleSort} rowSpan={2} />
                       {tableSections.map(section => (
                         <th key={section.id} colSpan={section.questions.length} className="sticky top-0 z-10 border-b border-slate-200 bg-slate-100/90 px-5 py-2.5 text-center text-xs font-bold text-slate-600 backdrop-blur-sm">
                           {section.title}
@@ -546,11 +721,19 @@ const FormResponses = () => {
                       {tableSections.flatMap((section, secIdx) =>
                         section.questions.map((q, qIdx) => {
                           const isLastCol = (secIdx === tableSections.length - 1 && qIdx === section.questions.length - 1);
+                          const colKey = `q:${q.id}`;
+                          const isActive = sortConfig.key === colKey;
                           return (
-                            <th key={q.id} className={`sticky top-[37px] z-10 bg-slate-50/80 px-6 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 backdrop-blur-sm ${!isLastCol ? 'border-r border-slate-200/80' : ''}`}>
-                              <div className="max-w-[180px] truncate" title={getQuestionLabel(q, allQuestions.findIndex(qq => qq.id === q.id))}>
-                                {getQuestionLabel(q, allQuestions.findIndex(qq => qq.id === q.id))}
-                              </div>
+                            <th key={q.id} className={`sticky top-[37px] z-10 bg-slate-50/80 px-6 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider backdrop-blur-sm ${!isLastCol ? 'border-r border-slate-200/80' : ''} ${isActive ? 'text-cyan-700' : 'text-slate-500'}`}>
+                              <button
+                                type="button"
+                                onClick={() => toggleSort(colKey)}
+                                className="group flex max-w-[180px] items-center gap-1 transition hover:text-slate-700"
+                                title={getQuestionLabel(q, allQuestions.findIndex(qq => qq.id === q.id))}
+                              >
+                                <span className="truncate">{getQuestionLabel(q, allQuestions.findIndex(qq => qq.id === q.id))}</span>
+                                <SortIcon active={isActive} dir={sortConfig.dir} />
+                              </button>
                             </th>
                           );
                         })
