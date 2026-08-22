@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useLocation, Outlet, NavLink } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, Outlet, NavLink, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft,
   FileText,
   BarChart3,
   ClipboardList,
   Menu,
-  X,
   ChevronRight,
   ListChecks,
   Layers,
+  ArrowLeft,
 } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 
@@ -41,10 +40,22 @@ const SIDEBAR_ITEMS = [
   },
 ];
 
+// Navbar breadcrumb labels for nested route segments
+const BREADCRUMB_LABELS = {
+  'create-questionnaire': 'Edit Questionnaire',
+  'before': 'Before',
+  'after': 'After',
+  'responses': 'View Responses',
+  'profiles': 'View Profiles',
+  'narrative-report': 'Narrative Report',
+  'reports': 'Reports',
+};
+
 const ProjectDashboard = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { fetchProject, currentProject, setCurrentProject } = useProject();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -59,6 +70,32 @@ const ProjectDashboard = () => {
   }, [id, fetchProject, navigate, setCurrentProject]);
 
   const isOverview = location.pathname === `/projects/${id}`;
+
+  // Breadcrumb segments for nested pages (e.g. Projects > Final Test > Before > View Responses)
+  const subSegments = location.pathname
+    .split('/')
+    .filter(Boolean)
+    .slice(2); // skip 'projects' and ':id'
+  const typeParam = searchParams.get('type'); // tab context: 'before' | 'after'
+
+  let breadcrumbCrumbs = [];
+  if (subSegments.length > 0) {
+    // Insert the Before/After tab crumb when the page was opened from a tab (?type=)
+    if (typeParam && BREADCRUMB_LABELS[typeParam]) {
+      breadcrumbCrumbs.push({
+        key: `tab-${typeParam}`,
+        label: BREADCRUMB_LABELS[typeParam],
+        to: `/projects/${id}/${typeParam}`,
+      });
+    }
+    subSegments.forEach(seg => {
+      breadcrumbCrumbs.push({
+        key: seg,
+        label: BREADCRUMB_LABELS[seg] || seg,
+        to: `/projects/${id}/${seg}`,
+      });
+    });
+  }
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
@@ -91,39 +128,30 @@ const ProjectDashboard = () => {
       >
         {/* Sidebar header */}
         <div className={`flex items-center gap-3 border-b border-slate-100 ${sidebarCollapsed ? 'justify-center px-2 py-6' : 'px-6 py-6'}`}>
-          {!sidebarCollapsed && (
-            <>
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                  Project
-                </p>
-                <h2 className="truncate text-sm font-bold text-slate-900">
-                  {currentProject?.title || 'Loading...'}
-                </h2>
-              </div>
-            </>
-          )}
-          {sidebarCollapsed && (
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-              title="Back to Dashboard"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-          )}
+          {/* Hamburger — toggles sidebar open/close */}
           <button
-            onClick={() => setSidebarOpen(false)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 lg:hidden"
+            onClick={() => {
+              if (window.innerWidth < 1024) {
+                setSidebarOpen(false);
+              } else {
+                setSidebarCollapsed(!sidebarCollapsed);
+              }
+            }}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            <X className="h-4 w-4" />
+            <Menu className="h-5 w-5" />
           </button>
+          {!sidebarCollapsed && (
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                Project
+              </p>
+              <h2 className="truncate text-sm font-bold text-slate-900">
+                {currentProject?.title || 'Loading...'}
+              </h2>
+            </div>
+          )}
         </div>
 
         {/* Navigation */}
@@ -189,25 +217,13 @@ const ProjectDashboard = () => {
         {/* Top bar */}
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-xl">
           <div className="flex items-center gap-3 px-6 py-4 lg:px-8">
-            {/* Mobile hamburger */}
+            {/* Mobile-only trigger to open the sidebar (hamburger lives inside the sidebar) */}
             <button
               onClick={() => setSidebarOpen(true)}
               className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 lg:hidden"
+              title="Open sidebar"
             >
               <Menu className="h-5 w-5" />
-            </button>
-
-            {/* Desktop sidebar toggle */}
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="hidden h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 lg:flex"
-              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              {sidebarCollapsed ? (
-                <ChevronRight className="h-5 w-5" />
-              ) : (
-                <Menu className="h-5 w-5" />
-              )}
             </button>
 
             {/* Breadcrumb */}
@@ -219,21 +235,49 @@ const ProjectDashboard = () => {
                 Projects
               </button>
               <ChevronRight className="h-3.5 w-3.5 text-slate-300" />
-              <span className="font-semibold text-slate-900">
-                {currentProject?.title || '...'}
-              </span>
+              {breadcrumbCrumbs.length > 0 ? (
+                <>
+                  <button
+                    onClick={() => navigate(`/projects/${id}`)}
+                    className="font-semibold text-slate-500 transition hover:text-slate-900"
+                  >
+                    {currentProject?.title || '...'}
+                  </button>
+                  {breadcrumbCrumbs.map((crumb, i) => (
+                    <React.Fragment key={crumb.key}>
+                      <ChevronRight className="h-3.5 w-3.5 text-slate-300" />
+                      {i < breadcrumbCrumbs.length - 1 ? (
+                        <button
+                          onClick={() => navigate(crumb.to)}
+                          className="font-semibold text-slate-500 transition hover:text-slate-900"
+                        >
+                          {crumb.label}
+                        </button>
+                      ) : (
+                        <span className="truncate font-semibold text-slate-900">
+                          {crumb.label}
+                        </span>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </>
+              ) : (
+                <span className="truncate font-semibold text-slate-900">
+                  {currentProject?.title || '...'}
+                </span>
+              )}
             </nav>
 
             {/* Spacer */}
             <div className="flex-1" />
 
-            {/* Back button */}
+            {/* Back to Dashboard */}
             <button
               onClick={() => navigate('/dashboard')}
               className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 sm:inline-flex"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Dashboard
+              Back to Dashboard
             </button>
 
             {/* Status badge */}
