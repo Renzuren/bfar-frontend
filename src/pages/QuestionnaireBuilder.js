@@ -336,6 +336,22 @@ const QuestionnaireBuilder = () => {
     setSections(updated);
   };
 
+  const moveQuestionToSection = (questionId, fromIdx, toIdx) => {
+    if (fromIdx === toIdx) return;
+    if (!sections[fromIdx] || !sections[toIdx]) return;
+    const newSections = sections.map(sec => ({
+      ...sec,
+      questions: [...sec.questions],
+    }));
+    const qIndex = newSections[fromIdx].questions.findIndex(q => q.id === questionId);
+    if (qIndex === -1) return;
+    const moved = { ...newSections[fromIdx].questions[qIndex], section: newSections[toIdx].title };
+    newSections[fromIdx].questions.splice(qIndex, 1);
+    newSections[toIdx].questions.push(moved);
+    setSections(newSections);
+    toast.success(`Moved to "${newSections[toIdx].title}"`);
+  };
+
   const handleTypeChange = (sectionIdx, qIdx, newType) => {
     const updated = sections.map((sec, si) => {
       if (si !== sectionIdx) return sec;
@@ -895,6 +911,12 @@ const QuestionnaireBuilder = () => {
                       <Label className="text-sm font-medium text-slate-700">Required question</Label>
                     </div>
                     <div className="flex items-center gap-2">
+                      <div className="w-44">
+                        <Select value={currentSectionIndex.toString()} onValueChange={val => moveQuestionToSection(q.id, currentSectionIndex, parseInt(val))}>
+                          <SelectTrigger className="h-8 text-xs" title="Move this question to another section"><SelectValue /></SelectTrigger>
+                          <SelectContent>{sections.map((sec, idx) => <SelectItem key={sec.id} value={idx.toString()}>{idx === currentSectionIndex ? `${sec.title} (current)` : sec.title}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
                       <Button variant="ghost" size="sm" onClick={() => deleteQuestion(currentSectionIndex, qIdx)} className="text-rose-500 hover:bg-rose-50 hover:text-rose-600">
                         <Trash2 className="h-4 w-4" />
                       </Button>
