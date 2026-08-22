@@ -183,18 +183,19 @@ const FormAnalytics = () => {
         ? form.sections.flatMap(s => s.questions || [])
         : [];
 
-    const demoSection = form.sections?.find(s => s.section_type === 'demographics');
-    const questSection = form.sections?.find(s => s.section_type === 'questionnaire');
-
     let demoIds = new Set();
     let questIds = new Set();
 
-    if (demoSection) {
-      (demoSection.questions || []).forEach(q => demoIds.add(q.id));
-    }
-    if (questSection) {
-      (questSection.questions || []).forEach(q => questIds.add(q.id));
-    }
+    (form.sections || [])
+      .filter(s => s.section_type === 'demographics')
+      .forEach(s => {
+        (s.questions || []).forEach(q => demoIds.add(q.id));
+      });
+    (form.sections || [])
+      .filter(s => s.section_type === 'questionnaire')
+      .forEach(s => {
+        (s.questions || []).forEach(q => questIds.add(q.id));
+      });
 
     if (demoIds.size === 0 && questIds.size === 0) {
       const systemFields = ['RESP-01', 'RESP-02', 'A1', 'A2', 'A3'];
