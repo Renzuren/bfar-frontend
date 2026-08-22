@@ -502,10 +502,10 @@ const QuestionnaireBuilder = () => {
         }
       }
     }
-    // Validate questionnaire section has no short_text/long_text
-    const questSection = sections.find(s => s.section_type === 'questionnaire');
-    if (questSection) {
-      for (const q of questSection.questions) {
+    // Validate questionnaire sections have no short_text/long_text
+    const questSections = sections.filter(s => s.section_type === 'questionnaire');
+    for (const questSection of questSections) {
+      for (const q of questSection.questions || []) {
         if (q.type === 'short_text' || q.type === 'long_text') {
           toast.error(`"${q.title || 'Untitled'}" uses ${q.type === 'short_text' ? 'Short Text' : 'Long Text'} which is not allowed in the Questionnaire section. Move it to Demographics or change its type.`);
           return false;
