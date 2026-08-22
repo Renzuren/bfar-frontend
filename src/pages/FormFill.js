@@ -131,14 +131,12 @@ const FormFill = () => {
   const [photoAttempted, setPhotoAttempted] = useState(false);
   const fileInputRef = useRef(null);
 
-  const demographicsSection = sections.find(
-    (s) => s.section_type === 'demographics'
-  );
-  const questionnaireSection = sections.find(
-    (s) => s.section_type === 'questionnaire'
-  );
-  const demographicsQuestions = demographicsSection?.questions || [];
-  const questionnaireQuestions = questionnaireSection?.questions || [];
+  const demographicsQuestions = sections
+    .filter((s) => s.section_type === 'demographics')
+    .flatMap((s) => s.questions || []);
+  const questionnaireQuestions = sections
+    .filter((s) => s.section_type === 'questionnaire')
+    .flatMap((s) => s.questions || []);
 
   const profilePhotoQuestion = demographicsQuestions.find(
     (q) => q.type === 'profile_photo'
@@ -550,6 +548,7 @@ const FormFill = () => {
     );
 
   const currentSection = sections[currentSectionIndex];
+  const currentSectionQuestions = currentSection?.questions || [];
   const isFirst = currentSectionIndex === 0;
   const isLast = currentSectionIndex === sections.length - 1;
   const progress = ((currentSectionIndex + 1) / sections.length) * 100;
@@ -1203,7 +1202,7 @@ const FormFill = () => {
 
               {/* Other Demographics Questions */}
               {(() => {
-                const otherQs = demographicsQuestions.filter(
+                const otherQs = currentSectionQuestions.filter(
                   (q) =>
                     !locationQuestionIds.includes(q.id) &&
                     !isReservedField(q) &&
@@ -1229,7 +1228,7 @@ const FormFill = () => {
           {/* Questionnaire Section */}
           {currentSection?.section_type === 'questionnaire' && (
             <>
-              {questionnaireQuestions.filter((q) => !isReservedField(q))
+              {currentSectionQuestions.filter((q) => !isReservedField(q))
                 .length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-16 text-center shadow-sm">
                   <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
@@ -1245,7 +1244,7 @@ const FormFill = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {questionnaireQuestions
+                  {currentSectionQuestions
                     .filter((q) => !isReservedField(q))
                     .map((q, idx) => {
                       const isShort = isTextQuestionType(q.type) || q.type === 'date' || q.type === 'dropdown';
