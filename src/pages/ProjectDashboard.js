@@ -9,6 +9,7 @@ import {
   ListChecks,
   Layers,
   ArrowLeft,
+  FileBarChart2,
 } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 
@@ -29,14 +30,14 @@ const SIDEBAR_ITEMS = [
     icon: ListChecks,
   },
   {
+    label: 'Report',
+    path: 'report',
+    icon: FileBarChart2,
+  },
+  {
     label: 'Narrative Report',
     path: 'narrative-report',
     icon: BarChart3,
-  },
-  {
-    label: 'Reports',
-    path: 'reports',
-    icon: ClipboardList,
   },
 ];
 
@@ -45,10 +46,10 @@ const BREADCRUMB_LABELS = {
   'create-questionnaire': 'Edit Questionnaire',
   'before': 'Before',
   'after': 'After',
+  'report': 'Report',
   'responses': 'View Responses',
   'profiles': 'View Profiles',
   'narrative-report': 'Narrative Report',
-  'reports': 'Reports',
 };
 
 const ProjectDashboard = () => {

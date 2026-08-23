@@ -895,8 +895,13 @@ const babelMetadataPlugin = ({ types: t }) => {
       return cached.sourceInfo;
     }
 
-    // Cache miss - try lazy evaluation
-    return lazyEvaluatePropSource(propName, componentName, currentFile);
+    // Cache miss - try lazy evaluation.
+    // Guard: cross-file tracing is best-effort metadata only and must never break compilation.
+    try {
+      return lazyEvaluatePropSource(propName, componentName, currentFile);
+    } catch (err) {
+      return null;
+    }
   }
 
   /**
@@ -932,42 +937,52 @@ const babelMetadataPlugin = ({ types: t }) => {
           }
           if (!localName) return;
 
-          // Search for usages of this component
-          importPath.parentPath.parentPath.traverse({
-            JSXOpeningElement(jsxPath) {
-              if (result) return;
+          // Search for usages of this component.
+          // NOTE: an ImportDeclaration's parent is always the Program node, so
+          // parentPath.parentPath is null here — traverse from Program instead.
+          const programPath = importPath.findParent((p) => p.isProgram && p.isProgram()) || importPath.parentPath;
+          if (!programPath) return;
 
-              const elemName = getJSXElementName(jsxPath.node);
-              if (elemName !== localName) return;
+          try {
+            programPath.traverse({
+              JSXOpeningElement(jsxPath) {
+                if (result) return;
 
-              // Find the prop
-              for (const attr of jsxPath.node.attributes || []) {
-                if (!t.isJSXAttribute(attr)) continue;
-                if (!t.isJSXIdentifier(attr.name) || attr.name.name !== propName) continue;
-                if (!t.isJSXExpressionContainer(attr.value)) continue;
+                const elemName = getJSXElementName(jsxPath.node);
+                if (elemName !== localName) return;
 
-                const attrPath = jsxPath.get('attributes').find(
-                  a => a.isJSXAttribute() && a.node.name?.name === propName
-                );
+                // Find the prop
+                for (const attr of jsxPath.node.attributes || []) {
+                  if (!t.isJSXAttribute(attr)) continue;
+                  if (!t.isJSXIdentifier(attr.name) || attr.name.name !== propName) continue;
+                  if (!t.isJSXExpressionContainer(attr.value)) continue;
 
-                if (attrPath) {
-                  const valuePath = attrPath.get('value.expression');
-                  if (valuePath?.node) {
-                    const mockState = { filename: absPath };
-                    result = analyzeExpression(valuePath, mockState);
+                  const attrPath = jsxPath.get('attributes').find(
+                    a => a.isJSXAttribute() && a.node.name?.name === propName
+                  );
 
-                    // Cache for future
-                    const cacheKey = `${componentFile}::${componentName}::${propName}`;
-                    PROP_SOURCE_CACHE.set(cacheKey, {
-                      sourceInfo: result,
-                      arrayContext: result?.arrayContext,
-                      fromFile: absPath
-                    });
+                  if (attrPath) {
+                    const valuePath = attrPath.get('value.expression');
+                    if (valuePath?.node) {
+                      const mockState = { filename: absPath };
+                      result = analyzeExpression(valuePath, mockState);
+
+                      // Cache for future
+                      const cacheKey = `${componentFile}::${componentName}::${propName}`;
+                      PROP_SOURCE_CACHE.set(cacheKey, {
+                        sourceInfo: result,
+                        arrayContext: result?.arrayContext,
+                        fromFile: absPath
+                      });
+                    }
                   }
                 }
               }
-            }
-          });
+            });
+          } catch (err) {
+            // Metadata tracing must never break compilation
+            result = null;
+          }
         }
       });
 

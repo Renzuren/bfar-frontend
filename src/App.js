@@ -15,8 +15,8 @@ import ProjectDashboard from './pages/ProjectDashboard';
 import QuestionnaireBuilder from './pages/QuestionnaireBuilder';
 import BeforeTab from './pages/BeforeTab';
 import AfterTab from './pages/AfterTab';
+import ReportTab from './pages/ReportTab';
 import NarrativeReport from './pages/NarrativeReport';
-import ReportsList from './pages/ReportsList';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProjectProvider } from './context/ProjectContext';
 import VerifyAccount from './pages/VerifyAccount';
@@ -59,10 +59,10 @@ function App() {
               <Route path="create-questionnaire" element={<QuestionnaireBuilder />} />
               <Route path="before" element={<BeforeTab />} />
               <Route path="after" element={<AfterTab />} />
+              <Route path="report" element={<ProtectedRoute><ReportTab /></ProtectedRoute>} />
               <Route path="responses" element={<ProtectedRoute><FormResponses embedded /></ProtectedRoute>} />
               <Route path="profiles" element={<ProtectedRoute><FormProfiles embedded /></ProtectedRoute>} />
               <Route path="narrative-report" element={<NarrativeReport />} />
-              <Route path="reports" element={<ReportsList />} />
             </Route>
 
             {/* Legacy form routes */}
