@@ -526,7 +526,7 @@ const FormBuilder = () => {
         </div>
       </header>
 
-      <main className="px-4 py-8 sm:px-6">
+      <main className="w-full px-3 pb-24 pt-0 sm:px-4">
         <section className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
           <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
