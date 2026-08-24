@@ -160,7 +160,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-slate-50/80">
       <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/70 backdrop-blur-xl supports-[backdrop-filter]:bg-white/50">
-        <div className="mx-auto flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+        <div className="flex w-full items-center justify-between px-3 py-3 sm:px-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/20 transition-shadow hover:shadow-cyan-500/40">
               <FolderKanban className="h-5 w-5" />
@@ -194,7 +194,7 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8 sm:px-10 sm:py-12">
+      <main className="w-full px-3 pb-24 pt-0 sm:px-4">
         <div className="space-y-8">
 
           <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 px-6 py-8 sm:px-10 sm:py-12 text-white shadow-2xl shadow-slate-900/20 text-left">
