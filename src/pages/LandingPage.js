@@ -108,7 +108,7 @@ const LandingPage = () => {
         ))}
 
         {/* Header */}
-        <nav className="relative z-10 mx-auto max-w-6xl px-6 py-6 sm:px-6 lg:px-8">
+        <nav className="relative z-10 w-full px-3 py-6 sm:px-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/30">
@@ -136,7 +136,7 @@ const LandingPage = () => {
         </nav>
 
         {/* Hero content */}
-        <div className="relative z-10 mx-auto max-w-6xl px-6 py-20 text-center sm:px-6 md:py-28 lg:px-8">
+        <div className="relative z-10 w-full px-3 py-20 text-center sm:px-4 md:py-28">
           <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-1.5 text-sm font-medium text-cyan-300">
             Digital Assessment Forms Platform
           </p>
@@ -169,7 +169,7 @@ const LandingPage = () => {
           </div>
 
           {/* Stats */}
-          <div className="mx-auto mt-16 grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="mt-16 grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
             {stats.map((stat) => (
               <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
                 <p className="text-2xl font-bold text-white">{stat.value}</p>
@@ -182,7 +182,7 @@ const LandingPage = () => {
 
       {/* Features Section */}
       <div id="features" ref={featuresRef} className="bg-slate-50 py-20">
-        <div className="mx-auto max-w-6xl px-6 sm:px-6 lg:px-8">
+        <div className="w-full px-3 sm:px-4">
           <div className="mx-auto mb-14 max-w-2xl text-center">
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-cyan-600">Features</p>
             <h3 className="mb-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
@@ -230,7 +230,7 @@ const LandingPage = () => {
 
       {/* Call-to-Action Section */}
       <div ref={ctaRef} className="bg-slate-50 pb-20">
-        <div className="mx-auto max-w-4xl px-6 sm:px-6 lg:px-8">
+        <div className="w-full px-3 sm:px-4">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 px-6 py-16 text-center shadow-2xl shadow-slate-900/20 sm:px-12 md:py-20">
             <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl" />
@@ -256,7 +256,7 @@ const LandingPage = () => {
 
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto max-w-6xl px-6 py-12 sm:px-6 lg:px-8">
+        <div className="w-full px-3 py-12 sm:px-4">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             {/* Branding */}
             <div>
