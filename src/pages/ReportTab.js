@@ -64,7 +64,7 @@ const Skeleton = () => (
     <div className="grid gap-4 md:grid-cols-4">
       {[1, 2, 3, 4].map((i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-slate-100" />)}
     </div>
-    <div className="mx-auto h-[520px] w-full max-w-[560px] animate-pulse rounded-xl bg-slate-100" />
+    <div className="h-[520px] w-full animate-pulse rounded-xl bg-slate-100" />
     <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="h-72 animate-pulse rounded-lg bg-slate-100" />)}
     </div>
@@ -124,7 +124,7 @@ const MapSection = ({
       </div>
     }
   >
-    <div className={`grid gap-4 ${expanded ? 'lg:grid-cols-[minmax(0,1fr)_330px]' : 'lg:grid-cols-[minmax(0,540px)_minmax(250px,1fr)]'}`}>
+    <div className={`grid gap-4 ${expanded ? 'lg:grid-cols-[minmax(0,1fr)_330px]' : 'lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]'}`}>
       <div className={expanded ? 'h-[calc(92vh-190px)] min-h-[420px]' : 'h-[480px] sm:h-[560px] xl:h-[640px]'}>
         <PhilippineMap
           points={points}
