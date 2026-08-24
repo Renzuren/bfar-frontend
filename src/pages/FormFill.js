@@ -818,7 +818,7 @@ const FormFill = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
+      <div className="w-full px-3 py-6 pb-24 sm:px-4">
         {/* Progress Steps */}
         <div className="mb-8 rounded-2xl bg-white px-4 py-4 shadow-sm sm:px-6">
           <div
