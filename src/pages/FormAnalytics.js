@@ -553,7 +553,7 @@ const FormAnalytics = () => {
   return (
     <div className="min-h-screen bg-slate-50/80">
       <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <div className="flex w-full items-center justify-between px-3 py-4 sm:px-5">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm" onClick={goBack} className="gap-1.5 text-slate-500 hover:text-slate-900">
               <ArrowLeft className="h-4 w-4" />
@@ -580,7 +580,7 @@ const FormAnalytics = () => {
         </div>
       </header>
 
-      <div ref={exportRef} className="px-4 py-8 sm:px-6 lg:px-8">
+      <div ref={exportRef} className="w-full px-3 pb-24 pt-0 sm:px-4">
         <section className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
           <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-500/15 blur-3xl" />
