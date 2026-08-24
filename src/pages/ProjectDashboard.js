@@ -217,7 +217,7 @@ const ProjectDashboard = () => {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar */}
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-xl">
-          <div className="flex items-center gap-3 px-6 py-4 lg:px-8">
+          <div className="flex w-full items-center gap-3 px-3 py-4 sm:px-5">
             {/* Mobile-only trigger to open the sidebar (hamburger lives inside the sidebar) */}
             <button
               onClick={() => setSidebarOpen(true)}
@@ -295,7 +295,7 @@ const ProjectDashboard = () => {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 px-6 py-6 lg:px-8">
+        <main className="w-full flex-1 px-3 pb-24 pt-0 sm:px-4">
           {isOverview ? (
             <ProjectOverview project={currentProject} />
           ) : (
