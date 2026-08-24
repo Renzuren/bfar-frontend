@@ -451,7 +451,7 @@ const FormResponses = ({ embedded = false }) => {
       {/* Header (standalone mode only — the project layout provides the navbar) */}
       {!embedded && (
       <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
-        <div className="relative mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <div className="relative flex w-full items-center justify-between px-3 py-4 sm:px-5">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setNavOpen(!navOpen)}
@@ -498,7 +498,7 @@ const FormResponses = ({ embedded = false }) => {
       </header>
       )}
 
-      <main className="px-4 py-6 sm:px-6 lg:px-8">
+      <main className={embedded ? '' : 'w-full px-3 py-6 pb-24 sm:px-4'}>
         {/* Page Title Banner */}
         <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
           <div className="relative px-6 py-5 sm:px-8">
