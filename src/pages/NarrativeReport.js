@@ -584,7 +584,7 @@ const NarrativeReport = () => {
   const totalComparable = comparisonData.length;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 px-6 lg:px-8">
+    <div className="w-full space-y-4">
       {/* Floating toolbar (never printed) */}
       <div className="no-print sticky top-[72px] z-20 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/90 px-5 py-3 shadow-md backdrop-blur">
         <button
