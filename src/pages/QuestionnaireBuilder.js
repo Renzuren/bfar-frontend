@@ -943,15 +943,27 @@ const QuestionnaireBuilder = () => {
         <Button variant="outline" onClick={() => setCurrentSectionIndex(currentSectionIndex - 1)} disabled={isFirst}>
           <ChevronLeft className="mr-2 h-4 w-4" /> Previous
         </Button>
-        {!isLast ? (
-          <Button onClick={() => setCurrentSectionIndex(currentSectionIndex + 1)} className="bg-slate-900 text-white hover:bg-slate-800">
-            Next <ChevronRight className="ml-2 h-4 w-4" />
-          </Button>
-        ) : (
-          <Button className="bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700" onClick={handleSave} disabled={loading}>
-            <Save className="mr-2 h-4 w-4" /> {loading ? 'Saving...' : 'Save Questionnaire'}
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          {!isLast && (
+            <Button
+              variant="outline"
+              onClick={handleSave}
+              disabled={loading}
+              className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+            >
+              <Save className="mr-2 h-4 w-4" /> {loading ? 'Saving...' : 'Save'}
+            </Button>
+          )}
+          {!isLast ? (
+            <Button onClick={() => setCurrentSectionIndex(currentSectionIndex + 1)} className="bg-slate-900 text-white hover:bg-slate-800">
+              Next <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <Button className="bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700" onClick={handleSave} disabled={loading}>
+              <Save className="mr-2 h-4 w-4" /> {loading ? 'Saving...' : 'Save Questionnaire'}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* New Section Modal */}
