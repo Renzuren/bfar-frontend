@@ -249,7 +249,9 @@ const FormResponses = ({ embedded = false }) => {
       return;
     }
 
-    const questionCols = normalizeLocationCodes(sections.flatMap(s => s.questions)).filter(q => !isReservedField(q));
+    // Exclude reserved fields and photos — images are already shown in View Profiles
+    const questionCols = normalizeLocationCodes(sections.flatMap(s => s.questions))
+      .filter(q => !isReservedField(q) && q.type !== 'profile_photo');
 
     const headers = [
       '#',
