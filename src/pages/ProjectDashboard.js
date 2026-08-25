@@ -6,11 +6,21 @@ import {
   ClipboardList,
   Menu,
   ChevronRight,
+  ChevronDown,
   ListChecks,
   Layers,
   ArrowLeft,
   FileBarChart2,
+  Check,
+  Loader2,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
 import { useProject } from '../context/ProjectContext';
 
 const SIDEBAR_ITEMS = [
@@ -57,9 +67,10 @@ const ProjectDashboard = () => {
   const { id } = useParams();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { fetchProject, currentProject, setCurrentProject } = useProject();
+  const { fetchProject, updateProject, currentProject, setCurrentProject } = useProject();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -109,6 +120,16 @@ const ProjectDashboard = () => {
       default:
         return 'bg-slate-100 text-slate-600 ring-slate-200';
     }
+  };
+
+  const handleStatusChange = async (status) => {
+    if (!currentProject || currentProject.status === status || statusUpdating) return;
+    const prevStatus = currentProject.status;
+    setCurrentProject({ ...currentProject, status });
+    setStatusUpdating(true);
+    const updated = await updateProject(id, { status });
+    if (!updated) setCurrentProject({ ...currentProject, status: prevStatus });
+    setStatusUpdating(false);
   };
 
   return (
@@ -281,15 +302,47 @@ const ProjectDashboard = () => {
               Back to Dashboard
             </button>
 
-            {/* Status badge */}
-            {currentProject?.status && (
-              <span
-                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${getStatusColor(
-                  currentProject.status
-                )}`}
-              >
-                {currentProject.status}
-              </span>
+            {/* Status dropdown */}
+            {currentProject && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={statusUpdating}
+                    title="Change project status"
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:opacity-60 ${getStatusColor(
+                      currentProject.status
+                    )}`}
+                  >
+                    {statusUpdating ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                    )}
+                    {currentProject.status || 'Set status'}
+                    <ChevronDown className="h-3 w-3 opacity-70" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuLabel className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    Project status
+                  </DropdownMenuLabel>
+                  {['Active', 'Draft'].map((option) => {
+                    const isCurrent = (currentProject.status || '').toLowerCase() === option.toLowerCase();
+                    return (
+                      <DropdownMenuItem
+                        key={option}
+                        onSelect={() => handleStatusChange(option)}
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <Check className={`h-4 w-4 ${isCurrent ? 'text-emerald-600' : 'opacity-0'}`} />
+                        <span className={`h-2 w-2 rounded-full ${option === 'Active' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                        {option}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </header>
