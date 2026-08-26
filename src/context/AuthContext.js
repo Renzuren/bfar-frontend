@@ -66,9 +66,12 @@ export const AuthProvider = ({ children }) => {
         ? {
             email: userData.email || '',
             status: userData.status || 'active',
-            full_name: userData.full_name || ''
+            full_name: userData.full_name || '',
+            role: userData.role || 'user',
+            org_id: userData.org_id || null,
+            organization: userData.organization || null,
           }
-        : { email: email.toLowerCase().trim(), status: 'active', full_name: '' };
+        : { email: email.toLowerCase().trim(), status: 'active', full_name: '', role: 'user', org_id: null, organization: null };
 
       setAuthItem('user', JSON.stringify(userInfo), rememberMe);
       setUser(userInfo);
@@ -81,14 +84,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signup = async (first_name, middle_name, last_name, email, password) => {
+  const signup = async (first_name, middle_name, last_name, email, password, extraFields = {}) => {
     try {
       const response = await api.post(`/auth/register`, {
         first_name,
         middle_name: middle_name || '',
         last_name,
         email,
-        password
+        password,
+        ...extraFields,
       });
 
       return response.data;
