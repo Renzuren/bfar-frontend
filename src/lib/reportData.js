@@ -176,7 +176,10 @@ export const buildUnifiedRecords = ({ beforeForm, beforeResponses = [], afterFor
       return hit ? hit.answer : null;
     };
     responses.forEach((r) => {
-      const type = normalizeGroupStatus(r.beneficiary_status ?? answerOf(r, f.beneficiary));
+      let type = normalizeGroupStatus(r.beneficiary_status ?? answerOf(r, f.beneficiary));
+      if (type === 'Unknown' && form?.has_baseline === false && form?.questionnaire_type) {
+        type = form.questionnaire_type === 'before' ? 'Beneficiary' : 'Non-Beneficiary';
+      }
       const municipality = cap(r.municipality ?? answerOf(r, f.municipality) ?? '');
       const provinceRaw = cap(r.province ?? answerOf(r, f.province) ?? '');
       const province = provinceRaw || 'Unknown';

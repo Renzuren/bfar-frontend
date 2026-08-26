@@ -29,12 +29,9 @@ import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import { useProject } from '../context/ProjectContext';
 
-const AfterTab = () => {
+const NonBeneficiaryTab = () => {
   const outletCtx = useOutletContext();
   const project = outletCtx?.project;
-  const isBaseline = project?.has_baseline !== false;
-  const tabLabel = isBaseline ? 'After' : 'Non-Beneficiary';
-  const beforeLabel = isBaseline ? 'Before' : 'Beneficiary';
   const navigate = useNavigate();
   const { id: projectId } = useParams();
   const { fetchProject } = useProject();
@@ -57,7 +54,7 @@ const AfterTab = () => {
           setResponses(responsesRes.data || []);
         }
       } catch (error) {
-        toast.error(`Failed to load ${tabLabel} questionnaire`);
+        toast.error('Failed to load Non-Beneficiary questionnaire');
       } finally {
         setLoading(false);
       }
@@ -72,9 +69,9 @@ const AfterTab = () => {
     toast.success('Questionnaire link copied!');
   };
 
-  const copyFromBefore = async () => {
+  const copyFromBeneficiary = async () => {
     if (!project?.before_form) {
-      toast.error(`No ${beforeLabel} questionnaire to copy from`);
+      toast.error('No Beneficiary questionnaire to copy from');
       return;
     }
     setCopying(true);
@@ -83,7 +80,7 @@ const AfterTab = () => {
       const beforeForm = beforeRes.data;
 
       const payload = {
-        title: beforeForm.title ? `${beforeForm.title} (${tabLabel})` : `${tabLabel} Assessment`,
+        title: beforeForm.title ? `${beforeForm.title} (Non-Beneficiary)` : 'Non-Beneficiary Assessment',
         description: beforeForm.description || '',
         questions: (beforeForm.questions || []).map(q => ({ ...q })),
         sections: (beforeForm.sections || []).map(sec => ({
@@ -95,6 +92,7 @@ const AfterTab = () => {
         csvColumnCount: beforeForm.csvColumnCount || 0,
         project_id: projectId,
         questionnaire_type: 'after',
+        has_baseline: beforeForm.has_baseline,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -107,9 +105,9 @@ const AfterTab = () => {
 
       setForm({ ...payload, id: newFormId });
       setResponses([]);
-      toast.success(`${tabLabel} questionnaire created from ${beforeLabel} template! You can now edit it.`);
+      toast.success('Non-Beneficiary questionnaire created from Beneficiary template! You can now edit it.');
     } catch (error) {
-      toast.error(error.response?.data?.error || `Failed to copy ${beforeLabel} questionnaire`);
+      toast.error(error.response?.data?.error || 'Failed to copy Beneficiary questionnaire');
     } finally {
       setCopying(false);
     }
@@ -161,7 +159,7 @@ const AfterTab = () => {
       await fetchProject(projectId);
       setForm(null);
       setResponses([]);
-      toast.success(`${tabLabel} questionnaire deleted`);
+      toast.success('Non-Beneficiary questionnaire deleted');
     } catch (error) {
       toast.error('Failed to delete questionnaire');
     }
@@ -171,7 +169,7 @@ const AfterTab = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-slate-500">
-        Loading {tabLabel} questionnaire...
+        Loading Non-Beneficiary questionnaire...
       </div>
     );
   }
@@ -183,17 +181,15 @@ const AfterTab = () => {
           <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-violet-300/20 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-purple-300/20 blur-3xl" />
           <div className="relative text-left">
-            <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-violet-200">{tabLabel} Questionnaires</p>
-            <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">{isBaseline ? 'After Intervention' : 'Non-Beneficiary Group'}</h2>
+            <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-violet-200">Non-Beneficiary Questionnaires</p>
+            <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">Non-Beneficiary Group</h2>
             <p className="max-w-2xl text-base text-purple-100">
-              {isBaseline
-                ? 'Create a questionnaire to measure changes after the intervention or program has been completed.'
-                : 'Create a questionnaire to be distributed to non-beneficiary respondents for comparison.'}
+              Create a questionnaire to be distributed to non-beneficiary respondents for comparison.
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               {project?.before_form && (
                 <Button
-                  onClick={copyFromBefore}
+                  onClick={copyFromBeneficiary}
                   disabled={copying}
                   className="bg-white px-5 py-2.5 text-purple-700 shadow-lg shadow-purple-500/30 hover:bg-purple-50"
                 >
@@ -202,7 +198,7 @@ const AfterTab = () => {
                   ) : (
                     <Copy className="mr-2 h-4 w-4" />
                   )}
-                  {copying ? 'Copying...' : `Copy from ${beforeLabel}`}
+                  {copying ? 'Copying...' : 'Copy from Beneficiary'}
                 </Button>
               )}
               <Button
@@ -221,18 +217,16 @@ const AfterTab = () => {
           <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 text-violet-600">
             <Inbox className="h-10 w-10" />
           </div>
-          <h3 className="mb-2 text-xl font-bold text-slate-900">No {tabLabel} Questionnaire Yet</h3>
+          <h3 className="mb-2 text-xl font-bold text-slate-900">No Non-Beneficiary Questionnaire Yet</h3>
           <p className="mb-6 max-w-md text-sm text-slate-500">
             {project?.before_form
-              ? `Copy your ${beforeLabel} questionnaire to ensure matching structures for accurate Narrative Report comparisons, or create a blank one.`
-              : isBaseline
-                ? 'Create an After questionnaire to measure the impact and changes after the intervention.'
-                : 'Create a Non-Beneficiary questionnaire to collect data for comparison with the Beneficiary group.'}
+              ? 'Copy your Beneficiary questionnaire to ensure matching structures for accurate Narrative Report comparisons, or create a blank one.'
+              : 'Create a Non-Beneficiary questionnaire to collect data for comparison with the Beneficiary group.'}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             {project?.before_form && (
               <button
-                onClick={copyFromBefore}
+                onClick={copyFromBeneficiary}
                 disabled={copying}
                 className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:opacity-50"
               >
@@ -241,7 +235,7 @@ const AfterTab = () => {
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
-                {copying ? 'Copying...' : `Copy from ${beforeLabel}`}
+                {copying ? 'Copying...' : 'Copy from Beneficiary'}
               </button>
             )}
             <button
@@ -261,7 +255,6 @@ const AfterTab = () => {
 
   return (
     <div className="w-full space-y-8">
-      {/* Hero Header */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-purple-700 px-8 py-8 text-white shadow-2xl shadow-purple-900/20 sm:px-10 sm:py-10">
         <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-violet-300/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-purple-300/20 blur-3xl" />
@@ -271,7 +264,7 @@ const AfterTab = () => {
               <ListChecks className="h-7 w-7" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold leading-tight sm:text-4xl">{form?.title || `${tabLabel} Assessment`}</h2>
+              <h2 className="text-3xl font-bold leading-tight sm:text-4xl">{form?.title || 'Non-Beneficiary Assessment'}</h2>
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${
                   status === 'Active'
@@ -290,7 +283,6 @@ const AfterTab = () => {
         </div>
       </section>
 
-      {/* Overview */}
       <Card className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
         <div className="flex items-center gap-3 border-b border-slate-100 bg-violet-50/50 px-6 py-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
@@ -317,7 +309,6 @@ const AfterTab = () => {
         </div>
       </Card>
 
-      {/* Quick Actions */}
       <Card className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
         <div className="flex items-center gap-3 border-b border-slate-100 bg-purple-50/50 px-6 py-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
@@ -396,7 +387,6 @@ const AfterTab = () => {
         </section>
       </Card>
 
-      {/* Delete Button */}
       <div className="flex justify-start">
         <button
           onClick={() => setDeleteDialogOpen(true)}
@@ -410,7 +400,7 @@ const AfterTab = () => {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {tabLabel} Questionnaire?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Non-Beneficiary Questionnaire?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete this questionnaire and all its responses. This action cannot be undone.
             </AlertDialogDescription>
@@ -427,4 +417,4 @@ const AfterTab = () => {
   );
 };
 
-export default AfterTab;
+export default NonBeneficiaryTab;

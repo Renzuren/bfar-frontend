@@ -102,6 +102,8 @@ const SubHeading = ({ num, title }) => (
 const NarrativeReport = () => {
   const outletCtx = useOutletContext();
   const project = outletCtx?.project;
+  const isBaseline = project?.has_baseline !== false;
+  const tabLabels = { before: isBaseline ? 'Before' : 'Beneficiary', after: isBaseline ? 'After' : 'Non-Beneficiary' };
   const navigate = useNavigate();
   const reportRef = useRef(null);
   const [beforeForm, setBeforeForm] = useState(null);
@@ -278,7 +280,7 @@ const NarrativeReport = () => {
     // ---- 4.1 Summary of Findings (numbered, data-cited) ----
     const findings = [];
     findings.push(
-      `The Before (benchmark) phase captured ${beforeResponses.length} response${beforeResponses.length === 1 ? '' : 's'}, while the After (current) phase captured ${afterResponses.length} response${afterResponses.length === 1 ? '' : 's'}, covering ${comparisonData.length} comparable questionnaire indicator${comparisonData.length === 1 ? '' : 's'}.`
+      `The ${tabLabels.before} (benchmark) phase captured ${beforeResponses.length} response${beforeResponses.length === 1 ? '' : 's'}, while the ${tabLabels.after} (current) phase captured ${afterResponses.length} response${afterResponses.length === 1 ? '' : 's'}, covering ${comparisonData.length} comparable questionnaire indicator${comparisonData.length === 1 ? '' : 's'}.`
     );
 
     improvedRatings.slice(0, 3).forEach(r =>
@@ -439,10 +441,10 @@ const NarrativeReport = () => {
         <h3 className="mb-3 text-2xl font-bold text-slate-900">Incomplete Setup</h3>
         <p className="max-w-md text-center text-sm leading-relaxed text-slate-500">
           {!project.before_form && !project.after_form
-            ? 'Create both Before and After questionnaires to generate a narrative report.'
+            ? `Create both ${tabLabels.before} and ${tabLabels.after} questionnaires to generate a narrative report.`
             : !project.before_form
-            ? 'Create the Before questionnaire first to begin comparison analysis.'
-            : 'Create the After questionnaire to compare results with the Before survey.'}
+            ? `Create the ${tabLabels.before} questionnaire first to begin comparison analysis.`
+            : `Create the ${tabLabels.after} questionnaire to compare results with the ${tabLabels.before} survey.`}
         </p>
         <Button onClick={() => navigate(-1)} variant="outline" className="mt-6 rounded-xl">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -460,7 +462,7 @@ const NarrativeReport = () => {
         </div>
         <h3 className="mb-3 text-2xl font-bold text-slate-900">No Responses Yet</h3>
         <p className="max-w-md text-center text-sm leading-relaxed text-slate-500">
-          Collect responses from both Before and After questionnaires to generate the narrative report.
+          Collect responses from both {tabLabels.before} and {tabLabels.after} questionnaires to generate the narrative report.
         </p>
         <Button onClick={() => navigate(-1)} variant="outline" className="mt-6 rounded-xl">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -478,7 +480,7 @@ const NarrativeReport = () => {
     figCounter += 1;
     item._figNum = figCounter;
     const qLabel = getQuestionLabel(item.question, index);
-    const chartData = item.data.map(d => ({ option: d.option, Before: parseFloat(d.before), After: parseFloat(d.after) }));
+    const chartData = item.data.map(d => ({ option: d.option, [tabLabels.before]: parseFloat(d.before), [tabLabels.after]: parseFloat(d.after) }));
 
     return (
       <figure key={index} className="print-break-inside-avoid mb-10 break-inside-avoid-page">
@@ -494,8 +496,8 @@ const NarrativeReport = () => {
               <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} label={{ value: '%', position: 'insideTopLeft', offset: 10 }} />
               <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(37, 99, 235, 0.05)' }} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="Before" fill={BEFORE_COLOR} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="After" fill={AFTER_COLOR} radius={[4, 4, 0, 0]} />
+              <Bar dataKey={tabLabels.before} fill={BEFORE_COLOR} radius={[4, 4, 0, 0]} />
+              <Bar dataKey={tabLabels.after} fill={AFTER_COLOR} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -504,8 +506,8 @@ const NarrativeReport = () => {
           <thead>
             <tr className="bg-slate-100">
               <th className="border border-slate-300 px-3 py-2 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Option</th>
-              <th className="border border-slate-300 px-3 py-2 text-right text-xs font-bold uppercase tracking-wider text-slate-600">Benchmark (%)</th>
-              <th className="border border-slate-300 px-3 py-2 text-right text-xs font-bold uppercase tracking-wider text-slate-600">Current (%)</th>
+              <th className="border border-slate-300 px-3 py-2 text-right text-xs font-bold uppercase tracking-wider text-slate-600">{tabLabels.before} (%)</th>
+              <th className="border border-slate-300 px-3 py-2 text-right text-xs font-bold uppercase tracking-wider text-slate-600">{tabLabels.after} (%)</th>
               <th className="border border-slate-300 px-3 py-2 text-right text-xs font-bold uppercase tracking-wider text-slate-600">Change (pp)</th>
             </tr>
           </thead>
@@ -543,8 +545,8 @@ const NarrativeReport = () => {
     const qLabel = getQuestionLabel(item.question, index);
     const distData = Object.keys(item.beforeDistribution || {}).map(rating => ({
       name: `${rating}\u2605`,
-      Before: item.beforeDistribution[rating] || 0,
-      After: item.afterDistribution[rating] || 0,
+      [tabLabels.before]: item.beforeDistribution[rating] || 0,
+      [tabLabels.after]: item.afterDistribution[rating] || 0,
     }));
     const delta = (item.afterAvg || 0) - (item.beforeAvg || 0);
 
@@ -570,8 +572,8 @@ const NarrativeReport = () => {
               <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
               <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(37, 99, 235, 0.05)' }} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="Before" fill={BEFORE_COLOR} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="After" fill={AFTER_COLOR} radius={[4, 4, 0, 0]} />
+              <Bar dataKey={tabLabels.before} fill={BEFORE_COLOR} radius={[4, 4, 0, 0]} />
+              <Bar dataKey={tabLabels.after} fill={AFTER_COLOR} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -617,7 +619,7 @@ const NarrativeReport = () => {
             {project.title}
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm italic leading-relaxed text-slate-600">
-            An Impact Assessment of Program Beneficiaries Using Benchmark (Before) and Current (After) Survey Data
+            An Impact Assessment of Program Beneficiaries Using Benchmark ({tabLabels.before}) and Current ({tabLabels.after}) Survey Data
           </p>
           <div className="mx-auto mt-8 h-0.5 w-28 bg-slate-800" />
           <div className="mt-8 space-y-1 text-sm text-slate-600">
@@ -675,8 +677,8 @@ const NarrativeReport = () => {
               In response, {project.title} was implemented to improve the living conditions and livelihood
               prospects of registered fisherfolk-beneficiaries. To move beyond anecdotal accounts of success, this
               report undertakes a systematic assessment of the program&apos;s outcomes using a benchmark-versus-current
-              approach: a Before questionnaire establishes baseline conditions prior to the intervention, while an
-              After questionnaire measures the situation of respondents following its implementation. By comparing
+              approach: a {tabLabels.before} questionnaire establishes baseline conditions prior to the intervention, while an
+              {tabLabels.after} questionnaire measures the situation of respondents following its implementation. By comparing
               responses across both phases, the study determines the direction and magnitude of change experienced
               by beneficiaries and generates empirical evidence to inform future program planning, targeting, and
               sustainability.
@@ -688,7 +690,7 @@ const NarrativeReport = () => {
             <p>The general objective of this assessment was to determine the impact of {project.title} on its fisherfolk-beneficiaries. Specifically, it aimed to:</p>
             <ol className="mt-3 list-inside list-decimal space-y-1.5 pl-2">
               <li>Assess the socioeconomic conditions of fisherfolk-beneficiaries at the benchmark and current phases;</li>
-              <li>Compare benchmark (Before) and current (After) levels of program-relevant indicators using matched survey items;</li>
+              <li>Compare benchmark ({tabLabels.before}) and current ({tabLabels.after}) levels of program-relevant indicators using matched survey items;</li>
               <li>Identify indicator areas that improved, declined, or remained stable between the two survey phases; and</li>
               <li>Formulate evidence-based recommendations to strengthen program implementation and sustainability.</li>
             </ol>
@@ -704,8 +706,8 @@ const NarrativeReport = () => {
             <p>
               The assessment employed a quantitative, descriptive-comparative design anchored on a
               benchmark-versus-current framework. Structured digital questionnaires were administered to registered
-              fisherfolk-respondents in two phases: prior to program implementation (Before/benchmark) and after
-              program implementation (After/current). Because the same instrument structure was deployed in both
+              fisherfolk-respondents in two phases: prior to program implementation ({tabLabels.before}/benchmark) and after
+              program implementation ({tabLabels.after}/current). Because the same instrument structure was deployed in both
               phases, responses were matched question-by-question, permitting direct comparison of distributions and
               mean values over time.
             </p>
@@ -716,12 +718,12 @@ const NarrativeReport = () => {
             <table className="min-w-full border border-slate-300 text-sm">
               <tbody>
                 <tr className="bg-white">
-                  <td className="border border-slate-300 px-4 py-2.5 font-semibold text-slate-700">Before instrument</td>
-                  <td className="border border-slate-300 px-4 py-2.5 text-slate-600">{beforeForm?.title || 'Before questionnaire'} ({beforeQuestions.length} survey question{beforeQuestions.length === 1 ? '' : 's'})</td>
+                  <td className="border border-slate-300 px-4 py-2.5 font-semibold text-slate-700">{tabLabels.before} instrument</td>
+                  <td className="border border-slate-300 px-4 py-2.5 text-slate-600">{beforeForm?.title || `${tabLabels.before} questionnaire`} ({beforeQuestions.length} survey question{beforeQuestions.length === 1 ? '' : 's'})</td>
                 </tr>
                 <tr className="bg-slate-50/60">
-                  <td className="border border-slate-300 px-4 py-2.5 font-semibold text-slate-700">After instrument</td>
-                  <td className="border border-slate-300 px-4 py-2.5 text-slate-600">{afterForm?.title || 'After questionnaire'} ({afterQuestions.length} survey question{afterQuestions.length === 1 ? '' : 's'})</td>
+                  <td className="border border-slate-300 px-4 py-2.5 font-semibold text-slate-700">{tabLabels.after} instrument</td>
+                  <td className="border border-slate-300 px-4 py-2.5 text-slate-600">{afterForm?.title || `${tabLabels.after} questionnaire`} ({afterQuestions.length} survey question{afterQuestions.length === 1 ? '' : 's'})</td>
                 </tr>
                 <tr className="bg-white">
                   <td className="border border-slate-300 px-4 py-2.5 font-semibold text-slate-700">Respondents</td>

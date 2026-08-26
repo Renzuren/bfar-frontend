@@ -63,8 +63,11 @@ const QuestionnaireBuilder = () => {
 
   const questionnaireType = searchParams.get('type') || 'before';
   const formField = questionnaireType === 'before' ? 'before_form' : 'after_form';
+  const isBaseline = project?.has_baseline !== false;
+  const tabLabels = { before: isBaseline ? 'Before' : 'Beneficiary', after: isBaseline ? 'After' : 'Non-Beneficiary' };
 
   const [selectedType, setSelectedType] = useState(questionnaireType);
+  const [typeChosen, setTypeChosen] = useState(!!searchParams.get('type'));
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -224,7 +227,7 @@ const QuestionnaireBuilder = () => {
     const isFirst = currentSectionIndex === 0;
 
     let newQuestion;
-    if (current.section_type === 'demographics' && isFirst && !sections[0].questions.some(q => q.code === 'BENE')) {
+    if (isBaseline && current.section_type === 'demographics' && isFirst && !sections[0].questions.some(q => q.code === 'BENE')) {
       // Auto-suggest beneficiary question if not present
       newQuestion = {
         id: `q_${Date.now()}`,
@@ -543,6 +546,7 @@ const QuestionnaireBuilder = () => {
       csvColumnCount: csvHeaders ? csvHeaders.split(',').length : 0,
       project_id: projectId,
       questionnaire_type: questionnaireType,
+      has_baseline: isBaseline,
       updatedAt: new Date().toISOString()
     };
     if (!payload.createdAt) payload.createdAt = new Date().toISOString();
@@ -580,7 +584,7 @@ const QuestionnaireBuilder = () => {
   const handleTypeSwitch = (newType) => {
     const otherField = newType === 'before' ? 'after_form' : 'before_form';
     if (project?.[otherField]) {
-      toast.error(`A ${newType === 'before' ? 'Before' : 'After'} questionnaire already exists for this project. Edit it from the ${newType === 'before' ? 'Before' : 'After'} tab.`);
+      toast.error(`A ${tabLabels[newType]} questionnaire already exists for this project. Edit it from the ${tabLabels[newType]} tab.`);
       return;
     }
     setSelectedType(newType);
@@ -606,7 +610,7 @@ const QuestionnaireBuilder = () => {
 
   const handleCopyFromBefore = async () => {
     if (!project?.before_form) {
-      toast.error('No Before questionnaire to copy from');
+      toast.error(`No ${tabLabels.before} questionnaire to copy from`);
       return;
     }
     setCopyingFromBefore(true);
@@ -646,20 +650,66 @@ const QuestionnaireBuilder = () => {
 
       setSections(loadedSections);
       setFormData({
-        title: beforeForm.title ? `${beforeForm.title} (After)` : '',
+        title: beforeForm.title ? `${beforeForm.title} (${tabLabels.after})` : '',
         description: beforeForm.description || '',
         questions: [],
       });
       setCurrentSectionIndex(0);
-      toast.success('Questions copied from Before! Edit as needed, then save.');
+      toast.success(`Questions copied from ${tabLabels.before}! Edit as needed, then save.`);
     } catch (error) {
-      toast.error('Failed to load Before questionnaire');
+      toast.error(`Failed to load ${tabLabels.before} questionnaire`);
     } finally {
       setCopyingFromBefore(false);
     }
   };
 
   if (fetching) return <div className="flex items-center justify-center py-20 text-slate-500">Loading questionnaire...</div>;
+
+  if (!isBaseline && !typeChosen) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="w-full max-w-lg space-y-6 text-center">
+          <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-cyan-600">No Baseline Project</p>
+            <h2 className="text-2xl font-bold text-slate-900">Who is this questionnaire for?</h2>
+            <p className="mt-1 text-sm text-slate-500">Choose the respondent group this questionnaire will target.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <button
+              onClick={() => {
+                setTypeChosen(true);
+                handleTypeSwitch('before');
+              }}
+              className="group rounded-xl border-2 border-slate-200 bg-white p-8 text-left transition-all hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-500/10"
+            >
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100 transition group-hover:bg-indigo-100">
+                <UserPlus className="h-5 w-5" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Beneficiary</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Respondents who directly received the program or intervention.
+              </p>
+            </button>
+            <button
+              onClick={() => {
+                setTypeChosen(true);
+                handleTypeSwitch('after');
+              }}
+              className="group rounded-xl border-2 border-slate-200 bg-white p-8 text-left transition-all hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-500/10"
+            >
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100 transition group-hover:bg-emerald-100">
+                <Users className="h-5 w-5" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Non-Beneficiary</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Control group respondents for comparison and analysis.
+              </p>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const current = sections[currentSectionIndex];
   const isFirst = currentSectionIndex === 0;
@@ -689,7 +739,7 @@ const QuestionnaireBuilder = () => {
                     : 'bg-white/10 text-slate-300 ring-1 ring-white/20 hover:bg-white/20'
                 }`}
               >
-                Before
+                {tabLabels.before}
               </button>
               <button
                 type="button"
@@ -700,20 +750,24 @@ const QuestionnaireBuilder = () => {
                     : 'bg-white/10 text-slate-300 ring-1 ring-white/20 hover:bg-white/20'
                 }`}
               >
-                After
+                {tabLabels.after}
               </button>
             </div>
           </div>
 
           <p className="mb-3 text-xs text-slate-400">
             {questionnaireType === 'before'
-              ? 'This questionnaire will be distributed to respondents before the intervention or program.'
-              : 'This questionnaire will be distributed after the intervention to measure changes from the Before questionnaire.'}
+              ? (isBaseline
+                  ? 'This questionnaire will be distributed to respondents before the intervention or program.'
+                  : 'This questionnaire will be distributed to beneficiary respondents.')
+              : (isBaseline
+                  ? 'This questionnaire will be distributed after the intervention to measure changes from the Before questionnaire.'
+                  : 'This questionnaire will be distributed to non-beneficiary respondents for comparison.')}
           </p>
           <Input
             value={formData.title}
             onChange={e => setFormData({ ...formData, title: e.target.value })}
-            placeholder={`Enter ${questionnaireType} questionnaire title`}
+            placeholder={`Enter ${tabLabels[questionnaireType]?.toLowerCase()} questionnaire title`}
             className="mb-3 h-12 border-0 border-b-2 border-white/20 bg-transparent px-0 text-2xl font-bold text-white shadow-none placeholder:text-slate-400 focus:border-cyan-300 focus:ring-0"
           />
           <Textarea
@@ -740,7 +794,7 @@ const QuestionnaireBuilder = () => {
               ) : (
                 <Copy className="mr-1.5 h-4 w-4" />
               )}
-              {copyingFromBefore ? 'Copying...' : 'Copy from Before'}
+              {copyingFromBefore ? 'Copying...' : `Copy from ${tabLabels.before}`}
             </Button>
           )}
           <Button onClick={addBeneficiaryQuestion} variant="outline" size="sm" className="border-cyan-300 text-cyan-700 hover:bg-cyan-50">

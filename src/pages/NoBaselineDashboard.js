@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useLocation, Outlet, NavLink, useSearchParams } from 'react-router-dom';
 import {
   FileText,
@@ -22,6 +22,7 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { useProject } from '../context/ProjectContext';
+import { api } from '../lib/apiMiddleware';
 
 const SIDEBAR_ITEMS = [
   {
@@ -30,12 +31,12 @@ const SIDEBAR_ITEMS = [
     icon: FileText,
   },
   {
-    label: 'Before',
+    label: 'Beneficiary',
     path: 'before',
     icon: Layers,
   },
   {
-    label: 'After',
+    label: 'Non-Beneficiary',
     path: 'after',
     icon: ListChecks,
   },
@@ -51,18 +52,17 @@ const SIDEBAR_ITEMS = [
   },
 ];
 
-// Navbar breadcrumb labels for nested route segments
 const BREADCRUMB_LABELS = {
   'create-questionnaire': 'Edit Questionnaire',
-  'before': 'Before',
-  'after': 'After',
+  'before': 'Beneficiary',
+  'after': 'Non-Beneficiary',
   'report': 'Report',
   'responses': 'View Responses',
   'profiles': 'View Profiles',
   'narrative-report': 'Narrative Report',
 };
 
-const ProjectDashboard = () => {
+const NoBaselineDashboard = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
@@ -72,36 +72,27 @@ const ProjectDashboard = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
 
-  const isBaseline = currentProject?.has_baseline !== false;
-  const tabLabels = {
-    before: isBaseline ? 'Before' : 'Beneficiary',
-    after: isBaseline ? 'After' : 'Non-Beneficiary',
-  };
-
   const isOverview = location.pathname === `/projects/${id}`;
 
-  // Breadcrumb segments for nested pages (e.g. Projects > Final Test > Before > View Responses)
   const subSegments = location.pathname
     .split('/')
     .filter(Boolean)
-    .slice(2); // skip 'projects' and ':id'
-  const typeParam = searchParams.get('type'); // tab context: 'before' | 'after'
+    .slice(2);
+  const typeParam = searchParams.get('type');
 
   let breadcrumbCrumbs = [];
-  const breadcrumbLabels = { ...BREADCRUMB_LABELS, before: tabLabels.before, after: tabLabels.after };
   if (subSegments.length > 0) {
-    // Insert the Before/After tab crumb when the page was opened from a tab (?type=)
-    if (typeParam && breadcrumbLabels[typeParam]) {
+    if (typeParam && BREADCRUMB_LABELS[typeParam]) {
       breadcrumbCrumbs.push({
         key: `tab-${typeParam}`,
-        label: breadcrumbLabels[typeParam],
+        label: BREADCRUMB_LABELS[typeParam],
         to: `/projects/${id}/${typeParam}`,
       });
     }
     subSegments.forEach(seg => {
       breadcrumbCrumbs.push({
         key: seg,
-        label: breadcrumbLabels[seg] || seg,
+        label: BREADCRUMB_LABELS[seg] || seg,
         to: `/projects/${id}/${seg}`,
       });
     });
@@ -132,7 +123,6 @@ const ProjectDashboard = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity lg:hidden"
@@ -140,15 +130,12 @@ const ProjectDashboard = () => {
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out lg:static lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } ${sidebarCollapsed ? 'lg:w-[68px]' : 'lg:w-72'}`}
       >
-        {/* Sidebar header */}
         <div className={`flex items-center gap-3 border-b border-slate-100 ${sidebarCollapsed ? 'justify-center px-2 py-6' : 'px-6 py-6'}`}>
-          {/* Hamburger — toggles sidebar open/close */}
           <button
             onClick={() => {
               if (window.innerWidth < 1024) {
@@ -174,19 +161,17 @@ const ProjectDashboard = () => {
           )}
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-2 py-4">
           <ul className="space-y-1">
             {SIDEBAR_ITEMS.map((item) => {
               const Icon = item.icon;
-              const label = tabLabels[item.path] || item.label;
               const to = `/projects/${id}/${item.path}`;
               return (
                 <li key={item.path}>
                   <NavLink
                     to={to}
                     onClick={() => setSidebarOpen(false)}
-                    title={sidebarCollapsed ? label : undefined}
+                    title={sidebarCollapsed ? item.label : undefined}
                     className={({ isActive }) =>
                       `group relative flex items-center rounded-lg text-sm font-medium transition-all duration-150 ${
                         sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-4 py-3'
@@ -207,7 +192,7 @@ const ProjectDashboard = () => {
                             isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'
                           }`}
                         />
-                        {!sidebarCollapsed && <span>{label}</span>}
+                        {!sidebarCollapsed && <span>{item.label}</span>}
                       </>
                     )}
                   </NavLink>
@@ -217,7 +202,6 @@ const ProjectDashboard = () => {
           </ul>
         </nav>
 
-        {/* Sidebar footer */}
         {!sidebarCollapsed && (
           <div className="border-t border-slate-100 px-6 py-6">
             {currentProject?.description ? (
@@ -233,12 +217,9 @@ const ProjectDashboard = () => {
         )}
       </aside>
 
-      {/* Main content area */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Top bar */}
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-xl">
           <div className="flex w-full items-center gap-3 px-3 py-4 sm:px-5">
-            {/* Mobile-only trigger to open the sidebar (hamburger lives inside the sidebar) */}
             <button
               onClick={() => setSidebarOpen(true)}
               className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 lg:hidden"
@@ -247,7 +228,6 @@ const ProjectDashboard = () => {
               <Menu className="h-5 w-5" />
             </button>
 
-            {/* Breadcrumb */}
             <nav className="flex items-center gap-2 text-sm">
               <button
                 onClick={() => navigate('/dashboard')}
@@ -289,10 +269,8 @@ const ProjectDashboard = () => {
               )}
             </nav>
 
-            {/* Spacer */}
             <div className="flex-1" />
 
-            {/* Back to Dashboard */}
             <button
               onClick={() => navigate('/dashboard')}
               className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 sm:inline-flex"
@@ -301,7 +279,6 @@ const ProjectDashboard = () => {
               Back to Dashboard
             </button>
 
-            {/* Status dropdown */}
             {currentProject && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -346,10 +323,9 @@ const ProjectDashboard = () => {
           </div>
         </header>
 
-        {/* Page content */}
         <main className="w-full flex-1 px-3 pb-24 pt-0 sm:px-4">
           {isOverview ? (
-            <ProjectOverview project={currentProject} />
+            <NoBaselineOverview project={currentProject} />
           ) : (
             <Outlet context={{ project: currentProject }} />
           )}
@@ -359,14 +335,32 @@ const ProjectDashboard = () => {
   );
 };
 
-const ProjectOverview = ({ project }) => {
+const NoBaselineOverview = ({ project }) => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const isBaseline = project?.has_baseline !== false;
-  const tabLabels = {
-    before: isBaseline ? 'Before' : 'Beneficiary',
-    after: isBaseline ? 'After' : 'Non-Beneficiary',
-  };
+  const [beneficiaryCount, setBeneficiaryCount] = useState(null);
+  const [nonBeneficiaryCount, setNonBeneficiaryCount] = useState(null);
+
+  const fetchResponseCounts = useCallback(async () => {
+    const tasks = [];
+    if (project?.before_form) {
+      tasks.push(api.get(`/forms/${project.before_form}/responses`).catch(() => ({ data: [] })));
+    } else {
+      tasks.push(Promise.resolve({ data: [] }));
+    }
+    if (project?.after_form) {
+      tasks.push(api.get(`/forms/${project.after_form}/responses`).catch(() => ({ data: [] })));
+    } else {
+      tasks.push(Promise.resolve({ data: [] }));
+    }
+    const [benRes, nonBenRes] = await Promise.all(tasks);
+    setBeneficiaryCount(benRes.data?.length ?? 0);
+    setNonBeneficiaryCount(nonBenRes.data?.length ?? 0);
+  }, [project?.before_form, project?.after_form]);
+
+  useEffect(() => {
+    if (project?.before_form || project?.after_form) fetchResponseCounts();
+  }, [project?.before_form, project?.after_form, fetchResponseCounts]);
 
   if (!project) {
     return (
@@ -391,23 +385,31 @@ const ProjectOverview = ({ project }) => {
   const overviewCards = [
     {
       label: 'Create Questionnaire',
-      desc: `Build a new ${tabLabels.before} or ${tabLabels.after} questionnaire`,
+      desc: 'Build a new Beneficiary or Non-Beneficiary questionnaire',
       icon: FileText,
       color: 'bg-cyan-50 text-cyan-600',
       hover: 'hover:border-cyan-200',
       onClick: () => navigate(`/projects/${id}/create-questionnaire`),
     },
     {
-      label: tabLabels.before,
-      desc: project.before_form ? 'Form created — click to view' : 'No form yet — click to create',
+      label: 'Beneficiary',
+      desc: project.before_form
+        ? beneficiaryCount !== null
+          ? `${beneficiaryCount} ${beneficiaryCount === 1 ? 'response' : 'responses'} — click to view`
+          : 'Loading responses...'
+        : 'No form yet — click to create',
       icon: Layers,
       color: 'bg-indigo-50 text-indigo-600',
       hover: 'hover:border-indigo-200',
       onClick: () => navigate(`/projects/${id}/before`),
     },
     {
-      label: tabLabels.after,
-      desc: project.after_form ? 'Form created — click to view' : 'No form yet — click to create',
+      label: 'Non-Beneficiary',
+      desc: project.after_form
+        ? nonBeneficiaryCount !== null
+          ? `${nonBeneficiaryCount} ${nonBeneficiaryCount === 1 ? 'response' : 'responses'} — click to view`
+          : 'Loading responses...'
+        : 'No form yet — click to create',
       icon: ListChecks,
       color: 'bg-emerald-50 text-emerald-600',
       hover: 'hover:border-emerald-200',
@@ -417,7 +419,7 @@ const ProjectOverview = ({ project }) => {
       label: 'Narrative Report',
       desc:
         project.before_form && project.after_form
-          ? `Compare ${tabLabels.before} vs. ${tabLabels.after} results`
+          ? 'Compare Beneficiary vs. Non-Beneficiary results'
           : 'Complete both questionnaires to compare',
       icon: BarChart3,
       color: 'bg-amber-50 text-amber-600',
@@ -428,7 +430,6 @@ const ProjectOverview = ({ project }) => {
 
   return (
     <div className="space-y-8">
-      {/* Hero section */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 px-6 py-8 sm:px-10 sm:py-12 text-white shadow-xl text-left">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
@@ -440,8 +441,8 @@ const ProjectOverview = ({ project }) => {
             <h2 className="text-3xl font-bold leading-tight sm:text-4xl">
               {project.title}
             </h2>
-            <span className="inline-flex items-center rounded-full bg-blue-500/20 px-3 py-1 text-xs font-semibold text-blue-200 ring-1 ring-blue-400/30 backdrop-blur">
-              Baseline
+            <span className="inline-flex items-center rounded-full bg-violet-500/20 px-3 py-1 text-xs font-semibold text-violet-200 ring-1 ring-violet-400/30 backdrop-blur">
+              No Baseline
             </span>
           </div>
           <p className="max-w-2xl text-base text-slate-300">
@@ -453,7 +454,6 @@ const ProjectOverview = ({ project }) => {
         </div>
       </section>
 
-      {/* Quick access cards */}
       <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 text-left">
         {overviewCards.map((card) => {
           const Icon = card.icon;
@@ -480,4 +480,4 @@ const ProjectOverview = ({ project }) => {
   );
 };
 
-export default ProjectDashboard;
+export default NoBaselineDashboard;

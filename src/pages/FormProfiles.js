@@ -188,6 +188,9 @@ const FormProfiles = ({ embedded = false }) => {
     const rid = response.respondent_id || '';
     if (/^B-/i.test(rid)) return 'Yes';
     if (/^NB-/i.test(rid)) return 'No';
+    if (form?.has_baseline === false && form?.questionnaire_type) {
+      return form.questionnaire_type === 'before' ? 'Yes' : 'No';
+    }
     const beneQuestion = demographicsQuestions.find(isBeneficiaryQuestion);
     if (beneQuestion) {
       const ans = getAnswerForQuestion(response, beneQuestion);

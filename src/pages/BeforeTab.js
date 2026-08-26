@@ -30,6 +30,8 @@ import { useProject } from '../context/ProjectContext';
 const BeforeTab = () => {
   const outletCtx = useOutletContext();
   const project = outletCtx?.project;
+  const isBaseline = project?.has_baseline !== false;
+  const tabLabel = isBaseline ? 'Before' : 'Beneficiary';
   const navigate = useNavigate();
   const { id: projectId } = useParams();
   const { fetchProject } = useProject();
@@ -51,7 +53,7 @@ const BeforeTab = () => {
           setResponses(responsesRes.data || []);
         }
       } catch (error) {
-        toast.error('Failed to load Before questionnaire');
+        toast.error(`Failed to load ${tabLabel} questionnaire`);
       } finally {
         setLoading(false);
       }
@@ -112,7 +114,7 @@ const BeforeTab = () => {
       await fetchProject(projectId);
       setForm(null);
       setResponses([]);
-      toast.success('Before questionnaire deleted');
+      toast.success(`${tabLabel} questionnaire deleted`);
     } catch (error) {
       toast.error('Failed to delete questionnaire');
     }
@@ -122,7 +124,7 @@ const BeforeTab = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-slate-500">
-        Loading Before questionnaire...
+        Loading {tabLabel} questionnaire...
       </div>
     );
   }
@@ -134,10 +136,12 @@ const BeforeTab = () => {
           <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-300/20 blur-3xl" />
           <div className="relative text-left">
-            <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Before Questionnaires</p>
-            <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">Before Intervention</h2>
+            <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">{tabLabel} Questionnaires</p>
+            <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">{isBaseline ? 'Before Intervention' : 'Beneficiary Group'}</h2>
             <p className="max-w-2xl text-base text-blue-100">
-              Create a questionnaire to be distributed to respondents before the intervention or program begins.
+              {isBaseline
+                ? 'Create a questionnaire to be distributed to respondents before the intervention or program begins.'
+                : 'Create a questionnaire to be distributed to beneficiary respondents.'}
             </p>
             <div className="mt-6">
               <Button
@@ -145,7 +149,7 @@ const BeforeTab = () => {
                 className="bg-white text-blue-700 shadow-lg shadow-blue-500/30 hover:bg-blue-50"
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Create Before Questionnaire
+                Create {tabLabel} Questionnaire
               </Button>
             </div>
           </div>
@@ -155,16 +159,18 @@ const BeforeTab = () => {
           <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 to-blue-100 text-cyan-600">
             <Inbox className="h-10 w-10" />
           </div>
-          <h3 className="mb-2 text-xl font-bold text-slate-900">No Before Questionnaire Yet</h3>
+          <h3 className="mb-2 text-xl font-bold text-slate-900">No {tabLabel} Questionnaire Yet</h3>
           <p className="mb-6 max-w-md text-sm text-slate-500">
-            Create a Before questionnaire to collect baseline data from respondents prior to the intervention.
+            {isBaseline
+              ? 'Create a Before questionnaire to collect baseline data from respondents prior to the intervention.'
+              : 'Create a Beneficiary questionnaire to collect data from beneficiary respondents.'}
           </p>
           <Button
             onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=before`)}
             className="bg-cyan-600 text-white hover:bg-cyan-700"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Create Before Questionnaire
+            Create {tabLabel} Questionnaire
           </Button>
         </div>
       </div>
@@ -185,7 +191,7 @@ const BeforeTab = () => {
               <Layers className="h-7 w-7" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold leading-tight sm:text-4xl">{form?.title || 'Before Assessment'}</h2>
+              <h2 className="text-3xl font-bold leading-tight sm:text-4xl">{form?.title || `${tabLabel} Assessment`}</h2>
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${
                   status === 'Active'
@@ -324,7 +330,7 @@ const BeforeTab = () => {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Before Questionnaire?</AlertDialogTitle>
+            <AlertDialogTitle>Delete {tabLabel} Questionnaire?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete this questionnaire and all its responses. This action cannot be undone.
             </AlertDialogDescription>

@@ -198,6 +198,8 @@ const MapSection = ({
 const ReportTab = () => {
   const outletCtx = useOutletContext();
   const project = outletCtx?.project;
+  const isBaseline = project?.has_baseline !== false;
+  const tabLabels = { before: isBaseline ? 'Before' : 'Beneficiary', after: isBaseline ? 'After' : 'Non-Beneficiary' };
   const [raw, setRaw] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -369,7 +371,7 @@ const ReportTab = () => {
         </div>
         <h3 className="mb-2 text-xl font-bold text-slate-900">No Questionnaires Yet</h3>
         <p className="max-w-md text-sm text-slate-500">
-          The Report tab aggregates responses from your Before and After questionnaires. Create at least one questionnaire to generate this report.
+          The Report tab aggregates responses from your {tabLabels.before} and {tabLabels.after} questionnaires. Create at least one questionnaire to generate this report.
         </p>
       </div>
     );
@@ -403,7 +405,7 @@ const ReportTab = () => {
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100">Impact Evaluation Report</p>
               <h2 className="mt-0.5 text-2xl font-bold leading-tight sm:text-3xl">{project.title}</h2>
               <p className="mt-1 text-sm text-blue-100">
-                Aggregated from {raw.beforeResponses.length ? `${raw.beforeResponses.length} Before` : 'Before'}{raw.beforeResponses.length && raw.afterResponses.length ? ' + ' : ''}{raw.afterResponses.length ? `${raw.afterResponses.length} After` : 'After'} responses · generated {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                Aggregated from {raw.beforeResponses.length ? `${raw.beforeResponses.length} ${tabLabels.before}` : tabLabels.before}{raw.beforeResponses.length && raw.afterResponses.length ? ' + ' : ''}{raw.afterResponses.length ? `${raw.afterResponses.length} ${tabLabels.after}` : tabLabels.after} responses · generated {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
               </p>
             </div>
           </div>
@@ -493,7 +495,7 @@ const ReportTab = () => {
 
       {anySection && (
         <p className="pb-4 text-center text-[11px] text-slate-400">
-          Age brackets used: {AGE_BRACKETS.join(' · ')} · Perception charts include beneficiaries only · Report regenerates live from Before + After tab data
+          Age brackets used: {AGE_BRACKETS.join(' · ')} · Perception charts include beneficiaries only · Report regenerates live from {tabLabels.before} + {tabLabels.after} tab data
         </p>
       )}
       </div>

@@ -159,8 +159,12 @@ const FormFill = () => {
   const beneficiaryAnswer = beneficiaryQuestion
     ? answers[beneficiaryQuestion.id]
     : null;
+  const effectiveBeneficiaryAnswer = beneficiaryAnswer
+    || (form?.questionnaire_type && !beneficiaryQuestion
+      ? (form.questionnaire_type === 'before' ? 'Yes' : 'No')
+      : null);
   const nextRespondentId = computeNextRespondentId(
-    beneficiaryAnswer,
+    effectiveBeneficiaryAnswer,
     existingResponses
   );
 
@@ -283,6 +287,17 @@ const FormFill = () => {
         else if (q.type === 'rating') initialAnswers[q.id] = '';
         else initialAnswers[q.id] = '';
       });
+
+      // No Baseline: auto-set beneficiary answer based on questionnaire_type
+      if (fetchedForm.has_baseline === false && fetchedForm.questionnaire_type) {
+        const autoStatus = fetchedForm.questionnaire_type === 'before' ? 'Yes' : 'No';
+        const allFormQuestions = allQs;
+        const autoBeneQ = allFormQuestions.find(isBeneficiaryQuestion);
+        if (autoBeneQ) {
+          initialAnswers[autoBeneQ.id] = autoStatus;
+        }
+      }
+
       setAnswers(initialAnswers);
 
       try {
@@ -562,106 +577,40 @@ const FormFill = () => {
     if (question.type === 'profile_photo') return null;
     if (locationQuestionIds.includes(question.id)) return null;
 
-    const isShort = isTextQuestionType(question.type) || question.type === 'date' || question.type === 'dropdown';
-
-    if (isShort) {
-      return (
-        <div
-          key={question.id}
-          className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all duration-200 hover:border-slate-300"
-        >
-          <Label className="mb-1.5 block text-sm font-semibold text-slate-700">
-            {question.title}
-            {question.required && <span className="ml-1 text-rose-500">*</span>}
-          </Label>
-          {question.description && (
-            <p className="mb-2 text-xs text-slate-400">{question.description}</p>
-          )}
-          {isTextQuestionType(question.type) && (
-            <Input
-              value={answers[question.id] || ''}
-              onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
-              required={question.required}
-              placeholder="Type your answer here..."
-              className="h-10 rounded-lg border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-blue-100"
-            />
-          )}
-          {question.type === 'date' && (
-            <Input
-              type="date"
-              value={answers[question.id] || ''}
-              onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
-              required={question.required}
-              className="h-10 rounded-lg border-slate-200 bg-slate-50/50 text-sm text-slate-900 focus:border-blue-400 focus:ring-blue-100"
-            />
-          )}
-          {question.type === 'dropdown' && (
-            <Select
-              value={answers[question.id] || ''}
-              onValueChange={(v) => setAnswers({ ...answers, [question.id]: v })}
-              required={question.required}
-            >
-              <SelectTrigger className="h-10 rounded-lg border-slate-200 bg-slate-50/50 text-sm text-slate-900 focus:border-blue-400 focus:ring-blue-100">
-                <SelectValue placeholder="Select an option" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl border-slate-200">
-                {question.options?.map((opt, oi) => (
-                  <SelectItem key={oi} value={opt} className="rounded-lg text-sm">
-                    {opt}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-      );
-    }
+    const inputClass = "h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-[#646cff] focus:outline-none focus:ring-1 focus:ring-[#646cff]/30";
+    const selectTriggerClass = "h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm text-slate-900 focus:border-[#646cff] focus:ring-1 focus:ring-[#646cff]/30";
 
     return (
       <div
         key={question.id}
-        className="group rounded-2xl border border-slate-200/80 bg-white p-8 shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md"
+        className="rounded-lg border border-slate-200 bg-white py-5 px-6 transition-colors hover:border-slate-300"
       >
-        <div className="mb-4">
-          <div className="mb-1 flex items-start gap-3">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-xs font-bold text-blue-600 ring-1 ring-blue-100">
-              {idx}
-            </span>
-            <div className="flex-1">
-              <Label className="block text-base font-semibold leading-snug text-slate-900">
-                {question.title}
-                {question.required && (
-                  <span className="ml-1.5 text-rose-500">*</span>
-                )}
-              </Label>
-              {question.description && (
-                <p className="mt-1 text-sm text-slate-500">
-                  {question.description}
-                </p>
-              )}
-            </div>
-          </div>
+        <div className="mb-3">
+          <Label className="text-sm font-medium text-slate-900 leading-relaxed">
+            <span className="mr-1.5 text-slate-400 text-xs">{idx}.</span>
+            {question.title}
+            {question.required && <span className="ml-1 text-rose-500">*</span>}
+          </Label>
+          {question.description && (
+            <p className="mt-1 text-xs text-slate-400 ml-5">{question.description}</p>
+          )}
         </div>
 
-        <div className="ml-10">
+        <div className="ml-5">
           {isTextQuestionType(question.type) && (
             <Input
               value={answers[question.id] || ''}
-              onChange={(e) =>
-                setAnswers({ ...answers, [question.id]: e.target.value })
-              }
+              onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
               required={question.required}
-              placeholder="Type your answer here..."
-              className="h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-blue-100"
+              placeholder="Your answer"
+              className={inputClass}
             />
           )}
 
           {question.type === 'multiple_choice' && (
             <RadioGroup
               value={answers[question.id] || ''}
-              onValueChange={(v) =>
-                setAnswers({ ...answers, [question.id]: v })
-              }
+              onValueChange={(v) => setAnswers({ ...answers, [question.id]: v })}
               required={question.required}
             >
               <div className="space-y-2">
@@ -669,25 +618,17 @@ const FormFill = () => {
                   <label
                     key={oi}
                     htmlFor={`${question.id}-${oi}`}
-                    className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition-all duration-150 ${
+                    className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 transition-all ${
                       answers[question.id] === opt
-                        ? 'border-blue-400 bg-blue-50/80 ring-2 ring-blue-100'
-                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
+                        ? 'border-[#646cff] bg-[#646cff]/5'
+                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
                     }`}
                   >
-                    <RadioGroupItem
-                      value={opt}
-                      id={`${question.id}-${oi}`}
-                      className="text-blue-600"
-                    />
-                    <span className="text-sm font-medium text-slate-700">
+                    <RadioGroupItem value={opt} id={`${question.id}-${oi}`} className="text-[#646cff]" />
+                    <span className="text-sm text-slate-700">
                       {opt}
                       {isBeneficiaryQuestion(question) &&
-                        (opt === 'Yes'
-                          ? ' — Beneficiary'
-                          : opt === 'No'
-                          ? ' — Non-Beneficiary'
-                          : '')}
+                        (opt === 'Yes' ? ' — Beneficiary' : opt === 'No' ? ' — Non-Beneficiary' : '')}
                     </span>
                   </label>
                 ))}
@@ -696,18 +637,14 @@ const FormFill = () => {
           )}
 
           {isBeneficiaryQuestion(question) &&
-            (answers[question.id] === 'Yes' ||
-              answers[question.id] === 'No') && (
-              <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            (answers[question.id] === 'Yes' || answers[question.id] === 'No') && (
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
                 <span className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700">
                   <Fingerprint className="h-4 w-4" />
                   Respondent ID
                 </span>
-                <span className="text-lg font-bold tracking-wide text-emerald-800">
-                  {computeNextRespondentId(
-                    answers[question.id],
-                    existingResponses
-                  ) || '—'}
+                <span className="text-base font-bold tracking-wide text-emerald-800">
+                  {computeNextRespondentId(answers[question.id], existingResponses) || '—'}
                 </span>
               </div>
             )}
@@ -718,91 +655,65 @@ const FormFill = () => {
                 <label
                   key={oi}
                   htmlFor={`${question.id}-${oi}`}
-                  className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition-all duration-150 ${
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 transition-all ${
                     answers[question.id]?.includes(opt)
-                      ? 'border-blue-400 bg-blue-50/80 ring-2 ring-blue-100'
-                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
+                      ? 'border-[#646cff] bg-[#646cff]/5'
+                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
                   }`}
                 >
                   <Checkbox
                     id={`${question.id}-${oi}`}
                     checked={answers[question.id]?.includes(opt)}
-                    onCheckedChange={(c) =>
-                      handleCheckboxChange(question.id, opt, c)
-                    }
-                    className="text-blue-600"
+                    onCheckedChange={(c) => handleCheckboxChange(question.id, opt, c)}
+                    className="text-[#646cff]"
                   />
-                  <span className="text-sm font-medium text-slate-700">
-                    {opt}
-                  </span>
+                  <span className="text-sm text-slate-700">{opt}</span>
                 </label>
               ))}
             </div>
           )}
 
           {question.type === 'dropdown' && (
-            <Select
-              value={answers[question.id] || ''}
-              onValueChange={(v) =>
-                setAnswers({ ...answers, [question.id]: v })
-              }
-              required={question.required}
-            >
-              <SelectTrigger className="h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 focus:border-blue-400 focus:ring-blue-100">
-                <SelectValue placeholder="Select an option" />
+            <Select value={answers[question.id] || ''} onValueChange={(v) => setAnswers({ ...answers, [question.id]: v })} required={question.required}>
+              <SelectTrigger className={selectTriggerClass}>
+                <SelectValue placeholder="Select" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl border-slate-200">
+              <SelectContent className="rounded-lg border-slate-200">
                 {question.options?.map((opt, oi) => (
-                  <SelectItem key={oi} value={opt} className="rounded-lg">
-                    {opt}
-                  </SelectItem>
+                  <SelectItem key={oi} value={opt} className="text-sm">{opt}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           )}
 
           {question.type === 'date' && (
-            <div className="relative">
-              <Input
-                type="date"
-                value={answers[question.id] || ''}
-                onChange={(e) =>
-                  setAnswers({ ...answers, [question.id]: e.target.value })
-                }
-                required={question.required}
-                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 focus:border-blue-400 focus:ring-blue-100"
-              />
-            </div>
+            <Input
+              type="date"
+              value={answers[question.id] || ''}
+              onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+              required={question.required}
+              className={inputClass}
+            />
           )}
 
           {question.type === 'rating' && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-1.5">
               {[1, 2, 3, 4, 5].map((r) => (
                 <button
                   key={r}
                   type="button"
-                  onClick={() =>
-                    setAnswers({ ...answers, [question.id]: r })
-                  }
-                  className={`group/rate flex h-12 w-12 items-center justify-center rounded-xl border-2 transition-all duration-200 ${
+                  onClick={() => setAnswers({ ...answers, [question.id]: r })}
+                  className={`flex h-10 w-10 items-center justify-center rounded-lg border-2 transition-all ${
                     answers[question.id] === r
-                      ? 'border-amber-400 bg-amber-50 text-amber-500 shadow-md shadow-amber-500/20 scale-110'
-                      : 'border-slate-200 bg-white text-slate-400 hover:border-amber-300 hover:text-amber-400'
+                      ? 'border-amber-400 bg-amber-50 text-amber-500 scale-110'
+                      : 'border-slate-200 bg-white text-slate-300 hover:border-amber-300 hover:text-amber-400'
                   }`}
                 >
-                  <Star
-                    className={`h-5 w-5 ${
-                      answers[question.id] === r ? 'fill-amber-400' : ''
-                    }`}
-                  />
+                  <Star className={`h-4 w-4 ${answers[question.id] === r ? 'fill-amber-400' : ''}`} />
                 </button>
               ))}
               {answers[question.id] && (
-                <div className="ml-2 flex items-center">
-                  <span className="text-sm font-medium text-amber-600">
-                    {answers[question.id]} / 5
-                  </span>
-                </div>
+                <span className="ml-2 text-xs font-medium text-amber-600">{answers[question.id]}/5</span>
               )}
             </div>
           )}
@@ -818,12 +729,39 @@ const FormFill = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">
-      <div className="w-full px-3 py-6 pb-24 sm:px-4">
+      <div className="mx-auto max-w-2xl px-4 py-8 pb-24 sm:px-6">
+        {/* Form Header Card */}
+        <div className="overflow-hidden rounded-t-3xl border border-slate-200/60 bg-white shadow-lg shadow-slate-200/50">
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 px-8 py-6 sm:px-10 sm:py-8">
+            <h2 className="text-2xl font-bold leading-tight text-white sm:text-3xl">
+              {form.title}
+            </h2>
+          </div>
+          {form.description && (
+            <div className="border-b border-slate-100 bg-slate-50/50 px-8 py-4">
+              <p className="text-sm leading-relaxed text-slate-600">
+                {form.description}
+              </p>
+            </div>
+          )}
+          {nextRespondentId && (
+            <div className="flex items-center justify-between bg-emerald-50/50 px-8 py-3">
+              <span className="inline-flex items-center gap-2 text-xs font-medium text-emerald-700">
+                <Fingerprint className="h-3.5 w-3.5" />
+                Your Respondent ID
+              </span>
+              <span className="text-sm font-bold tracking-wide text-emerald-800">
+                {nextRespondentId}
+              </span>
+            </div>
+          )}
+        </div>
+
         {/* Progress Steps */}
-        <div className="mb-8 rounded-2xl bg-white px-4 py-4 shadow-sm sm:px-6">
+        <div className="mb-6 rounded-b-3xl border border-t-0 border-slate-200/60 bg-white px-4 py-3 shadow-sm sm:px-6">
           <div
             ref={stepsRef}
-            className="scrollbar-hide flex items-center gap-1 overflow-x-auto px-2 py-2"
+            className="scrollbar-hide flex items-center gap-1 overflow-x-auto py-1"
             style={{ scrollBehavior: 'smooth' }}
           >
             {stepLabels.map((label, i) => {
@@ -886,101 +824,48 @@ const FormFill = () => {
               );
             })}
           </div>
-          <div className="mt-4 text-center">
-            <span className="text-sm font-semibold text-slate-600">
+          <div className="mt-3 text-center">
+            <span className="text-xs text-slate-400">
               Step {currentSectionIndex + 1} of {sections.length}
             </span>
-            <span className="mx-2 text-slate-300">·</span>
-            <span className="text-sm font-medium text-blue-600">
-              {Math.round(progress)}% complete
-            </span>
           </div>
-        </div>
-
-        {/* Form Header Card */}
-        <div className="mb-6 overflow-hidden rounded-3xl border border-slate-200/60 bg-white shadow-lg shadow-slate-200/50">
-          <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 px-8 py-8 sm:px-10 sm:py-10">
-            <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-blue-400/20 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-cyan-400/10 blur-2xl" />
-            <div className="relative">
-              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/20 backdrop-blur">
-                <FileText className="h-5 w-5 text-blue-300" />
-              </div>
-              <h1 className="mb-1 text-sm font-medium tracking-wide text-blue-300/80 uppercase">
-                General Assessment e-Forms
-              </h1>
-              <h2 className="text-2xl font-bold leading-tight text-white sm:text-3xl">
-                {form.title}
-              </h2>
-            </div>
-          </div>
-          {form.description && (
-            <div className="border-b border-slate-100 bg-slate-50/50 px-8 py-4">
-              <p className="text-sm leading-relaxed text-slate-600">
-                {form.description}
-              </p>
-            </div>
-          )}
-          {nextRespondentId && (
-            <div className="flex items-center justify-between bg-emerald-50/50 px-8 py-3">
-              <span className="inline-flex items-center gap-2 text-xs font-medium text-emerald-700">
-                <Fingerprint className="h-3.5 w-3.5" />
-                Your Respondent ID
-              </span>
-              <span className="text-sm font-bold tracking-wide text-emerald-800">
-                {nextRespondentId}
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Form Content */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Demographics Section */}
           {currentSection?.section_type === 'demographics' && (
             <>
               {/* Profile Photo Card */}
               {profilePhotoQuestion && (
-                <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-7">
-                  <div className="mb-5 flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 ring-1 ring-purple-100">
-                      <Camera className="h-4 w-4 text-purple-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-slate-900">
-                        {profilePhotoQuestion.title || 'Profile Photo'}
-                        {profilePhotoQuestion.required && (
-                          <span className="ml-1 text-rose-500">*</span>
-                        )}
-                      </h3>
-                      {profilePhotoQuestion.description && (
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          {profilePhotoQuestion.description}
-                        </p>
+                <div className="rounded-lg border border-slate-200 bg-white py-5 px-6">
+                  <div className="mb-4">
+                    <Label className="text-sm font-medium text-slate-900">
+                      {profilePhotoQuestion.title || 'Profile Photo'}
+                      {profilePhotoQuestion.required && (
+                        <span className="ml-1 text-rose-500">*</span>
                       )}
-                    </div>
+                    </Label>
+                    {profilePhotoQuestion.description && (
+                      <p className="mt-1 text-xs text-slate-400">{profilePhotoQuestion.description}</p>
+                    )}
                   </div>
 
                   {profilePhotoPreview ? (
-                    <div className="flex items-center gap-5">
-                      <div className="relative">
-                        <img
-                          src={profilePhotoPreview}
-                          alt="Profile preview"
-                          className="h-28 w-28 rounded-2xl border-2 border-slate-200 object-cover shadow-md"
-                        />
-                      </div>
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={profilePhotoPreview}
+                        alt="Profile preview"
+                        className="h-20 w-20 rounded-lg border border-slate-200 object-cover"
+                      />
                       <div className="flex-1">
-                        <p className="mb-3 text-sm font-medium text-slate-700">
-                          Photo ready for upload
-                        </p>
+                        <p className="mb-2 text-sm text-slate-600">Photo ready</p>
                         <button
                           type="button"
                           onClick={handlePhotoRemove}
-                          className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-600 transition hover:bg-rose-100"
+                          className="text-sm font-medium text-rose-600 hover:text-rose-700"
                         >
-                          <X className="h-4 w-4" />
-                          Remove & Choose Different
+                          Remove
                         </button>
                       </div>
                     </div>
@@ -996,32 +881,16 @@ const FormFill = () => {
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className={`flex w-full items-center justify-center gap-4 rounded-2xl border-2 border-dashed p-8 transition-all duration-200 ${
+                        className={`flex w-full items-center justify-center gap-3 rounded-lg border-2 border-dashed p-6 transition-colors ${
                           photoAttempted
                             ? 'border-rose-300 bg-rose-50/50 hover:border-rose-400'
-                            : 'border-slate-200 bg-slate-50/50 hover:border-blue-300 hover:bg-blue-50/50'
+                            : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/30'
                         }`}
                       >
-                        <div
-                          className={`flex h-14 w-14 items-center justify-center rounded-2xl ${
-                            photoAttempted ? 'bg-rose-100' : 'bg-blue-100'
-                          }`}
-                        >
-                          <Upload
-                            className={`h-6 w-6 ${
-                              photoAttempted
-                                ? 'text-rose-500'
-                                : 'text-blue-500'
-                            }`}
-                          />
-                        </div>
+                        <Upload className={`h-5 w-5 ${photoAttempted ? 'text-rose-400' : 'text-slate-400'}`} />
                         <div className="text-left">
-                          <p className="text-sm font-semibold text-slate-700">
-                            Click to upload a photo
-                          </p>
-                          <p className="mt-0.5 text-xs text-slate-400">
-                            JPG, JPEG, or PNG — max 5MB
-                          </p>
+                          <p className="text-sm font-medium text-slate-600">Click to upload</p>
+                          <p className="text-xs text-slate-400">JPG, PNG — max 5MB</p>
                         </div>
                       </button>
                       {photoAttempted && !profilePhotoFile && (
@@ -1039,161 +908,104 @@ const FormFill = () => {
               )}
 
               {/* Respondent Info Card */}
-              <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-7">
-                <div className="mb-6 flex items-center gap-3 border-b border-slate-100 pb-5">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 ring-1 ring-blue-100">
-                    <User className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">
-                      Personal Information
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Required fields are marked with{' '}
-                      <span className="text-rose-500">*</span>
-                    </p>
-                  </div>
+              <div className="rounded-lg border border-slate-200 bg-white py-5 px-6">
+                <div className="mb-5">
+                  <Label className="text-sm font-medium text-slate-900">
+                    Respondent Name <span className="text-rose-500">*</span>
+                  </Label>
+                  <p className="mt-0.5 text-xs text-slate-400">Required fields are marked with <span className="text-rose-500">*</span></p>
                 </div>
 
-                <div className="space-y-5">
+                <div className="space-y-4">
                   <div>
-                    <Label
-                      htmlFor="respondent-name"
-                      className="mb-1.5 block text-sm font-semibold text-slate-700"
-                    >
-                      Respondent Name{' '}
-                      <span className="text-rose-500">*</span>
-                    </Label>
                     <Input
                       id="respondent-name"
                       type="text"
-                      placeholder="e.g. Juan Dela Cruz"
+                      placeholder="Your answer"
                       value={respondentName}
                       onChange={(e) => {
                         const v = e.target.value;
                         setRespondentName(v);
                         if (respondentIdQuestion)
-                          setAnswers({
-                            ...answers,
-                            [respondentIdQuestion.id]: v,
-                          });
+                          setAnswers({ ...answers, [respondentIdQuestion.id]: v });
                         if (nameAttempted && String(v || '').trim())
                           setNameAttempted(false);
                       }}
                       required
                       autoComplete="name"
-                      className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-blue-100 ${
+                      className={`h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-[#646cff] focus:outline-none focus:ring-1 focus:ring-[#646cff]/30 ${
                         nameAttempted && !hasRespondentName
-                          ? 'border-rose-300 ring-2 ring-rose-100'
+                          ? 'border-rose-300 ring-1 ring-rose-100'
                           : ''
                       }`}
                     />
                     {nameAttempted && !hasRespondentName && (
-                      <p
-                        role="alert"
-                        className="mt-2 flex items-center gap-1.5 text-sm font-medium text-rose-500"
-                      >
-                        <AlertCircle className="h-3.5 w-3.5" />
+                      <p role="alert" className="mt-1.5 text-xs text-rose-500">
                         {RESPONDENT_NAME_REQUIRED_MESSAGE}
                       </p>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="space-y-4">
                     {locationFields.map((field) => (
                       <div key={field.key}>
-                        <Label
-                          htmlFor={`respondent-${field.key}`}
-                          className="mb-1.5 block text-sm font-semibold text-slate-700"
+                        <Label className="text-sm font-medium text-slate-700">
+                      <span className="inline-flex items-center gap-1.5">
+                        {field.label}
+                      </span>
+                      <span className="ml-1 text-rose-500">*</span>
+                    </Label>
+                    {['dropdown', 'multiple_choice'].includes(
+                      field.question?.type
+                    ) ? (
+                      <Select
+                        value={answers[field.question.id] || ''}
+                        onValueChange={(v) =>
+                          setAnswers({ ...answers, [field.question.id]: v })
+                        }
+                      >
+                        <SelectTrigger
+                          id={`respondent-${field.key}`}
+                          className={`h-11 w-full mt-1.5 rounded-lg border border-slate-300 bg-white px-3.5 text-sm text-slate-900 focus:border-[#646cff] focus:ring-1 focus:ring-[#646cff]/30 ${
+                            locationHasError(field) ? 'border-rose-300 ring-1 ring-rose-100' : ''
+                          }`}
                         >
-                          <span className="inline-flex items-center gap-1.5">
-                            <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                            {field.label}
-                          </span>
-                          <span className="ml-1 text-rose-500">*</span>
-                        </Label>
-                        {['dropdown', 'multiple_choice'].includes(
-                          field.question?.type
-                        ) ? (
-                          <Select
-                            value={answers[field.question.id] || ''}
-                            onValueChange={(v) =>
-                              setAnswers({
-                                ...answers,
-                                [field.question.id]: v,
-                              })
-                            }
-                          >
-                            <SelectTrigger
-                              id={`respondent-${field.key}`}
-                              className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 focus:border-blue-400 focus:ring-blue-100 ${
-                                locationHasError(field)
-                                  ? 'border-rose-300 ring-2 ring-rose-100'
-                                  : ''
-                              }`}
-                            >
-                              <SelectValue
-                                placeholder={`Select your ${field.label.toLowerCase()}`}
-                              />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl border-slate-200">
-                              {field.question.options?.map((opt) => (
-                                <SelectItem
-                                  key={opt}
-                                  value={opt}
-                                  className="rounded-lg"
-                                >
-                                  {opt}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Input
-                            id={`respondent-${field.key}`}
-                            type="text"
-                            placeholder={`e.g. ${field.label}`}
-                            value={getLocationValue(field)}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              if (field.question) {
-                                setAnswers({
-                                  ...answers,
-                                  [field.question.id]: v,
-                                });
-                              } else {
-                                setLocationValues((prev) => ({
-                                  ...prev,
-                                  [field.key]: v,
-                                }));
-                              }
-                              if (
-                                locationAttempted[field.key] &&
-                                isValidLocationText(v)
-                              ) {
-                                setLocationAttempted((prev) => ({
-                                  ...prev,
-                                  [field.key]: false,
-                                }));
-                              }
-                            }}
-                            required
-                            className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-blue-100 ${
-                              locationHasError(field)
-                                ? 'border-rose-300 ring-2 ring-rose-100'
-                                : ''
-                            }`}
-                          />
-                        )}
-                        {locationHasError(field) && (
-                          <p
-                            role="alert"
-                            className="mt-2 flex items-center gap-1.5 text-sm font-medium text-rose-500"
-                          >
-                            <AlertCircle className="h-3.5 w-3.5" />
-                            {locationValidationMessage(field)}
-                          </p>
-                        )}
+                          <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-lg border-slate-200">
+                          {field.question.options?.map((opt) => (
+                            <SelectItem key={opt} value={opt} className="text-sm">{opt}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        id={`respondent-${field.key}`}
+                        type="text"
+                        placeholder="Your answer"
+                        value={getLocationValue(field)}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (field.question) {
+                            setAnswers({ ...answers, [field.question.id]: v });
+                          } else {
+                            setLocationValues((prev) => ({ ...prev, [field.key]: v }));
+                          }
+                          if (locationAttempted[field.key] && isValidLocationText(v)) {
+                            setLocationAttempted((prev) => ({ ...prev, [field.key]: false }));
+                          }
+                        }}
+                        required
+                        className={`h-11 w-full mt-1.5 rounded-lg border border-slate-300 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-[#646cff] focus:outline-none focus:ring-1 focus:ring-[#646cff]/30 ${
+                          locationHasError(field) ? 'border-rose-300 ring-1 ring-rose-100' : ''
+                        }`}
+                      />
+                    )}
+                    {locationHasError(field) && (
+                      <p role="alert" className="mt-1.5 text-xs text-rose-500">
+                        {locationValidationMessage(field)}
+                      </p>
+                    )}
                       </div>
                     ))}
                   </div>
@@ -1202,23 +1014,22 @@ const FormFill = () => {
 
               {/* Other Demographics Questions */}
               {(() => {
+                const isNoBaselineForm = form?.has_baseline === false;
                 const otherQs = currentSectionQuestions.filter(
                   (q) =>
                     !locationQuestionIds.includes(q.id) &&
                     !isReservedField(q) &&
-                    q.type !== 'profile_photo'
+                    q.type !== 'profile_photo' &&
+                    !(isNoBaselineForm && isBeneficiaryQuestion(q))
                 );
                 if (otherQs.length === 0) return null;
                 return (
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {otherQs.map((q, idx) => {
-                      const isShort = isTextQuestionType(q.type) || q.type === 'date' || q.type === 'dropdown';
-                      return (
-                        <div key={q.id} className={isShort ? '' : 'col-span-full'}>
+                  <div className="space-y-4">
+                    {otherQs.map((q, idx) => (
+                        <div key={q.id}>
                           {renderQuestion(q, idx + 1)}
                         </div>
-                      );
-                    })}
+                    ))}
                   </div>
                 );
               })()}
@@ -1228,48 +1039,36 @@ const FormFill = () => {
           {/* Questionnaire Section */}
           {currentSection?.section_type === 'questionnaire' && (
             <>
-              {currentSectionQuestions.filter((q) => !isReservedField(q))
+              {currentSectionQuestions.filter((q) => !isReservedField(q) && !(form?.has_baseline === false && isBeneficiaryQuestion(q)))
                 .length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-16 text-center shadow-sm">
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
-                    <User className="h-7 w-7 text-slate-300" />
-                  </div>
-                  <h3 className="mb-1 text-lg font-bold text-slate-700">
-                    No questions yet
-                  </h3>
-                  <p className="text-sm text-slate-400">
-                    The questionnaire section has no questions. Go back and add
-                    questions in the form builder.
-                  </p>
+                <div className="rounded-lg border border-dashed border-slate-200 bg-white py-16 text-center">
+                  <p className="text-sm text-slate-400">No questions yet</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="space-y-4">
                   {currentSectionQuestions
                     .filter((q) => !isReservedField(q))
-                    .map((q, idx) => {
-                      const isShort = isTextQuestionType(q.type) || q.type === 'date' || q.type === 'dropdown';
-                      return (
-                        <div key={q.id} className={isShort ? '' : 'col-span-full'}>
+                    .map((q, idx) => (
+                        <div key={q.id}>
                           {renderQuestion(q, idx + 1)}
                         </div>
-                      );
-                    })}
+                    ))}
                 </div>
               )}
             </>
           )}
 
           {/* Navigation */}
-          <div className="flex items-center justify-between pt-4 pb-10">
+          <div className="flex items-center justify-between pt-2 pb-10">
             <Button
               type="button"
               onClick={handlePrevious}
               disabled={isFirst}
               variant="outline"
-              className="h-12 rounded-xl border-slate-200 px-6 py-3 font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40"
+              className="h-10 rounded-lg border-slate-300 px-5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30"
             >
-              <ChevronLeft className="mr-1.5 h-4 w-4" />
-              Previous
+              <ChevronLeft className="mr-1 h-4 w-4" />
+              Back
             </Button>
 
             {!isLast ? (
@@ -1277,37 +1076,23 @@ const FormFill = () => {
                 type="button"
                 onClick={handleNext}
                 disabled={!hasRespondentName || !allLocationsFilled}
-                className="h-12 rounded-xl bg-slate-900 px-6 py-3 font-medium text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-10 rounded-lg bg-[#646cff] px-5 text-sm font-medium text-white hover:bg-[#535bf2] disabled:cursor-not-allowed disabled:opacity-30"
               >
                 Next
-                <ChevronRight className="ml-1.5 h-4 w-4" />
+                <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
             ) : (
               <Button
                 type="submit"
-                disabled={
-                  !hasRespondentName ||
-                  !allLocationsFilled ||
-                  submitting ||
-                  uploadingPhoto
-                }
-                className="h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-8 font-semibold text-white shadow-lg shadow-emerald-600/25 transition-all duration-200 hover:from-emerald-700 hover:to-teal-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={!hasRespondentName || !allLocationsFilled || submitting || uploadingPhoto}
+                className="h-10 rounded-lg bg-emerald-600 px-6 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Submitting...
-                  </>
+                  <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Submitting...</>
                 ) : uploadingPhoto ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading photo...
-                  </>
+                  <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Uploading...</>
                 ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Submit Response
-                  </>
+                  <><Send className="mr-1.5 h-4 w-4" /> Submit</>
                 )}
               </Button>
             )}

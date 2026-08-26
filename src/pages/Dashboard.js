@@ -49,7 +49,7 @@ const Dashboard = () => {
   const [deleteProjectId, setDeleteProjectId] = useState(null);
   const [deleteProjectTitle, setDeleteProjectTitle] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [newProject, setNewProject] = useState({ title: '', description: '' });
+  const [newProject, setNewProject] = useState({ title: '', description: '', hasBaseline: true });
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -79,11 +79,12 @@ const Dashboard = () => {
     const result = await createProject({
       title: newProject.title.trim(),
       description: newProject.description.trim(),
+      has_baseline: newProject.hasBaseline,
     });
     setCreating(false);
     if (result) {
       setCreateDialogOpen(false);
-      setNewProject({ title: '', description: '' });
+      setNewProject({ title: '', description: '', hasBaseline: true });
     }
   };
 
@@ -300,6 +301,9 @@ const Dashboard = () => {
                 {filteredProjects.map((project) => {
                   const hasBefore = !!project.before_form;
                   const hasAfter = !!project.after_form;
+                  const projectIsBaseline = project.has_baseline !== false;
+                  const beforeLabel = projectIsBaseline ? 'Before Form' : 'Beneficiary Form';
+                  const afterLabel = projectIsBaseline ? 'After Form' : 'Non-Beneficiary Form';
                   return (
                     <div
                       key={project.id}
@@ -317,6 +321,13 @@ const Dashboard = () => {
                             hasBefore || hasAfter ? 'bg-emerald-500' : 'bg-amber-500'
                           }`} />
                           {hasBefore || hasAfter ? 'Active' : 'Draft'}
+                        </span>
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+                          projectIsBaseline
+                            ? 'bg-blue-50 text-blue-700 ring-blue-200'
+                            : 'bg-violet-50 text-violet-700 ring-violet-200'
+                        }`}>
+                          {projectIsBaseline ? 'Baseline' : 'No Baseline'}
                         </span>
                         <Button
                           onClick={() => openDeleteDialog(project)}
@@ -336,7 +347,7 @@ const Dashboard = () => {
 
                         <div className="mb-5 grid grid-cols-2 gap-3">
                           <div className="rounded-xl bg-slate-50 px-4 py-3">
-                            <p className="text-xs text-slate-400">Before Form</p>
+                            <p className="text-xs text-slate-400">{beforeLabel}</p>
                             <p className="text-xl font-bold text-slate-900">
                               {hasBefore ? (
                                 <span className="text-emerald-600">Yes</span>
@@ -346,7 +357,7 @@ const Dashboard = () => {
                             </p>
                           </div>
                           <div className="rounded-xl bg-indigo-50/70 px-4 py-3">
-                            <p className="text-xs text-indigo-500">After Form</p>
+                            <p className="text-xs text-indigo-500">{afterLabel}</p>
                             <p className="text-xl font-bold text-indigo-700">
                               {hasAfter ? (
                                 <span className="text-indigo-600">Yes</span>
@@ -400,7 +411,7 @@ const Dashboard = () => {
             <DialogHeader>
               <DialogTitle className="text-xl">Create New Project</DialogTitle>
               <DialogDescription>
-                Give your project a title and optional description. You can add questionnaires later.
+                Give your project a title, optional description, and choose a comparison type. You can add questionnaires later.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
@@ -424,6 +435,43 @@ const Dashboard = () => {
                   placeholder="Brief description of the assessment project..."
                   rows={3}
                 />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">Comparison Type *</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setNewProject({ ...newProject, hasBaseline: true })}
+                    className={`rounded-xl border-2 p-3.5 text-left transition-all ${
+                      newProject.hasBaseline
+                        ? 'border-cyan-500 bg-cyan-50/80 shadow-sm shadow-cyan-500/20'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={`block text-sm font-bold ${newProject.hasBaseline ? 'text-cyan-700' : 'text-slate-900'}`}>
+                      Baseline
+                    </span>
+                    <span className="mt-1 block text-xs leading-snug text-slate-500">
+                      Before &amp; After tabs — compare results before vs. after the intervention.
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewProject({ ...newProject, hasBaseline: false })}
+                    className={`rounded-xl border-2 p-3.5 text-left transition-all ${
+                      !newProject.hasBaseline
+                        ? 'border-cyan-500 bg-cyan-50/80 shadow-sm shadow-cyan-500/20'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={`block text-sm font-bold ${!newProject.hasBaseline ? 'text-cyan-700' : 'text-slate-900'}`}>
+                      No Baseline
+                    </span>
+                    <span className="mt-1 block text-xs leading-snug text-slate-500">
+                      Beneficiary &amp; Non-Beneficiary tabs — compare beneficiary vs. non-beneficiary respondents.
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
             <DialogFooter>

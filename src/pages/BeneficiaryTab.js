@@ -2,15 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useOutletContext } from 'react-router-dom';
 import {
   Plus,
-  ListChecks,
+  Layers,
   Eye,
   ExternalLink,
   Trash2,
   Pencil,
   BarChart3,
   Inbox,
-  Copy,
-  Loader2,
   IdCard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -29,12 +27,9 @@ import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import { useProject } from '../context/ProjectContext';
 
-const AfterTab = () => {
+const BeneficiaryTab = () => {
   const outletCtx = useOutletContext();
   const project = outletCtx?.project;
-  const isBaseline = project?.has_baseline !== false;
-  const tabLabel = isBaseline ? 'After' : 'Non-Beneficiary';
-  const beforeLabel = isBaseline ? 'Before' : 'Beneficiary';
   const navigate = useNavigate();
   const { id: projectId } = useParams();
   const { fetchProject } = useProject();
@@ -42,22 +37,21 @@ const AfterTab = () => {
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [copying, setCopying] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!project) return;
       try {
-        if (project.after_form) {
+        if (project.before_form) {
           const [formRes, responsesRes] = await Promise.all([
-            api.get(`/forms/${project.after_form}`),
-            api.get(`/forms/${project.after_form}/responses`).catch(() => ({ data: [] })),
+            api.get(`/forms/${project.before_form}`),
+            api.get(`/forms/${project.before_form}/responses`).catch(() => ({ data: [] })),
           ]);
           setForm(formRes.data);
           setResponses(responsesRes.data || []);
         }
       } catch (error) {
-        toast.error(`Failed to load ${tabLabel} questionnaire`);
+        toast.error('Failed to load Beneficiary questionnaire');
       } finally {
         setLoading(false);
       }
@@ -66,53 +60,10 @@ const AfterTab = () => {
   }, [project]);
 
   const copyFormLink = () => {
-    if (!project?.after_form) return;
-    const link = `${window.location.origin}/f/${project.after_form}`;
+    if (!project?.before_form) return;
+    const link = `${window.location.origin}/f/${project.before_form}`;
     navigator.clipboard.writeText(link);
     toast.success('Questionnaire link copied!');
-  };
-
-  const copyFromBefore = async () => {
-    if (!project?.before_form) {
-      toast.error(`No ${beforeLabel} questionnaire to copy from`);
-      return;
-    }
-    setCopying(true);
-    try {
-      const beforeRes = await api.get(`/forms/${project.before_form}`);
-      const beforeForm = beforeRes.data;
-
-      const payload = {
-        title: beforeForm.title ? `${beforeForm.title} (${tabLabel})` : `${tabLabel} Assessment`,
-        description: beforeForm.description || '',
-        questions: (beforeForm.questions || []).map(q => ({ ...q })),
-        sections: (beforeForm.sections || []).map(sec => ({
-          ...sec,
-          id: `section_${sec.section_type}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          questions: (sec.questions || []).map(q => ({ ...q })),
-        })),
-        csvHeaders: beforeForm.csvHeaders || '',
-        csvColumnCount: beforeForm.csvColumnCount || 0,
-        project_id: projectId,
-        questionnaire_type: 'after',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      const response = await api.post('/forms', payload);
-      const newFormId = response.data.id;
-
-      await api.put(`/projects/${projectId}`, { after_form: newFormId });
-      await fetchProject(projectId);
-
-      setForm({ ...payload, id: newFormId });
-      setResponses([]);
-      toast.success(`${tabLabel} questionnaire created from ${beforeLabel} template! You can now edit it.`);
-    } catch (error) {
-      toast.error(error.response?.data?.error || `Failed to copy ${beforeLabel} questionnaire`);
-    } finally {
-      setCopying(false);
-    }
   };
 
   const getQuestionCount = () => {
@@ -154,14 +105,14 @@ const AfterTab = () => {
   };
 
   const handleDeleteForm = async () => {
-    if (!project?.after_form) return;
+    if (!project?.before_form) return;
     try {
-      await api.delete(`/forms/${project.after_form}`);
-      await api.put(`/projects/${projectId}`, { after_form: null });
+      await api.delete(`/forms/${project.before_form}`);
+      await api.put(`/projects/${projectId}`, { before_form: null });
       await fetchProject(projectId);
       setForm(null);
       setResponses([]);
-      toast.success(`${tabLabel} questionnaire deleted`);
+      toast.success('Beneficiary questionnaire deleted');
     } catch (error) {
       toast.error('Failed to delete questionnaire');
     }
@@ -171,87 +122,50 @@ const AfterTab = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-slate-500">
-        Loading {tabLabel} questionnaire...
+        Loading Beneficiary questionnaire...
       </div>
     );
   }
 
-  if (!project?.after_form) {
+  if (!project?.before_form) {
     return (
       <div className="w-full space-y-8">
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-purple-700 px-8 py-10 text-white shadow-2xl shadow-purple-900/20 sm:px-12 sm:py-12">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-violet-300/20 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-purple-300/20 blur-3xl" />
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-600 via-blue-600 to-blue-700 px-8 py-10 text-white shadow-2xl shadow-blue-900/20 sm:px-12 sm:py-12">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-300/20 blur-3xl" />
           <div className="relative text-left">
-            <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-violet-200">{tabLabel} Questionnaires</p>
-            <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">{isBaseline ? 'After Intervention' : 'Non-Beneficiary Group'}</h2>
-            <p className="max-w-2xl text-base text-purple-100">
-              {isBaseline
-                ? 'Create a questionnaire to measure changes after the intervention or program has been completed.'
-                : 'Create a questionnaire to be distributed to non-beneficiary respondents for comparison.'}
+            <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Beneficiary Questionnaires</p>
+            <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">Beneficiary Group</h2>
+            <p className="max-w-2xl text-base text-blue-100">
+              Create a questionnaire to be distributed to beneficiary respondents.
             </p>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              {project?.before_form && (
-                <Button
-                  onClick={copyFromBefore}
-                  disabled={copying}
-                  className="bg-white px-5 py-2.5 text-purple-700 shadow-lg shadow-purple-500/30 hover:bg-purple-50"
-                >
-                  {copying ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Copy className="mr-2 h-4 w-4" />
-                  )}
-                  {copying ? 'Copying...' : `Copy from ${beforeLabel}`}
-                </Button>
-              )}
+            <div className="mt-6">
               <Button
-                onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=after`)}
-                variant="outline"
-                className="border-white/30 px-5 py-2.5 text-white hover:bg-white/10"
+                onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=before`)}
+                className="bg-white text-blue-700 shadow-lg shadow-blue-500/30 hover:bg-blue-50"
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Create Blank
+                Create Beneficiary Questionnaire
               </Button>
             </div>
           </div>
         </section>
 
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-left shadow-sm">
-          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 text-violet-600">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 to-blue-100 text-cyan-600">
             <Inbox className="h-10 w-10" />
           </div>
-          <h3 className="mb-2 text-xl font-bold text-slate-900">No {tabLabel} Questionnaire Yet</h3>
+          <h3 className="mb-2 text-xl font-bold text-slate-900">No Beneficiary Questionnaire Yet</h3>
           <p className="mb-6 max-w-md text-sm text-slate-500">
-            {project?.before_form
-              ? `Copy your ${beforeLabel} questionnaire to ensure matching structures for accurate Narrative Report comparisons, or create a blank one.`
-              : isBaseline
-                ? 'Create an After questionnaire to measure the impact and changes after the intervention.'
-                : 'Create a Non-Beneficiary questionnaire to collect data for comparison with the Beneficiary group.'}
+            Create a Beneficiary questionnaire to collect data from beneficiary respondents.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            {project?.before_form && (
-              <button
-                onClick={copyFromBefore}
-                disabled={copying}
-                className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:opacity-50"
-              >
-                {copying ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-                {copying ? 'Copying...' : `Copy from ${beforeLabel}`}
-              </button>
-            )}
-            <button
-              onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=after`)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-            >
-              <Plus className="h-4 w-4" />
-              Create Blank
-            </button>
-          </div>
+          <Button
+            onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=before`)}
+            className="bg-cyan-600 text-white hover:bg-cyan-700"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Create Beneficiary Questionnaire
+          </Button>
         </div>
       </div>
     );
@@ -261,17 +175,16 @@ const AfterTab = () => {
 
   return (
     <div className="w-full space-y-8">
-      {/* Hero Header */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-purple-700 px-8 py-8 text-white shadow-2xl shadow-purple-900/20 sm:px-10 sm:py-10">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-violet-300/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-purple-300/20 blur-3xl" />
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-600 via-blue-600 to-blue-700 px-8 py-8 text-white shadow-2xl shadow-blue-900/20 sm:px-10 sm:py-10">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-300/20 blur-3xl" />
         <div className="relative flex items-start justify-between text-left">
           <div className="flex items-start gap-5">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
-              <ListChecks className="h-7 w-7" />
+              <Layers className="h-7 w-7" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold leading-tight sm:text-4xl">{form?.title || `${tabLabel} Assessment`}</h2>
+              <h2 className="text-3xl font-bold leading-tight sm:text-4xl">{form?.title || 'Beneficiary Assessment'}</h2>
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${
                   status === 'Active'
@@ -281,7 +194,7 @@ const AfterTab = () => {
                   <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${status === 'Active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                   {status}
                 </span>
-                <span className="inline-flex items-center gap-1 text-sm text-purple-200">
+                <span className="inline-flex items-center gap-1 text-sm text-blue-200">
                   <BarChart3 className="h-3.5 w-3.5" /> {responses.length} {responses.length === 1 ? 'response' : 'responses'}
                 </span>
               </div>
@@ -290,10 +203,9 @@ const AfterTab = () => {
         </div>
       </section>
 
-      {/* Overview */}
       <Card className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="flex items-center gap-3 border-b border-slate-100 bg-violet-50/50 px-6 py-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+        <div className="flex items-center gap-3 border-b border-slate-100 bg-cyan-50/50 px-6 py-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-100 text-cyan-600">
             <BarChart3 className="h-4 w-4" />
           </div>
           <div>
@@ -304,7 +216,7 @@ const AfterTab = () => {
         <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-3">
           <div className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-5">
             <p className="text-left text-xs font-medium uppercase tracking-wide text-slate-400">Questions</p>
-            <p className="mt-1.5 text-left text-3xl font-bold text-violet-600">{getQuestionCount()}</p>
+            <p className="mt-1.5 text-left text-3xl font-bold text-cyan-600">{getQuestionCount()}</p>
           </div>
           <div className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-5">
             <p className="text-left text-xs font-medium uppercase tracking-wide text-slate-400">Responses</p>
@@ -317,10 +229,9 @@ const AfterTab = () => {
         </div>
       </Card>
 
-      {/* Quick Actions */}
       <Card className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="flex items-center gap-3 border-b border-slate-100 bg-purple-50/50 px-6 py-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
+        <div className="flex items-center gap-3 border-b border-slate-100 bg-blue-50/50 px-6 py-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
             <Plus className="h-4 w-4" />
           </div>
           <div>
@@ -330,7 +241,7 @@ const AfterTab = () => {
         </div>
         <section className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3">
         <button
-          onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=after`)}
+          onClick={() => navigate(`/projects/${projectId}/create-questionnaire?type=before`)}
           className="group flex items-center gap-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-sm hover:border-blue-200"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-100">
@@ -343,7 +254,7 @@ const AfterTab = () => {
         </button>
 
         <button
-          onClick={() => navigate(`/projects/${projectId}/responses?type=after`, { state: { project_id: projectId, questionnaire_type: 'after' } })}
+          onClick={() => navigate(`/projects/${projectId}/responses?type=before`, { state: { project_id: projectId, questionnaire_type: 'before' } })}
           className="group flex items-center gap-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-sm hover:border-emerald-200"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-100">
@@ -356,7 +267,7 @@ const AfterTab = () => {
         </button>
 
         <button
-          onClick={() => navigate(`/projects/${projectId}/profiles?type=after`, { state: { project_id: projectId, questionnaire_type: 'after' } })}
+          onClick={() => navigate(`/projects/${projectId}/profiles?type=before`, { state: { project_id: projectId, questionnaire_type: 'before' } })}
           className="group flex items-center gap-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-sm hover:border-cyan-200"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600 transition-colors group-hover:bg-cyan-100">
@@ -369,7 +280,7 @@ const AfterTab = () => {
         </button>
 
         <button
-          onClick={() => navigate(`/forms/${project.after_form}/analytics`, { state: { project_id: projectId, questionnaire_type: 'after' } })}
+          onClick={() => navigate(`/forms/${project.before_form}/analytics`, { state: { project_id: projectId, questionnaire_type: 'before' } })}
           className="group flex items-center gap-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-sm hover:border-violet-200"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 transition-colors group-hover:bg-violet-100">
@@ -396,7 +307,6 @@ const AfterTab = () => {
         </section>
       </Card>
 
-      {/* Delete Button */}
       <div className="flex justify-start">
         <button
           onClick={() => setDeleteDialogOpen(true)}
@@ -410,7 +320,7 @@ const AfterTab = () => {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {tabLabel} Questionnaire?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Beneficiary Questionnaire?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete this questionnaire and all its responses. This action cannot be undone.
             </AlertDialogDescription>
@@ -427,4 +337,4 @@ const AfterTab = () => {
   );
 };
 
-export default AfterTab;
+export default BeneficiaryTab;

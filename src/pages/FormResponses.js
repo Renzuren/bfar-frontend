@@ -219,6 +219,10 @@ const FormResponses = ({ embedded = false }) => {
     const id = response.respondent_id || '';
     if (/^B-/i.test(id)) return 'Yes';
     if (/^NB-/i.test(id)) return 'No';
+    // No Baseline: derive from form's questionnaire_type
+    if (form?.has_baseline === false && form?.questionnaire_type) {
+      return form.questionnaire_type === 'before' ? 'Yes' : 'No';
+    }
     const beneQuestion = sections.flatMap(s => s.questions).find(isBeneficiaryQuestion);
     if (beneQuestion) {
       const ans = getAnswerForQuestion(response, beneQuestion);
