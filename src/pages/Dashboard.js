@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   PenLine,
   Brain,
+  Shield,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -53,8 +54,12 @@ const Dashboard = () => {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
+    if (user?.role === 'admin') {
+      navigate('/admin', { replace: true });
+      return;
+    }
     if (user) fetchProjects();
-  }, [user, fetchProjects]);
+  }, [user, fetchProjects, navigate]);
 
   const handleDeleteProject = async () => {
     if (!deleteProjectId) return;
@@ -173,6 +178,15 @@ const Dashboard = () => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => navigate('/admin')}
+                className="hidden items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-sm font-medium text-violet-700 shadow-sm transition hover:bg-violet-100 hover:text-violet-800 sm:inline-flex"
+              >
+                <Shield className="h-3.5 w-3.5" />
+                Admin Panel
+              </button>
+            )}
             <div className="hidden items-center gap-3 rounded-full border border-slate-200/80 bg-white/90 py-1.5 pl-1.5 pr-3 shadow-sm backdrop-blur-sm sm:flex">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-xs font-bold text-white shadow-md shadow-cyan-500/20">
                 {initials}

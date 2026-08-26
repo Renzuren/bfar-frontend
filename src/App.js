@@ -94,6 +94,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
             <Route path="/verify-account" element={<VerifyAccount />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/verify-reset-code" element={<VerifyResetCode />} />
