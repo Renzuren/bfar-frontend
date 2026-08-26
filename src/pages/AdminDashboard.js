@@ -16,6 +16,7 @@ import {
   Mail,
   CalendarDays,
   RefreshCw,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,6 +53,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('users');
+  const [userFilter, setUserFilter] = useState('active');
 
   const [addOrgOpen, setAddOrgOpen] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
@@ -194,10 +196,18 @@ const AdminDashboard = () => {
     if (!deleteUserId) return;
     try {
       await api.delete(`/admin/users/${deleteUserId}`);
-      setUsers((prev) => prev.filter((u) => (u.id || u.uid) !== deleteUserId));
+      setUsers((prev) => prev.map((u) => (u.id || u.uid) === deleteUserId ? { ...u, status: 'deleted' } : u));
       toast.success('User deleted');
     } catch (error) { toast.error(error.response?.data?.error || 'Failed to delete user'); }
     setDeleteUserDialog(false); setDeleteUserId(null); setDeleteUserName('');
+  };
+
+  const handleRestoreUser = async (userId) => {
+    try {
+      await api.post(`/admin/users/${userId}/restore`);
+      setUsers((prev) => prev.map((u) => (u.id || u.uid) === userId ? { ...u, status: 'active', deleted_at: null } : u));
+      toast.success('User restored');
+    } catch (error) { toast.error(error.response?.data?.error || 'Failed to restore user'); }
   };
 
   const getOrgName = (orgId) => {
@@ -207,6 +217,8 @@ const AdminDashboard = () => {
   };
 
   const filteredUsers = users.filter((u) => {
+    if (userFilter === 'active' && u.status === 'deleted') return false;
+    if (userFilter === 'deleted' && u.status !== 'deleted') return false;
     const q = searchQuery.toLowerCase();
     return u.full_name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || getOrgName(u.org_id).toLowerCase().includes(q);
   });
@@ -315,11 +327,31 @@ const AdminDashboard = () => {
                   <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={activeTab === 'users' ? 'Search users...' : 'Search organizations...'} className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100" />
                 </div>
                 <Button onClick={fetchData} variant="outline" size="sm" className="border-slate-200 text-slate-600 hover:bg-slate-50"><RefreshCw className="h-4 w-4" /></Button>
-                <Button onClick={() => activeTab === 'users' ? setAddUserOpen(true) : setAddOrgOpen(true)} className="bg-violet-600 text-white hover:bg-violet-700">
-                  <Plus className="mr-1.5 h-4 w-4" /> {activeTab === 'users' ? 'Add User' : 'Add Organization'}
-                </Button>
+                {activeTab === 'users' && userFilter !== 'deleted' && (
+                  <Button onClick={() => setAddUserOpen(true)} className="bg-violet-600 text-white hover:bg-violet-700">
+                    <Plus className="mr-1.5 h-4 w-4" /> Add User
+                  </Button>
+                )}
+                {activeTab === 'organizations' && (
+                  <Button onClick={() => setAddOrgOpen(true)} className="bg-violet-600 text-white hover:bg-violet-700">
+                    <Plus className="mr-1.5 h-4 w-4" /> Add Organization
+                  </Button>
+                )}
               </div>
             </div>
+            {activeTab === 'users' && (
+              <div className="mt-3 flex items-center gap-1.5 border-t border-slate-100 pt-3">
+                {[
+                  { key: 'active', label: 'Active', count: users.filter((u) => u.status !== 'deleted').length },
+                  { key: 'deleted', label: 'Deleted', count: users.filter((u) => u.status === 'deleted').length },
+                  { key: 'all', label: 'All', count: users.length },
+                ].map((f) => (
+                  <button key={f.key} onClick={() => setUserFilter(f.key)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${userFilter === f.key ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}>
+                    {f.label} ({f.count})
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
 
           {/* Content */}
@@ -370,15 +402,21 @@ const AdminDashboard = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${u.status === 'active' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>
-                              <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${u.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500'}`} />{u.status || 'active'}
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${u.status === 'deleted' ? 'bg-rose-50 text-rose-700 ring-rose-200' : u.status === 'active' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>
+                              <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${u.status === 'deleted' ? 'bg-rose-500' : u.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500'}`} />{u.status || 'active'}
                             </span>
                           </td>
                           <td className="px-6 py-4"><div className="flex items-center gap-2 text-slate-500"><CalendarDays className="h-3.5 w-3.5 text-slate-400" />{formatDate(u.created_at || u.createdAt)}</div></td>
                           <td className="px-6 py-4">
                             <div className="flex items-center justify-end gap-1">
-                              <button onClick={() => openEditUser(u)} className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-600" title="Edit user"><Pencil className="h-4 w-4" /></button>
-                              <button onClick={() => { setDeleteUserId(uid); setDeleteUserName(u.full_name || u.email); setDeleteUserDialog(true); }} className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="Delete user"><Trash2 className="h-4 w-4" /></button>
+                              {u.status === 'deleted' ? (
+                                <button onClick={() => handleRestoreUser(uid)} className="rounded-lg p-2 text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-600" title="Restore user"><RotateCcw className="h-4 w-4" /></button>
+                              ) : (
+                                <>
+                                  <button onClick={() => openEditUser(u)} className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-600" title="Edit user"><Pencil className="h-4 w-4" /></button>
+                                  <button onClick={() => { setDeleteUserId(uid); setDeleteUserName(u.full_name || u.email); setDeleteUserDialog(true); }} className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="Delete user"><Trash2 className="h-4 w-4" /></button>
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -540,7 +578,7 @@ const AdminDashboard = () => {
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl">Delete "{deleteUserName}"?</AlertDialogTitle>
-            <AlertDialogDescription>This will permanently delete this user account and remove all their data. This action cannot be undone.</AlertDialogDescription>
+            <AlertDialogDescription>This user will be deactivated and cannot log in. You can restore them later from the Deleted tab.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
