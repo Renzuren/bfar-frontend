@@ -6,6 +6,7 @@ import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import FormBuilder from './pages/FormBuilder';
 import FormFill from './pages/FormFill';
 import FormResponses from './pages/FormResponses';
