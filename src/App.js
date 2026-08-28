@@ -21,7 +21,9 @@ import AfterTab from './pages/AfterTab';
 import BeneficiaryTab from './pages/BeneficiaryTab';
 import NonBeneficiaryTab from './pages/NonBeneficiaryTab';
 import ReportTab from './pages/ReportTab';
+import NoBaselineAnalysisReport from './pages/NoBaselineAnalysisReport';
 import NarrativeReport from './pages/NarrativeReport';
+import ProjectBackup from './pages/ProjectBackup';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProjectProvider, useProject } from './context/ProjectContext';
 import VerifyAccount from './pages/VerifyAccount';
@@ -84,6 +86,11 @@ const AfterRoute = () => {
   return currentProject?.has_baseline === false ? <NonBeneficiaryTab /> : <AfterTab />;
 };
 
+const ReportRoute = () => {
+  const { currentProject } = useProject();
+  return currentProject?.has_baseline === false ? <NoBaselineAnalysisReport /> : <ReportTab />;
+};
+
 function App() {
   return (
     <AuthProvider>
@@ -105,10 +112,11 @@ function App() {
               <Route path="create-questionnaire" element={<QuestionnaireBuilder />} />
               <Route path="before" element={<BeforeRoute />} />
               <Route path="after" element={<AfterRoute />} />
-              <Route path="report" element={<ProtectedRoute><ReportTab /></ProtectedRoute>} />
+              <Route path="report" element={<ProtectedRoute><ReportRoute /></ProtectedRoute>} />
               <Route path="responses" element={<ProtectedRoute><FormResponses embedded /></ProtectedRoute>} />
               <Route path="profiles" element={<ProtectedRoute><FormProfiles embedded /></ProtectedRoute>} />
               <Route path="narrative-report" element={<NarrativeReport />} />
+              <Route path="backup" element={<ProtectedRoute><ProjectBackup /></ProtectedRoute>} />
             </Route>
 
             {/* Legacy form routes */}

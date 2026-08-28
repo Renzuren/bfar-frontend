@@ -13,6 +13,7 @@ import {
   FileBarChart2,
   Check,
   Loader2,
+  DatabaseBackup,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -41,7 +42,7 @@ const SIDEBAR_ITEMS = [
     icon: ListChecks,
   },
   {
-    label: 'Report',
+    label: 'Analysis Report',
     path: 'report',
     icon: FileBarChart2,
   },
@@ -50,16 +51,22 @@ const SIDEBAR_ITEMS = [
     path: 'narrative-report',
     icon: BarChart3,
   },
+  {
+    label: 'Data Backup & Import',
+    path: 'backup',
+    icon: DatabaseBackup,
+  },
 ];
 
 const BREADCRUMB_LABELS = {
   'create-questionnaire': 'Edit Questionnaire',
   'before': 'Beneficiary',
   'after': 'Non-Beneficiary',
-  'report': 'Report',
+  'report': 'Analysis Report',
   'responses': 'View Responses',
   'profiles': 'View Profiles',
   'narrative-report': 'Narrative Report',
+  'backup': 'Data Backup & Import',
 };
 
 const NoBaselineDashboard = () => {

@@ -17,6 +17,10 @@ import {
   CalendarDays,
   RefreshCw,
   RotateCcw,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -98,6 +102,12 @@ const AdminDashboard = () => {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // --- USER TABLE PAGINATION ---
+  const [userPage, setUserPage] = useState(1);
+  const [usersPerPage, setUsersPerPage] = useState(10);
+
+  useEffect(() => { setUserPage(1); }, [searchQuery, userFilter, usersPerPage]);
 
   const handleLogout = () => { logout(); navigate('/'); toast.success('Logged out successfully'); };
 
@@ -227,6 +237,24 @@ const AdminDashboard = () => {
     const q = searchQuery.toLowerCase();
     return o.name?.toLowerCase().includes(q) || o.description?.toLowerCase().includes(q);
   });
+
+  // Pagination over the filtered user list
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
+    if (userPage > maxPage) setUserPage(maxPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredUsers.length, usersPerPage, userPage]);
+
+  const totalUserPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
+  const safeUserPage = Math.min(userPage, totalUserPages);
+  const pageStart = (safeUserPage - 1) * usersPerPage;
+  const paginatedUsers = filteredUsers.slice(pageStart, pageStart + usersPerPage);
+
+  const getPageNumbers = (current, total) => {
+    const pages = new Set([1, total]);
+    for (let p = Math.max(2, current - 2); p <= Math.min(total - 1, current + 2); p++) pages.add(p);
+    return [...pages].sort((a, b) => a - b);
+  };
 
   const totalProjects = users.reduce((sum, u) => sum + (u.project_count || 0), 0);
 
@@ -380,7 +408,7 @@ const AdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredUsers.map((u) => {
+                    {paginatedUsers.map((u) => {
                       const uid = u.id || u.uid;
                       const userInitials = (u.full_name || u.email || 'U').split(/[\s@._]+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('') || 'U';
                       return (
@@ -424,6 +452,68 @@ const AdminDashboard = () => {
                     })}
                   </tbody>
                 </table>
+                {totalUserPages > 1 && (
+                  <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/40 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs text-slate-500">
+                      Showing <span className="font-semibold text-slate-700">{pageStart + 1}</span>–
+                      <span className="font-semibold text-slate-700">{Math.min(pageStart + usersPerPage, filteredUsers.length)}</span> of{' '}
+                      <span className="font-semibold text-slate-700">{filteredUsers.length}</span> users
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        onClick={() => setUserPage(1)}
+                        disabled={safeUserPage === 1}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40"
+                        title="First page"
+                      >
+                        <ChevronsLeft className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setUserPage(Math.max(1, safeUserPage - 1))}
+                        disabled={safeUserPage === 1}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40"
+                        title="Previous page"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      {getPageNumbers(safeUserPage, totalUserPages).map((p, i, arr) => (
+                        <React.Fragment key={p}>
+                          {i > 0 && arr[i - 1] !== p - 1 && <span className="px-0.5 text-xs text-slate-400">…</span>}
+                          <button
+                            onClick={() => setUserPage(p)}
+                            className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm font-semibold transition ${p === safeUserPage ? 'bg-slate-900 text-white shadow-sm' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'}`}
+                          >
+                            {p}
+                          </button>
+                        </React.Fragment>
+                      ))}
+                      <button
+                        onClick={() => setUserPage(Math.min(totalUserPages, safeUserPage + 1))}
+                        disabled={safeUserPage === totalUserPages}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40"
+                        title="Next page"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setUserPage(totalUserPages)}
+                        disabled={safeUserPage === totalUserPages}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40"
+                        title="Last page"
+                      >
+                        <ChevronsRight className="h-4 w-4" />
+                      </button>
+                      <select
+                        value={usersPerPage}
+                        onChange={(e) => setUsersPerPage(Number(e.target.value))}
+                        className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-600 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                        title="Rows per page"
+                      >
+                        {[10, 25, 50].map((n) => (<option key={n} value={n}>{n} / page</option>))}
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
             )
           ) : (
