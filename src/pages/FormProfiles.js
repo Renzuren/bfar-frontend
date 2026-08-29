@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
-import { normalizeLocationCodes, isReservedField } from '../lib/preprocessing';
+import { normalizeLocationCodes, isReservedField, getQuestionLabel } from '../lib/preprocessing';
 
 // ==================== UTILITY FUNCTIONS ====================
 const isNoAnswer = (val) => !val || val === '' || val === '--' || (Array.isArray(val) && val.length === 0);
@@ -54,8 +54,8 @@ const SortIcon = ({ active, dir }) =>
   );
 
 // Sortable table header cell
-const SortableTh = ({ label, colKey, sortConfig, onSort }) => (
-  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+const SortableTh = ({ label, colKey, sortConfig, onSort, rowSpan }) => (
+  <th rowSpan={rowSpan} className="sticky top-0 z-10 bg-slate-50 px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
     <button
       type="button"
       onClick={() => onSort(colKey)}
@@ -101,6 +101,7 @@ const FormProfiles = ({ embedded = false }) => {
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [demographicsQuestions, setDemographicsQuestions] = useState([]);
+  const [demographicSections, setDemographicSections] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [cardsPerPage, setCardsPerPage] = useState(10);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -152,6 +153,19 @@ const FormProfiles = ({ embedded = false }) => {
           .flatMap(sec => sec.questions || [])
       );
       setDemographicsQuestions(demoQs);
+
+      const demoSections = formSections
+        .filter(sec => sec.section_type === 'demographics')
+        .map(sec => ({
+          ...sec,
+          questions: normalizeLocationCodes(
+            (sec.questions || []).filter(q =>
+              !isReservedField(q) && q.type !== 'profile_photo'
+            )
+          )
+        }))
+        .filter(sec => (sec.questions || []).length > 0);
+      setDemographicSections(demoSections);
     } catch (error) {
       toast.error('Failed to fetch profiles');
       goBack();
@@ -234,6 +248,10 @@ const FormProfiles = ({ embedded = false }) => {
   };
 
   const getSortValue = (response, key) => {
+    if (key.startsWith('dp:')) {
+      const question = demoCols.find(q => `dp:${q.id}` === key);
+      return question ? formatAnswer(getAnswerForQuestion(response, question)).toLowerCase() : '';
+    }
     switch (key) {
       case 'submitted': return response.submitted_at?._seconds || 0;
       case 'respondent_id': return String(getRespondentId(response)).toLowerCase();
@@ -259,6 +277,9 @@ const FormProfiles = ({ embedded = false }) => {
     )
   ).sort((a, b) => a.localeCompare(b));
 
+  // Demographic profile columns (from the form's demographics sections)
+  const demoCols = demographicSections.flatMap(s => s.questions || []);
+
   useEffect(() => {
     const pages = Math.max(1, Math.ceil(filteredCount / cardsPerPage));
     setCurrentPage((page) => Math.min(page, pages));
@@ -274,7 +295,8 @@ const FormProfiles = ({ embedded = false }) => {
     const query = searchQuery.toLowerCase();
     return (
       getRespondentId(r).toLowerCase().includes(query) ||
-      (r.full_name || '').toLowerCase().includes(query)
+      (r.full_name || '').toLowerCase().includes(query) ||
+      demoCols.some(q => formatAnswer(getAnswerForQuestion(r, q)).toLowerCase().includes(query))
     );
   });
 
@@ -569,14 +591,43 @@ const FormProfiles = ({ embedded = false }) => {
                 <table className="min-w-full divide-y divide-slate-200">
                   <thead>
                     <tr className="bg-slate-50/80">
-                      <SortableTh label="Date/Time Submitted" colKey="submitted" sortConfig={sortConfig} onSort={toggleSort} />
-                      <SortableTh label="Respondent ID" colKey="respondent_id" sortConfig={sortConfig} onSort={toggleSort} />
-                      <SortableTh label="Name" colKey="name" sortConfig={sortConfig} onSort={toggleSort} />
-                      <SortableTh label="Type" colKey="type" sortConfig={sortConfig} onSort={toggleSort} />
-                      <SortableTh label="Municipality" colKey="municipality" sortConfig={sortConfig} onSort={toggleSort} />
-                      <SortableTh label="Barangay" colKey="barangay" sortConfig={sortConfig} onSort={toggleSort} />
-                      <SortableTh label="Province" colKey="province" sortConfig={sortConfig} onSort={toggleSort} />
+                      <SortableTh label="Date/Time Submitted" colKey="submitted" sortConfig={sortConfig} onSort={toggleSort} rowSpan={demoCols.length ? 2 : undefined} />
+                      <SortableTh label="Respondent ID" colKey="respondent_id" sortConfig={sortConfig} onSort={toggleSort} rowSpan={demoCols.length ? 2 : undefined} />
+                      <SortableTh label="Name" colKey="name" sortConfig={sortConfig} onSort={toggleSort} rowSpan={demoCols.length ? 2 : undefined} />
+                      <SortableTh label="Type" colKey="type" sortConfig={sortConfig} onSort={toggleSort} rowSpan={demoCols.length ? 2 : undefined} />
+                      <SortableTh label="Municipality" colKey="municipality" sortConfig={sortConfig} onSort={toggleSort} rowSpan={demoCols.length ? 2 : undefined} />
+                      <SortableTh label="Barangay" colKey="barangay" sortConfig={sortConfig} onSort={toggleSort} rowSpan={demoCols.length ? 2 : undefined} />
+                      <SortableTh label="Province" colKey="province" sortConfig={sortConfig} onSort={toggleSort} rowSpan={demoCols.length ? 2 : undefined} />
+                      {demographicSections.map(section => (
+                        <th key={section.id} colSpan={section.questions.length} className="border-b border-slate-200 bg-slate-100/90 px-6 py-2.5 text-left text-xs font-bold text-slate-600">
+                          <span className="inline-flex items-center gap-1.5">
+                            <Users className="h-3.5 w-3.5 text-violet-500" />
+                            {section.title}
+                          </span>
+                        </th>
+                      ))}
                     </tr>
+                    {demoCols.length > 0 && (
+                      <tr>
+                        {demoCols.map((q, qIdx) => (
+                          <th
+                            key={q.id}
+                            className="sticky top-[37px] z-10 border-b border-r border-slate-200/80 bg-slate-50/80 px-6 py-2.5 text-left"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => toggleSort(`dp:${q.id}`)}
+                              className={`group inline-flex max-w-full items-center gap-1 text-[11px] font-bold uppercase tracking-wider transition hover:text-slate-700 ${
+                                sortConfig.key === `dp:${q.id}` ? 'text-violet-700' : 'text-slate-500'
+                              }`}
+                            >
+                              <span className="truncate">{getQuestionLabel(q, qIdx)}</span>
+                              <SortIcon active={sortConfig.key === `dp:${q.id}`} dir={sortConfig.dir} />
+                            </button>
+                          </th>
+                        ))}
+                      </tr>
+                    )}
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {paginated.map((resp, idx) => {
@@ -618,6 +669,18 @@ const FormProfiles = ({ embedded = false }) => {
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{getLocationForRow(resp, 'Municipality')}</td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{getLocationForRow(resp, 'Barangay')}</td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{getLocationForRow(resp, 'Province')}</td>
+                          {demoCols.map((q, qIdx) => {
+                            const ans = getAnswerForQuestion(resp, q);
+                            return (
+                              <td
+                                key={q.id}
+                                className="max-w-[180px] truncate px-6 py-4 text-sm text-slate-600"
+                                title={`${getQuestionLabel(q, qIdx)}: ${formatAnswer(ans)}`}
+                              >
+                                {formatAnswer(ans)}
+                              </td>
+                            );
+                          })}
                         </tr>
                       );
                     })}
