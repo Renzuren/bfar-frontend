@@ -15,6 +15,7 @@ import {
 import * as XLSX from 'xlsx';
 import MLAnalyticsPanel from '../components/MLAnalyticsPanel';
 import AutoChartsReport from '../components/AutoChartsReport';
+import { resolveServiceUrl } from '../lib/apiBase';
 
 const MLUpload = () => {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ const MLUpload = () => {
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
-  const ML_API_URL = process.env.REACT_APP_ML_API_URL || 'http://localhost:8000';
+  const ML_API_URL = resolveServiceUrl(process.env.REACT_APP_ML_API_URL, 'http://localhost:8000');
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResults, setAnalysisResults] = useState(null);

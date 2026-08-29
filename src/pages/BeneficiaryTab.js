@@ -130,7 +130,7 @@ const BeneficiaryTab = () => {
   if (!project?.before_form) {
     return (
       <div className="w-full space-y-8">
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-600 via-blue-600 to-blue-700 px-8 py-10 text-white shadow-2xl shadow-blue-900/20 sm:px-12 sm:py-12">
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-600 via-blue-600 to-blue-700 px-5 py-8 text-white shadow-2xl shadow-blue-900/20 sm:px-12 sm:py-12">
           <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-300/20 blur-3xl" />
           <div className="relative text-left">
@@ -151,7 +151,7 @@ const BeneficiaryTab = () => {
           </div>
         </section>
 
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-left shadow-sm">
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-left shadow-sm sm:p-16">
           <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 to-blue-100 text-cyan-600">
             <Inbox className="h-10 w-10" />
           </div>
@@ -175,7 +175,7 @@ const BeneficiaryTab = () => {
 
   return (
     <div className="w-full space-y-8">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-600 via-blue-600 to-blue-700 px-8 py-8 text-white shadow-2xl shadow-blue-900/20 sm:px-10 sm:py-10">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-600 via-blue-600 to-blue-700 px-5 py-8 text-white shadow-2xl shadow-blue-900/20 sm:px-10 sm:py-10">
         <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-300/20 blur-3xl" />
         <div className="relative flex items-start justify-between text-left">

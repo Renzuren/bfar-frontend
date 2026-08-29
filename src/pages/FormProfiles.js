@@ -585,8 +585,8 @@ const FormProfiles = ({ embedded = false }) => {
               </span>
             </div>
 
-            {/* Profiles Table */}
-            <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+            {/* Profiles Table (tablets/desktop) */}
+            <div className="hidden overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm md:block">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-slate-200">
                   <thead>
@@ -687,6 +687,70 @@ const FormProfiles = ({ embedded = false }) => {
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Profiles Cards (mobile) */}
+            <div className="space-y-4 md:hidden">
+              {paginated.map((resp, idx) => {
+                const status = getBeneficiaryStatus(resp);
+                const name = resp.full_name || 'Unnamed';
+                return (
+                  <div key={resp.id || idx} className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+                    <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-3">
+                      {resp.profile_photo_url ? (
+                        <img
+                          src={resp.profile_photo_url}
+                          alt={name}
+                          className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-slate-200"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling?.classList.remove('hidden'); }}
+                        />
+                      ) : null}
+                      <div className={`${resp.profile_photo_url ? 'hidden' : ''} flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-400 ring-1 ring-slate-200`}>
+                        {(name || '?').charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900">{name}</p>
+                        <p className="truncate text-xs text-slate-500">{getRespondentId(resp)}</p>
+                      </div>
+                      {status === 'Yes' ? (
+                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200/60">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Beneficiary
+                        </span>
+                      ) : status === 'No' ? (
+                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200/60">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Non-Beneficiary
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 ring-1 ring-slate-200/60">—</span>
+                      )}
+                    </div>
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 px-4 py-3 text-xs">
+                      <div className="min-w-0">
+                        <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Submitted</dt>
+                        <dd className="mt-0.5 text-slate-700">{getSubmittedAt(resp)}</dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Municipality</dt>
+                        <dd className="mt-0.5 truncate text-slate-700">{getLocationForRow(resp, 'Municipality')}</dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Barangay</dt>
+                        <dd className="mt-0.5 truncate text-slate-700">{getLocationForRow(resp, 'Barangay')}</dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Province</dt>
+                        <dd className="mt-0.5 truncate text-slate-700">{getLocationForRow(resp, 'Province')}</dd>
+                      </div>
+                      {demoCols.map((q, qIdx) => (
+                        <div key={q.id} className="min-w-0">
+                          <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{getQuestionLabel(q, qIdx)}</dt>
+                          <dd className="mt-0.5 truncate text-slate-700">{formatAnswer(getAnswerForQuestion(resp, q))}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Bottom Pagination */}

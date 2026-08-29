@@ -7,10 +7,12 @@
 // (user-uploaded CSV vs. an auto-built combined dataset).
 // ============================================================
 
+import { resolveServiceUrl } from './apiBase';
+
 export const DEFAULT_ML_API_URL = 'http://localhost:8000';
 
 export const getMLApiUrl = () =>
-  (process.env.REACT_APP_ML_API_URL || DEFAULT_ML_API_URL).replace(/\/$/, '');
+  resolveServiceUrl(process.env.REACT_APP_ML_API_URL || DEFAULT_ML_API_URL, DEFAULT_ML_API_URL).replace(/\/$/, '');
 
 const escapeCell = (v) => {
   const s = v === null || v === undefined ? '' : String(v);

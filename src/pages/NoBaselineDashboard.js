@@ -226,38 +226,44 @@ const NoBaselineDashboard = () => {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-xl">
-          <div className="flex w-full items-center gap-3 px-3 py-4 sm:px-5">
+          <div className="flex w-full items-center gap-2 px-3 py-4 sm:gap-3 sm:px-5">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 lg:hidden"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 lg:hidden"
               title="Open sidebar"
             >
               <Menu className="h-5 w-5" />
             </button>
 
-            <nav className="flex items-center gap-2 text-sm">
+            {/* Breadcrumb */}
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 sm:hidden">
+              {breadcrumbCrumbs.length > 0
+                ? breadcrumbCrumbs[breadcrumbCrumbs.length - 1].label
+                : currentProject?.title || '...'}
+            </span>
+            <nav className="hidden min-w-0 flex-1 items-center gap-2 overflow-hidden text-sm sm:flex">
               <button
                 onClick={() => navigate('/dashboard')}
-                className="text-slate-400 transition hover:text-slate-700"
+                className="shrink-0 text-slate-400 transition hover:text-slate-700"
               >
                 Projects
               </button>
-              <ChevronRight className="h-3.5 w-3.5 text-slate-300" />
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" />
               {breadcrumbCrumbs.length > 0 ? (
                 <>
                   <button
                     onClick={() => navigate(`/projects/${id}`)}
-                    className="font-semibold text-slate-500 transition hover:text-slate-900"
+                    className="shrink-0 font-semibold text-slate-500 transition hover:text-slate-900"
                   >
                     {currentProject?.title || '...'}
                   </button>
                   {breadcrumbCrumbs.map((crumb, i) => (
                     <React.Fragment key={crumb.key}>
-                      <ChevronRight className="h-3.5 w-3.5 text-slate-300" />
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" />
                       {i < breadcrumbCrumbs.length - 1 ? (
                         <button
                           onClick={() => navigate(crumb.to)}
-                          className="font-semibold text-slate-500 transition hover:text-slate-900"
+                          className="shrink-0 font-semibold text-slate-500 transition hover:text-slate-900"
                         >
                           {crumb.label}
                         </button>
@@ -276,14 +282,13 @@ const NoBaselineDashboard = () => {
               )}
             </nav>
 
-            <div className="flex-1" />
-
             <button
               onClick={() => navigate('/dashboard')}
-              className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 sm:inline-flex"
+              title="Back to Dashboard"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 sm:px-3"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Back to Dashboard
+              <span className="hidden sm:inline">Back to Dashboard</span>
             </button>
 
             {currentProject && (
@@ -293,7 +298,7 @@ const NoBaselineDashboard = () => {
                     type="button"
                     disabled={statusUpdating}
                     title="Change project status"
-                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:opacity-60 ${getStatusColor(
+                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:opacity-60 ${getStatusColor(
                       currentProject.status
                     )}`}
                   >

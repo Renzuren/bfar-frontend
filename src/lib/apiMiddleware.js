@@ -3,6 +3,7 @@
 import axios from 'axios';
 import { preprocessFormData, preprocessFormAnswers, sanitizeHtml } from './preprocessing';
 import { getAuthItem, clearAuthStorage } from './authStorage';
+import { resolveServiceUrl } from './apiBase';
 
 /**
  * Enhanced axios instance with preprocessing middleware
@@ -140,7 +141,7 @@ class ApiClient {
 }
 
 // Create and export the API client instance
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+const BACKEND_URL = resolveServiceUrl(process.env.REACT_APP_BACKEND_URL, 'http://localhost:5000');
 const API_BASE = `${BACKEND_URL}/api`;
 
 export const apiClient = new ApiClient(API_BASE);
