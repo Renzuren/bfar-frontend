@@ -308,7 +308,13 @@ const FormResponses = ({ embedded = false }) => {
     toast.success('CSV downloaded successfully');
   };
 
-  if (loading) return <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">Loading responses...</div>;
+  if (loading) {
+    return embedded ? (
+      <div className="flex items-center justify-center py-20 text-slate-500">Loading responses...</div>
+    ) : (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">Loading responses...</div>
+    );
+  }
   if (!form) return null;
 
   const allQuestionCols = normalizeLocationCodes(sections.flatMap(s => s.questions));

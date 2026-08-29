@@ -104,8 +104,8 @@ const MapSection = ({
   <ChartCard
     title={<span className="inline-flex items-center gap-2"><MapPin className="h-4 w-4 text-cyan-600" /> Geographic Distribution Map</span>}
     subtitle={expanded
-      ? 'Expanded view · navigation stays locked to the Philippines'
-      : 'Philippines only · zoom fixed at level 6 · hover a bubble or list row for details'}
+      ? 'Expanded view · provincial & regional boundaries · navigation stays locked to the Philippines'
+      : 'Philippines with provincial/regional boundaries · zoom fixed · hover a bubble or list row for details'}
     right={
       <div className="flex shrink-0 items-center gap-1.5">
         <div className="hidden items-center gap-0.5 rounded-full bg-slate-100 p-1 ring-1 ring-slate-200 sm:flex">

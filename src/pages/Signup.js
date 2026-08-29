@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Mail, Lock, Eye, EyeOff, Zap, BarChart3, CheckCircle2 } from 'lucide-react';
+import { User, Mail, Lock, Building2, Eye, EyeOff, Zap, BarChart3, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,7 @@ const Signup = () => {
     middleName: '',
     lastName: '',
     email: '',
+    organization: '',
     password: '',
     confirmPassword: ''
   });
@@ -48,7 +49,8 @@ const Signup = () => {
         formData.middleName,
         formData.lastName,
         formData.email,
-        formData.password
+        formData.password,
+        { organization: formData.organization }
       );
 
       toast.success("Registration successful! Please check your email to verify your account.");
@@ -160,6 +162,24 @@ const Signup = () => {
                 required
               />
             </div>
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="organization" className="text-sm font-medium text-slate-700">
+            Organization <span className="font-normal text-slate-400">(Optional)</span>
+          </Label>
+          <div className="relative mt-1.5">
+            <Building2 className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              id="organization"
+              name="organization"
+              type="text"
+              placeholder="e.g. Bureau of Fisheries and Aquatic Resources"
+              value={formData.organization}
+              onChange={handleChange}
+              className="h-12 rounded-xl border-slate-200 bg-white pl-11 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+            />
           </div>
         </div>
 
