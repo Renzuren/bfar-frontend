@@ -26,6 +26,7 @@ import {
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import { useProject } from '../context/ProjectContext';
+import { copyToClipboard } from '../lib/utils';
 
 const BeforeTab = () => {
   const outletCtx = useOutletContext();
@@ -61,11 +62,15 @@ const BeforeTab = () => {
     fetchData();
   }, [project]);
 
-  const copyFormLink = () => {
+  const copyFormLink = async () => {
     if (!project?.before_form) return;
     const link = `${window.location.origin}/f/${project.before_form}`;
-    navigator.clipboard.writeText(link);
-    toast.success('Questionnaire link copied!');
+    const success = await copyToClipboard(link);
+    if (success) {
+      toast.success('Questionnaire link copied!');
+    } else {
+      toast.error('Could not copy the link. Please copy it manually.');
+    }
   };
 
   const getQuestionCount = () => {
