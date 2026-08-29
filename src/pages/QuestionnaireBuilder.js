@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import useDragAutoScroll from '../hooks/useDragAutoScroll';
 import { normalizeLocationCodes, isReservedField } from '../lib/preprocessing';
+import { copyToClipboard } from '../lib/utils';
 
 const DEMOGRAPHICS_QUESTION_TYPES = [
   { value: 'short_text', label: 'Short Text' },
@@ -574,11 +575,15 @@ const QuestionnaireBuilder = () => {
     }
   };
 
-  const copyFormLink = () => {
+  const copyFormLink = async () => {
     if (!savedFormId) return;
     const link = `${window.location.origin}/f/${savedFormId}`;
-    navigator.clipboard.writeText(link);
-    toast.success('Questionnaire link copied to clipboard!');
+    const success = await copyToClipboard(link);
+    if (success) {
+      toast.success('Questionnaire link copied to clipboard!');
+    } else {
+      toast.error('Could not copy the link. Please copy it manually.');
+    }
   };
 
   const handleTypeSwitch = (newType) => {
