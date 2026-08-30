@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
+import { getApiErrorMessage } from '../lib/apiMiddleware';
 import AuthLayout from '../components/AuthLayout';
 
 const Login = () => {
@@ -28,7 +29,7 @@ const Login = () => {
       toast.success('Login successful!');
       navigate('/dashboard');
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Login failed. Please try again.');
+      toast.error(getApiErrorMessage(error, 'Login failed. Please try again.'));
     } finally {
       setLoading(false);
     }

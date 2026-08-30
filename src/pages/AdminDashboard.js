@@ -46,7 +46,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../lib/apiMiddleware';
+import { api, getApiErrorMessage } from '../lib/apiMiddleware';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -95,7 +95,7 @@ const AdminDashboard = () => {
       setOrganizations(orgsRes.data || []);
     } catch (error) {
       console.error('Admin data fetch error:', error);
-      toast.error(error.response?.data?.error || 'Failed to load admin data. Make sure the backend is running.');
+      toast.error(getApiErrorMessage(error, 'Failed to load admin data. Make sure the backend is running.'));
     } finally {
       setLoading(false);
     }

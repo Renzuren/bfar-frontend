@@ -16,6 +16,7 @@ import * as XLSX from 'xlsx';
 import MLAnalyticsPanel from '../components/MLAnalyticsPanel';
 import AutoChartsReport from '../components/AutoChartsReport';
 import { resolveServiceUrl } from '../lib/apiBase';
+import { fetchWithRetry } from '../lib/fetchRetry';
 
 const MLUpload = () => {
   const navigate = useNavigate();
@@ -266,11 +267,19 @@ const MLUpload = () => {
       const endpoint = `${ML_API_URL.replace(/\/$/, '')}/train`;
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 60000);
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-      });
+      const response = await fetchWithRetry(
+        endpoint,
+        {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        },
+        {
+          retries: 2,
+          // Never retry when the timeout fired — the job may still be running server-side.
+          shouldRetry: (error) => !error || error.name !== 'AbortError',
+        }
+      );
       clearTimeout(timeout);
       setUploadProgress(80);
 

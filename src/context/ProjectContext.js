@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useCallback } from 'react';
-import { api } from '../lib/apiMiddleware';
+import { api, getApiErrorMessage } from '../lib/apiMiddleware';
 import { toast } from 'sonner';
 
 const ProjectContext = createContext();
@@ -15,7 +15,7 @@ export const ProjectProvider = ({ children }) => {
       const response = await api.get('/projects');
       setProjects(response.data);
     } catch (error) {
-      toast.error('Failed to fetch projects');
+      toast.error(getApiErrorMessage(error, 'Failed to fetch projects'));
     } finally {
       setLoading(false);
     }
@@ -27,7 +27,7 @@ export const ProjectProvider = ({ children }) => {
       setCurrentProject(response.data);
       return response.data;
     } catch (error) {
-      toast.error('Failed to fetch project');
+      toast.error(getApiErrorMessage(error, 'Failed to fetch project'));
       return null;
     }
   }, []);
@@ -39,7 +39,7 @@ export const ProjectProvider = ({ children }) => {
       setProjects((prev) => [response.data, ...prev]);
       return response.data;
     } catch (error) {
-      toast.error('Failed to create project');
+      toast.error(getApiErrorMessage(error, 'Failed to create project'));
       return null;
     }
   }, []);
@@ -54,7 +54,7 @@ export const ProjectProvider = ({ children }) => {
       if (currentProject?.id === id) setCurrentProject(response.data);
       return response.data;
     } catch (error) {
-      toast.error('Failed to update project');
+      toast.error(getApiErrorMessage(error, 'Failed to update project'));
       return null;
     }
   }, [currentProject]);
@@ -66,7 +66,7 @@ export const ProjectProvider = ({ children }) => {
       setProjects((prev) => prev.filter((p) => p.id !== id));
       return true;
     } catch (error) {
-      toast.error('Failed to delete project');
+      toast.error(getApiErrorMessage(error, 'Failed to delete project'));
       return false;
     }
   }, []);

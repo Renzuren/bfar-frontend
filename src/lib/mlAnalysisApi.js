@@ -8,6 +8,7 @@
 // ============================================================
 
 import { resolveServiceUrl } from './apiBase';
+import { fetchWithRetry } from './fetchRetry';
 
 export const DEFAULT_ML_API_URL = 'http://localhost:8000';
 
@@ -75,11 +76,19 @@ export const runMLAnalysis = async ({
 
   let response;
   try {
-    response = await fetch(endpoint, {
-      method: 'POST',
-      body: formData,
-      signal: controller.signal,
-    });
+    response = await fetchWithRetry(
+      endpoint,
+      {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+      },
+      {
+        retries: 2,
+        // Never retry when the timeout fired — the job may still be running server-side.
+        shouldRetry: (error) => !error || error.name !== 'AbortError',
+      }
+    );
   } finally {
     clearTimeout(timer);
   }
