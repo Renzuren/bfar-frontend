@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { api } from '../lib/apiMiddleware';
-import { getAuthItem, setAuthItem, clearAuthStorage } from '../lib/authStorage';
+import { getAuthItem, setAuthItem, removeAuthItem, clearAuthStorage } from '../lib/authStorage';
 
 const AuthContext = createContext();
 
@@ -108,8 +108,32 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // Persist an updated user object to whichever store currently holds it.
+  const persistUser = (newUser) => {
+    const raw = JSON.stringify(newUser);
+    if (localStorage.getItem('token') !== null) {
+      localStorage.setItem('user', raw);
+    }
+    if (sessionStorage.getItem('token') !== null) {
+      sessionStorage.setItem('user', raw);
+    }
+  };
+
+  // Update the local user object (UI state + storage). Setting a value to null
+  // removes it, which is used after an email/account change clears the session.
+  const updateUser = (userData) => {
+    const next = userData === null ? null : { ...user, ...userData };
+    setUser(next);
+    if (next) {
+      persistUser(next);
+    } else {
+      removeAuthItem('user');
+    }
+    return next;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, signup, logout, updateUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

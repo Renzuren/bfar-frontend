@@ -21,6 +21,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Settings,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -294,6 +295,9 @@ const AdminDashboard = () => {
                 <p className="text-xs text-slate-500">{user?.email}</p>
               </div>
             </div>
+            <Button variant="outline" size="sm" onClick={() => navigate('/settings')} className="text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600">
+              <Settings className="h-4 w-4" /><span className="hidden sm:inline">Settings</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={handleLogout} className="text-slate-600 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
               <LogOut className="h-4 w-4" /><span className="hidden sm:inline">Logout</span>
             </Button>
