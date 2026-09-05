@@ -81,6 +81,11 @@ const AdminDashboard = () => {
   const [deleteUserId, setDeleteUserId] = useState(null);
   const [deleteUserName, setDeleteUserName] = useState('');
 
+  const [permanentDeleteDialog, setPermanentDeleteDialog] = useState(false);
+  const [permanentDeleteUserId, setPermanentDeleteUserId] = useState(null);
+  const [permanentDeleteUserName, setPermanentDeleteUserName] = useState('');
+  const [deletingUserPermanent, setDeletingUserPermanent] = useState(false);
+
   const [deleteOrgDialog, setDeleteOrgDialog] = useState(false);
   const [deleteOrgId, setDeleteOrgId] = useState(null);
   const [deleteOrgName, setDeleteOrgName] = useState('');
@@ -219,6 +224,22 @@ const AdminDashboard = () => {
       setUsers((prev) => prev.map((u) => (u.id || u.uid) === userId ? { ...u, status: 'active', deleted_at: null } : u));
       toast.success('User restored');
     } catch (error) { toast.error(error.response?.data?.error || 'Failed to restore user'); }
+  };
+
+  const handlePermanentDeleteUser = async () => {
+    if (!permanentDeleteUserId) return;
+    setDeletingUserPermanent(true);
+    try {
+      await api.delete(`/admin/users/${permanentDeleteUserId}/permanent`);
+      setUsers((prev) => prev.filter((u) => (u.id || u.uid) !== permanentDeleteUserId));
+      toast.success('User permanently deleted');
+    } catch (error) { toast.error(error.response?.data?.error || 'Failed to permanently delete user'); }
+    finally {
+      setDeletingUserPermanent(false);
+      setPermanentDeleteDialog(false);
+      setPermanentDeleteUserId(null);
+      setPermanentDeleteUserName('');
+    }
   };
 
   const getOrgName = (orgId) => {
@@ -442,7 +463,10 @@ const AdminDashboard = () => {
                           <td className="px-6 py-4">
                             <div className="flex items-center justify-end gap-1">
                               {u.status === 'deleted' ? (
-                                <button onClick={() => handleRestoreUser(uid)} className="rounded-lg p-2 text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-600" title="Restore user"><RotateCcw className="h-4 w-4" /></button>
+                                <>
+                                  <button onClick={() => handleRestoreUser(uid)} className="rounded-lg p-2 text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-600" title="Restore user"><RotateCcw className="h-4 w-4" /></button>
+                                  <button onClick={() => { setPermanentDeleteUserId(uid); setPermanentDeleteUserName(u.full_name || u.email); setPermanentDeleteDialog(true); }} className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600" title="Permanently delete user"><Trash2 className="h-4 w-4" /></button>
+                                </>
                               ) : (
                                 <>
                                   <button onClick={() => openEditUser(u)} className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-600" title="Edit user"><Pencil className="h-4 w-4" /></button>
@@ -677,6 +701,28 @@ const AdminDashboard = () => {
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
             <AlertDialogAction className="rounded-xl bg-rose-600 text-white hover:bg-rose-700" onClick={handleDeleteUser}>Yes, delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Permanent Delete User Confirmation */}
+      <AlertDialog open={permanentDeleteDialog} onOpenChange={setPermanentDeleteDialog}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl">Permanently delete "{permanentDeleteUserName}"?</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently delete the user account and all of their projects, forms, and responses. This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl" disabled={deletingUserPermanent}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl bg-red-700 text-white hover:bg-red-800"
+              onClick={handlePermanentDeleteUser}
+              disabled={deletingUserPermanent}
+            >
+              {deletingUserPermanent ? (
+                <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Deleting...</span>
+              ) : 'Yes, permanently delete'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
