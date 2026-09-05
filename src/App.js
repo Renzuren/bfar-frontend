@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminCleanup from './pages/AdminCleanup';
 import Settings from './pages/Settings';
 import FormBuilder from './pages/FormBuilder';
 import FormFill from './pages/FormFill';
@@ -103,6 +104,7 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/cleanup" element={<ProtectedRoute><AdminCleanup /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/verify-account" element={<VerifyAccount />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />

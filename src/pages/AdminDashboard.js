@@ -22,6 +22,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Settings,
+  Brush,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -309,6 +310,9 @@ const AdminDashboard = () => {
             <button onClick={() => navigate('/dashboard')} className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 sm:inline-flex">
               <FolderKanban className="h-3.5 w-3.5" /> Projects
             </button>
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin/cleanup')} className="text-slate-600 transition-colors hover:border-cyan-200 hover:bg-cyan-50 hover:text-cyan-600">
+              <Brush className="h-4 w-4" /><span className="hidden sm:inline">Cleanup</span>
+            </Button>
             <div className="hidden items-center gap-3 rounded-full border border-slate-200/80 bg-white/90 py-1.5 pl-1.5 pr-3 shadow-sm backdrop-blur-sm sm:flex">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-xs font-bold text-white shadow-md">{initials}</div>
               <div className="leading-tight">
