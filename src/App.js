@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { Toaster } from '@/components/ui/sonner';
 import LandingPage from './pages/LandingPage';
@@ -7,7 +7,6 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
-import AdminCleanup from './pages/AdminCleanup';
 import Settings from './pages/Settings';
 import FormBuilder from './pages/FormBuilder';
 import FormFill from './pages/FormFill';
@@ -15,8 +14,15 @@ import FormResponses from './pages/FormResponses';
 import FormProfiles from './pages/FormProfiles';
 import FormAnalytics from './pages/FormAnalytics';
 import MLUpload from './pages/MLUpload';
-import ProjectDashboard from './pages/ProjectDashboard';
-import NoBaselineDashboard from './pages/NoBaselineDashboard';
+import ProjectDashboard, {
+  PROJECT_SIDEBAR_ITEMS,
+  PROJECT_BREADCRUMB_LABELS,
+} from './pages/ProjectDashboard';
+import NoBaselineDashboard, {
+  NO_BASELINE_SIDEBAR_ITEMS,
+  NO_BASELINE_BREADCRUMB_LABELS,
+} from './pages/NoBaselineDashboard';
+import ProjectLayout from './components/layout/ProjectLayout';
 import QuestionnaireBuilder from './pages/QuestionnaireBuilder';
 import BeforeTab from './pages/BeforeTab';
 import AfterTab from './pages/AfterTab';
@@ -51,31 +57,54 @@ const ProtectedRoute = ({ children }) => {
 const ProjectRoute = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { fetchProject, currentProject, setCurrentProject } = useProject();
-  const [loading, setLoading] = useState(true);
+  const { fetchProject, currentProject } = useProject();
+  const [loading, setLoading] = useState(
+    !currentProject || currentProject.id !== id
+  );
 
   useEffect(() => {
-    if (id) {
-      fetchProject(id).then((data) => {
-        if (!data) navigate('/dashboard');
+    if (!id) return;
+    let active = true;
+    // If we already have this project cached, show it instantly and refresh
+    // in the background instead of flashing a loader. Otherwise show a loader
+    // only in the content area — the sidebar shell never disappears.
+    const haveCache = currentProject?.id === id;
+    if (!haveCache) setLoading(true);
+    fetchProject(id).then((data) => {
+      if (!active) return;
+      if (!data) {
         setLoading(false);
-      });
-    }
-    return () => setCurrentProject(null);
-  }, [id, fetchProject, navigate, setCurrentProject]);
+        navigate('/dashboard');
+        return;
+      }
+      setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
-  if (loading || !currentProject) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-      </div>
-    );
-  }
+  const hasBaseline = currentProject?.has_baseline !== false;
+  const sidebarItems = hasBaseline ? PROJECT_SIDEBAR_ITEMS : NO_BASELINE_SIDEBAR_ITEMS;
+  const breadcrumbLabels = hasBaseline ? PROJECT_BREADCRUMB_LABELS : NO_BASELINE_BREADCRUMB_LABELS;
 
-  if (currentProject.has_baseline === false) {
-    return <NoBaselineDashboard />;
-  }
-  return <ProjectDashboard />;
+  return (
+    <ProjectLayout sidebarItems={sidebarItems} breadcrumbLabels={breadcrumbLabels}>
+      {loading || !currentProject ? (
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        </div>
+      ) : (
+        <Outlet context={{ project: currentProject }} />
+      )}
+    </ProjectLayout>
+  );
+};
+
+const ProjectIndex = () => {
+  const { currentProject } = useProject();
+  return currentProject?.has_baseline === false ? <NoBaselineDashboard /> : <ProjectDashboard />;
 };
 
 const BeforeRoute = () => {
@@ -104,21 +133,23 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/admin/cleanup" element={<ProtectedRoute><AdminCleanup /></ProtectedRoute>} />
+            <Route path="/admin/cleanup" element={<Navigate to="/admin" replace />} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/verify-account" element={<VerifyAccount />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/verify-reset-code" element={<VerifyResetCode />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Project routes — wrapper picks baseline vs no-baseline dashboard */}
+            {/* Project routes — wrapper picks baseline vs no-baseline nav */}
             <Route path="/projects/:id" element={<ProtectedRoute><ProjectRoute /></ProtectedRoute>}>
+              <Route index element={<ProjectIndex />} />
               <Route path="create-questionnaire" element={<QuestionnaireBuilder />} />
               <Route path="before" element={<BeforeRoute />} />
               <Route path="after" element={<AfterRoute />} />
               <Route path="report" element={<ProtectedRoute><ReportRoute /></ProtectedRoute>} />
               <Route path="responses" element={<ProtectedRoute><FormResponses embedded /></ProtectedRoute>} />
               <Route path="profiles" element={<ProtectedRoute><FormProfiles embedded /></ProtectedRoute>} />
+              <Route path="analytics" element={<ProtectedRoute><FormAnalytics embedded /></ProtectedRoute>} />
               <Route path="narrative-report" element={<NarrativeReport />} />
               <Route path="backup" element={<ProtectedRoute><ProjectBackup /></ProtectedRoute>} />
             </Route>

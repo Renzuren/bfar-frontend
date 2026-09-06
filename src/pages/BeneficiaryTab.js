@@ -285,14 +285,14 @@ const BeneficiaryTab = () => {
         </button>
 
         <button
-          onClick={() => navigate(`/forms/${project.before_form}/analytics`, { state: { project_id: projectId, questionnaire_type: 'before' } })}
+          onClick={() => navigate(`/projects/${projectId}/analytics?type=before`, { state: { project_id: projectId, questionnaire_type: 'before' } })}
           className="group flex items-center gap-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-sm hover:border-violet-200"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 transition-colors group-hover:bg-violet-100">
             <BarChart3 className="h-5 w-5" />
           </div>
           <div className="text-left">
-            <p className="font-semibold text-slate-900">Analytics</p>
+            <p className="font-semibold text-slate-900">View Analytics</p>
             <p className="text-xs text-slate-500">View charts and insights</p>
           </div>
         </button>

@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
-  Shield,
   Users,
   Building2,
   FolderKanban,
   Plus,
   Search,
-  LogOut,
   Trash2,
   Pencil,
   UserPlus,
@@ -21,13 +18,14 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Settings,
-  Brush,
+  Database,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import AdminLayout from '../components/layout/AdminLayout';
+import AdminCleanup from './AdminCleanup';
 import {
   Dialog,
   DialogContent,
@@ -51,8 +49,7 @@ import { useAuth } from '../context/AuthContext';
 import { api, getApiErrorMessage } from '../lib/apiMiddleware';
 
 const AdminDashboard = () => {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   const [users, setUsers] = useState([]);
   const [organizations, setOrganizations] = useState([]);
@@ -115,8 +112,6 @@ const AdminDashboard = () => {
   const [usersPerPage, setUsersPerPage] = useState(10);
 
   useEffect(() => { setUserPage(1); }, [searchQuery, userFilter, usersPerPage]);
-
-  const handleLogout = () => { logout(); navigate('/'); toast.success('Logged out successfully'); };
 
   // --- ORG CRUD ---
   const handleCreateOrg = async () => {
@@ -290,61 +285,24 @@ const AdminDashboard = () => {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const initials = (user?.full_name || user?.email || 'A').split(/[\s@._]+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('') || 'A';
-
   return (
-    <div className="min-h-screen bg-slate-50/80">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/70 backdrop-blur-xl">
-        <div className="flex w-full items-center justify-between px-3 py-3 sm:px-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-500/20">
-              <Shield className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">System Administration</p>
-              <h1 className="text-lg font-bold text-slate-900">Admin Dashboard</h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button onClick={() => navigate('/dashboard')} className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 sm:inline-flex">
-              <FolderKanban className="h-3.5 w-3.5" /> Projects
-            </button>
-            <Button variant="outline" size="sm" onClick={() => navigate('/admin/cleanup')} className="text-slate-600 transition-colors hover:border-cyan-200 hover:bg-cyan-50 hover:text-cyan-600">
-              <Brush className="h-4 w-4" /><span className="hidden sm:inline">Cleanup</span>
-            </Button>
-            <div className="hidden items-center gap-3 rounded-full border border-slate-200/80 bg-white/90 py-1.5 pl-1.5 pr-3 shadow-sm backdrop-blur-sm sm:flex">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-xs font-bold text-white shadow-md">{initials}</div>
-              <div className="leading-tight">
-                <p className="text-sm font-semibold text-slate-900">{user?.full_name || 'Admin'}</p>
-                <p className="text-xs text-slate-500">{user?.email}</p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => navigate('/settings')} className="text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600">
-              <Settings className="h-4 w-4" /><span className="hidden sm:inline">Settings</span>
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleLogout} className="text-slate-600 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
-              <LogOut className="h-4 w-4" /><span className="hidden sm:inline">Logout</span>
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="w-full px-3 pb-24 pt-0 sm:px-4">
-        <div className="space-y-8">
+    <AdminLayout title="Admin Dashboard" subtitle="System Administration">
+      <div className="space-y-5">
           {/* Hero */}
-          <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-violet-900 px-6 py-8 sm:px-10 sm:py-12 text-white shadow-2xl shadow-slate-900/20 text-left">
-            <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-violet-400/15 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-purple-500/15 blur-3xl" />
-            <div className="relative">
-              <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-violet-300">Welcome, Admin</p>
-              <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">System Overview</h2>
-              <p className="max-w-2xl text-base text-slate-300">Monitor all users and organizations across the platform from one central dashboard.</p>
+          <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-violet-900 px-5 py-4 sm:px-7 text-white shadow-lg shadow-slate-900/20 text-left">
+            <div className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full bg-violet-400/15 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 -left-10 h-52 w-52 rounded-full bg-purple-500/15 blur-3xl" />
+            <div className="relative flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="mb-0.5 text-xs font-medium uppercase tracking-[0.2em] text-violet-300">Welcome, Admin</p>
+                <h2 className="text-xl font-bold leading-tight sm:text-2xl">System Overview</h2>
+                <p className="mt-0.5 max-w-2xl text-sm text-slate-300">Monitor all users and organizations across the platform from one central dashboard.</p>
+              </div>
             </div>
           </section>
 
           {/* Stats */}
-          <section className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+          <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {[
               { label: 'Total Users', value: users.length, icon: Users, bg: 'bg-cyan-500', iconBg: 'bg-cyan-50', iconText: 'text-cyan-600' },
               { label: 'Organizations', value: organizations.length, icon: Building2, bg: 'bg-indigo-500', iconBg: 'bg-indigo-50', iconText: 'text-indigo-600' },
@@ -353,14 +311,14 @@ const AdminDashboard = () => {
             ].map((stat) => {
               const Icon = stat.icon;
               return (
-                <div key={stat.label} className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                <div key={stat.label} className="group relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                   <div className={`absolute inset-y-0 left-0 w-1 ${stat.bg}`} />
-                  <div className="pl-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${stat.iconBg}`}><Icon className={`h-5 w-5 ${stat.iconText}`} /></div>
+                  <div className="pl-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${stat.iconBg}`}><Icon className={`h-4 w-4 ${stat.iconText}`} /></div>
                     </div>
-                    <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-                    <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{stat.value}</p>
+                    <p className="text-xs font-medium text-slate-500">{stat.label}</p>
+                    <p className="mt-0.5 text-xl font-bold tracking-tight text-slate-900">{stat.value}</p>
                   </div>
                 </div>
               );
@@ -368,8 +326,8 @@ const AdminDashboard = () => {
           </section>
 
           {/* Tabs + Search + Actions */}
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <button onClick={() => setActiveTab('users')} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === 'users' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}>
                   <Users className="mr-1.5 inline h-4 w-4" /> Users ({users.length})
@@ -377,12 +335,17 @@ const AdminDashboard = () => {
                 <button onClick={() => setActiveTab('organizations')} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === 'organizations' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}>
                   <Building2 className="mr-1.5 inline h-4 w-4" /> Organizations ({organizations.length})
                 </button>
+                <button onClick={() => setActiveTab('data-maintenance')} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === 'data-maintenance' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}>
+                  <Database className="mr-1.5 inline h-4 w-4" /> Data Maintenance
+                </button>
               </div>
               <div className="flex items-center gap-3">
-                <div className="relative w-full sm:w-72">
-                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={activeTab === 'users' ? 'Search users...' : 'Search organizations...'} className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100" />
-                </div>
+                {activeTab !== 'data-maintenance' && (
+                  <div className="relative w-full sm:w-72">
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={activeTab === 'users' ? 'Search users...' : 'Search organizations...'} className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100" />
+                  </div>
+                )}
                 <Button onClick={fetchData} variant="outline" size="sm" className="border-slate-200 text-slate-600 hover:bg-slate-50"><RefreshCw className="h-4 w-4" /></Button>
                 {activeTab === 'users' && userFilter !== 'deleted' && (
                   <Button onClick={() => setAddUserOpen(true)} className="bg-violet-600 text-white hover:bg-violet-700">
@@ -412,7 +375,9 @@ const AdminDashboard = () => {
           </section>
 
           {/* Content */}
-          {loading ? (
+          {activeTab === 'data-maintenance' ? (
+            <AdminCleanup embedded />
+          ) : loading ? (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {[0, 1, 2].map((i) => (<div key={i} className="h-40 animate-pulse rounded-2xl border border-slate-200/80 bg-white shadow-sm"><div className="h-full w-full rounded-2xl bg-slate-100/80" /></div>))}
             </div>
@@ -584,9 +549,6 @@ const AdminDashboard = () => {
             )
           )}
         </div>
-      </main>
-
-      {/* ========== DIALOGS ========== */}
 
       {/* Add Organization */}
       <Dialog open={addOrgOpen} onOpenChange={setAddOrgOpen}>
@@ -744,7 +706,7 @@ const AdminDashboard = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AdminLayout>
   );
 };
 

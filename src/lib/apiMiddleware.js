@@ -48,6 +48,10 @@ const shouldRetry = (error, config) => {
   if (!error || !config) return false;
   if (config.__bfarNoRetry === true) return false;
 
+  // Auth requests can trigger a Firestore user lookup. Retrying quota or
+  // service errors here multiplies the pressure on the exhausted project.
+  if (String(config.url || '').includes('/auth/')) return false;
+
   if (!error.response) {
     if (isTimeoutError(error)) return isIdempotent(config);
     return true;

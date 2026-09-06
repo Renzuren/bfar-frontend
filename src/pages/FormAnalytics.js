@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, BarChart3, Download, ChartColumnBig, ChartPie, Inbox, Camera, User, MapPin, Fingerprint } from 'lucide-react';
+import { useNavigate, useParams, useLocation, useOutletContext, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, BarChart3, Download, ChartColumnBig, ChartPie, Inbox, User, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -94,14 +94,29 @@ const computeFallbackAnalytics = (responses, questions) => {
   return { total_responses: totalSubmissions, questions: questionsData };
 };
 
-const FormAnalytics = () => {
+const FormAnalytics = ({ embedded = false }) => {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const params = useParams();
   const location = useLocation();
   const backState = location.state;
+  const outletCtx = useOutletContext();
+  const [searchParams] = useSearchParams();
+
+  // Standalone mode: params.id is the FORM id.
+  // Embedded mode (inside the project dashboard layout): params.id is the
+  // PROJECT id and the form id comes from the outlet context (?type=before|after)
+  const qType = searchParams.get('type') || backState?.questionnaire_type || 'before';
+  const projectId = embedded ? params.id : backState?.project_id;
+  const id = embedded
+    ? (outletCtx?.project
+        ? (qType === 'after' ? outletCtx.project.after_form : outletCtx.project.before_form) || ''
+        : '')
+    : params.id;
 
   const goBack = () => {
-    if (backState?.project_id) {
+    if (embedded && projectId) {
+      navigate(`/projects/${projectId}/${qType === 'after' ? 'after' : 'before'}`);
+    } else if (backState?.project_id) {
       navigate(`/projects/${backState.project_id}/${backState.questionnaire_type === 'after' ? 'after' : 'before'}`);
     } else {
       navigate('/dashboard');
@@ -116,6 +131,7 @@ const FormAnalytics = () => {
   const exportRef = useRef(null);
 
   useEffect(() => {
+    if (!id) return; // embedded mode: waiting for project context to load
     const fetchData = async () => {
       try {
         const [formRes, responsesRes] = await Promise.all([
@@ -292,15 +308,6 @@ const FormAnalytics = () => {
       });
     }
 
-    if (profilePhotos.length > 0) {
-      rows.push(['--- PROFILE PHOTOS ---']);
-      rows.push(['Respondent', 'Photo URL']);
-      profilePhotos.forEach(p => {
-        rows.push([p.respondentName || 'Unknown', p.photoUrl || '']);
-      });
-      rows.push([]);
-    }
-
     const csv = rows.map((row) => row.map((cell) => escapeCsvValue(cell)).join(',')).join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -336,7 +343,14 @@ const FormAnalytics = () => {
   }, [locationStats]);
 
   if (loading || !form || !analytics) {
-    return (
+    return embedded ? (
+      <div className="flex items-center justify-center py-20 text-slate-500">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-cyan-600" />
+          <p className="text-sm font-medium text-slate-400">Loading analytics...</p>
+        </div>
+      </div>
+    ) : (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-cyan-600" />
@@ -363,14 +377,6 @@ const FormAnalytics = () => {
     const qDef = questionCodeMap.get(q.question_id) || q;
     return questionnaireQuestions.some(qq => qq.id === qDef.id || qq.id === q.question_id);
   });
-
-  const profilePhotos = responses
-    .filter(r => r.profile_photo_url)
-    .map(r => ({
-      photoUrl: r.profile_photo_url,
-      respondentName: r.full_name || r.respondent_id || 'Unknown',
-      respondentId: r.respondent_id || '',
-    }));
 
   const totalBeneficiaries = responses.filter(r => r.is_beneficiary === true || r.is_beneficiary === 'true').length;
   const totalNonBeneficiaries = totalResponses - totalBeneficiaries;
@@ -551,7 +557,9 @@ const FormAnalytics = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/80">
+    <div className={embedded ? '' : 'min-h-screen bg-slate-50/80'}>
+      {/* Header (standalone mode only — the project layout provides the navbar) */}
+      {!embedded && (
       <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
         <div className="flex w-full items-center justify-between px-3 py-4 sm:px-5">
           <div className="flex items-center gap-4">
@@ -579,13 +587,24 @@ const FormAnalytics = () => {
           </div>
         </div>
       </header>
+      )}
 
-      <div ref={exportRef} className="w-full px-3 pb-24 pt-0 sm:px-4">
+      <div ref={exportRef} className={embedded ? '' : 'w-full px-3 pb-24 pt-0 sm:px-4'}>
         <section className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
           <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-blue-500/15 blur-3xl" />
-          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Analytics Overview</p>
-          <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{form.title}</h2>
+          <div className="relative flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Analytics Overview</p>
+              <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{form.title}</h2>
+            </div>
+            {embedded && totalResponses > 0 && (
+              <Button variant="outline" size="sm" onClick={downloadAnalyticsCSV} className="gap-1.5 border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white">
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Export CSV</span>
+              </Button>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 font-medium text-white/90 ring-1 ring-white/10">
               <BarChart3 className="h-3.5 w-3.5" />
@@ -654,44 +673,6 @@ const FormAnalytics = () => {
                     <p className="text-xs text-slate-400">Respondent information and profile data</p>
                   </div>
                 </div>
-
-                {profilePhotos.length > 0 && (
-                  <Card className="mb-6 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-                    <div className="border-b border-slate-100 px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Camera className="h-4 w-4 text-purple-500" />
-                        <h3 className="text-sm font-bold text-slate-800">Profile Photos</h3>
-                        <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-600">{profilePhotos.length}</span>
-                      </div>
-                    </div>
-                    <div className="p-6">
-                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                        {profilePhotos.map((photo, idx) => (
-                          <div key={idx} className="group relative">
-                            <div className="aspect-square overflow-hidden rounded-2xl border-2 border-slate-100 bg-slate-50 transition-all group-hover:border-cyan-300 group-hover:shadow-md">
-                              <img
-                                src={photo.photoUrl}
-                                alt={photo.respondentName}
-                                className="h-full w-full object-cover"
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                  e.target.nextSibling.style.display = 'flex';
-                                }}
-                              />
-                              <div className="hidden h-full w-full items-center justify-center bg-slate-50">
-                                <User className="h-8 w-8 text-slate-200" />
-                              </div>
-                            </div>
-                            <p className="mt-2 truncate text-center text-xs font-medium text-slate-600">{photo.respondentName}</p>
-                            {photo.respondentId && (
-                              <p className="truncate text-center text-[10px] text-slate-300">{photo.respondentId}</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </Card>
-                )}
 
                 {locationChartData.length > 0 && (
                   <Card className="mb-6 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">

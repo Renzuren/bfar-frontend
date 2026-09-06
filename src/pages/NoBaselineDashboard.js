@@ -1,31 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useParams, useLocation, Outlet, NavLink, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   FileText,
   BarChart3,
-  ClipboardList,
-  Menu,
-  ChevronRight,
-  ChevronDown,
   ListChecks,
   Layers,
-  ArrowLeft,
   FileBarChart2,
-  Check,
-  Loader2,
   DatabaseBackup,
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu';
 import { useProject } from '../context/ProjectContext';
 import { api } from '../lib/apiMiddleware';
 
-const SIDEBAR_ITEMS = [
+export const NO_BASELINE_SIDEBAR_ITEMS = [
   {
     label: 'Create Questionnaire',
     path: 'create-questionnaire',
@@ -58,293 +44,22 @@ const SIDEBAR_ITEMS = [
   },
 ];
 
-const BREADCRUMB_LABELS = {
+export const NO_BASELINE_BREADCRUMB_LABELS = {
   'create-questionnaire': 'Edit Questionnaire',
   'before': 'Beneficiary',
   'after': 'Non-Beneficiary',
   'report': 'Analysis Report',
   'responses': 'View Responses',
   'profiles': 'View Profiles',
+  'analytics': 'View Analytics',
   'narrative-report': 'Narrative Report',
   'backup': 'Data Backup & Import',
 };
 
 const NoBaselineDashboard = () => {
-  const navigate = useNavigate();
-  const { id } = useParams();
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const { fetchProject, updateProject, currentProject, setCurrentProject } = useProject();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [statusUpdating, setStatusUpdating] = useState(false);
+  const { currentProject } = useProject();
 
-  const isOverview = location.pathname === `/projects/${id}`;
-
-  const subSegments = location.pathname
-    .split('/')
-    .filter(Boolean)
-    .slice(2);
-  const typeParam = searchParams.get('type');
-
-  let breadcrumbCrumbs = [];
-  if (subSegments.length > 0) {
-    if (typeParam && BREADCRUMB_LABELS[typeParam]) {
-      breadcrumbCrumbs.push({
-        key: `tab-${typeParam}`,
-        label: BREADCRUMB_LABELS[typeParam],
-        to: `/projects/${id}/${typeParam}`,
-      });
-    }
-    subSegments.forEach(seg => {
-      breadcrumbCrumbs.push({
-        key: seg,
-        label: BREADCRUMB_LABELS[seg] || seg,
-        to: `/projects/${id}/${seg}`,
-      });
-    });
-  }
-
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'active':
-        return 'bg-emerald-100 text-emerald-700 ring-emerald-200';
-      case 'completed':
-        return 'bg-blue-100 text-blue-700 ring-blue-200';
-      case 'draft':
-        return 'bg-amber-100 text-amber-700 ring-amber-200';
-      default:
-        return 'bg-slate-100 text-slate-600 ring-slate-200';
-    }
-  };
-
-  const handleStatusChange = async (status) => {
-    if (!currentProject || currentProject.status === status || statusUpdating) return;
-    const prevStatus = currentProject.status;
-    setCurrentProject({ ...currentProject, status });
-    setStatusUpdating(true);
-    const updated = await updateProject(id, { status });
-    if (!updated) setCurrentProject({ ...currentProject, status: prevStatus });
-    setStatusUpdating(false);
-  };
-
-  return (
-    <div className="flex min-h-screen bg-slate-50">
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out lg:static lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } ${sidebarCollapsed ? 'lg:w-[68px]' : 'lg:w-72'}`}
-      >
-        <div className={`flex items-center gap-3 border-b border-slate-100 ${sidebarCollapsed ? 'justify-center px-2 py-6' : 'px-6 py-6'}`}>
-          <button
-            onClick={() => {
-              if (window.innerWidth < 1024) {
-                setSidebarOpen(false);
-              } else {
-                setSidebarCollapsed(!sidebarCollapsed);
-              }
-            }}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          {!sidebarCollapsed && (
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                Project
-              </p>
-              <h2 className="truncate text-sm font-bold text-slate-900">
-                {currentProject?.title || 'Loading...'}
-              </h2>
-            </div>
-          )}
-        </div>
-
-        <nav className="flex-1 overflow-y-auto px-2 py-4">
-          <ul className="space-y-1">
-            {SIDEBAR_ITEMS.map((item) => {
-              const Icon = item.icon;
-              const to = `/projects/${id}/${item.path}`;
-              return (
-                <li key={item.path}>
-                  <NavLink
-                    to={to}
-                    onClick={() => setSidebarOpen(false)}
-                    title={sidebarCollapsed ? item.label : undefined}
-                    className={({ isActive }) =>
-                      `group relative flex items-center rounded-lg text-sm font-medium transition-all duration-150 ${
-                        sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-4 py-3'
-                      } ${
-                        isActive
-                          ? 'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100'
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                      }`
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        {isActive && (
-                          <span className="absolute left-0 h-8 w-[3px] rounded-r-full bg-blue-600" />
-                        )}
-                        <Icon
-                          className={`h-[18px] w-[18px] shrink-0 transition-colors ${
-                            isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'
-                          }`}
-                        />
-                        {!sidebarCollapsed && <span>{item.label}</span>}
-                      </>
-                    )}
-                  </NavLink>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        {!sidebarCollapsed && (
-          <div className="border-t border-slate-100 px-6 py-6">
-            {currentProject?.description ? (
-              <p className="text-xs leading-relaxed text-slate-400">
-                {currentProject.description.length > 100
-                  ? currentProject.description.slice(0, 100) + '...'
-                  : currentProject.description}
-              </p>
-            ) : (
-              <p className="text-xs text-slate-300 italic">No description</p>
-            )}
-          </div>
-        )}
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-xl">
-          <div className="flex w-full items-center gap-2 px-3 py-4 sm:gap-3 sm:px-5">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 lg:hidden"
-              title="Open sidebar"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-
-            {/* Breadcrumb */}
-            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 sm:hidden">
-              {breadcrumbCrumbs.length > 0
-                ? breadcrumbCrumbs[breadcrumbCrumbs.length - 1].label
-                : currentProject?.title || '...'}
-            </span>
-            <nav className="hidden min-w-0 flex-1 items-center gap-2 overflow-hidden text-sm sm:flex">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="shrink-0 text-slate-400 transition hover:text-slate-700"
-              >
-                Projects
-              </button>
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" />
-              {breadcrumbCrumbs.length > 0 ? (
-                <>
-                  <button
-                    onClick={() => navigate(`/projects/${id}`)}
-                    className="shrink-0 font-semibold text-slate-500 transition hover:text-slate-900"
-                  >
-                    {currentProject?.title || '...'}
-                  </button>
-                  {breadcrumbCrumbs.map((crumb, i) => (
-                    <React.Fragment key={crumb.key}>
-                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" />
-                      {i < breadcrumbCrumbs.length - 1 ? (
-                        <button
-                          onClick={() => navigate(crumb.to)}
-                          className="shrink-0 font-semibold text-slate-500 transition hover:text-slate-900"
-                        >
-                          {crumb.label}
-                        </button>
-                      ) : (
-                        <span className="truncate font-semibold text-slate-900">
-                          {crumb.label}
-                        </span>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </>
-              ) : (
-                <span className="truncate font-semibold text-slate-900">
-                  {currentProject?.title || '...'}
-                </span>
-              )}
-            </nav>
-
-            <button
-              onClick={() => navigate('/dashboard')}
-              title="Back to Dashboard"
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 sm:px-3"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Back to Dashboard</span>
-            </button>
-
-            {currentProject && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    disabled={statusUpdating}
-                    title="Change project status"
-                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:opacity-60 ${getStatusColor(
-                      currentProject.status
-                    )}`}
-                  >
-                    {statusUpdating ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                    )}
-                    {currentProject.status || 'Set status'}
-                    <ChevronDown className="h-3 w-3 opacity-70" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuLabel className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                    Project status
-                  </DropdownMenuLabel>
-                  {['Active', 'Draft'].map((option) => {
-                    const isCurrent = (currentProject.status || '').toLowerCase() === option.toLowerCase();
-                    return (
-                      <DropdownMenuItem
-                        key={option}
-                        onSelect={() => handleStatusChange(option)}
-                        className="flex items-center gap-2 text-sm"
-                      >
-                        <Check className={`h-4 w-4 ${isCurrent ? 'text-emerald-600' : 'opacity-0'}`} />
-                        <span className={`h-2 w-2 rounded-full ${option === 'Active' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
-                        {option}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-        </header>
-
-        <main className="w-full flex-1 px-3 pb-24 pt-0 sm:px-4">
-          {isOverview ? (
-            <NoBaselineOverview project={currentProject} />
-          ) : (
-            <Outlet context={{ project: currentProject }} />
-          )}
-        </main>
-      </div>
-    </div>
-  );
+  return <NoBaselineOverview project={currentProject} />;
 };
 
 const NoBaselineOverview = ({ project }) => {
@@ -356,18 +71,18 @@ const NoBaselineOverview = ({ project }) => {
   const fetchResponseCounts = useCallback(async () => {
     const tasks = [];
     if (project?.before_form) {
-      tasks.push(api.get(`/forms/${project.before_form}/responses`).catch(() => ({ data: [] })));
+      tasks.push(api.get(`/forms/public/${project.before_form}/count`).catch(() => ({ data: { response_count: 0 } })));
     } else {
-      tasks.push(Promise.resolve({ data: [] }));
+      tasks.push(Promise.resolve({ data: { response_count: 0 } }));
     }
     if (project?.after_form) {
-      tasks.push(api.get(`/forms/${project.after_form}/responses`).catch(() => ({ data: [] })));
+      tasks.push(api.get(`/forms/public/${project.after_form}/count`).catch(() => ({ data: { response_count: 0 } })));
     } else {
-      tasks.push(Promise.resolve({ data: [] }));
+      tasks.push(Promise.resolve({ data: { response_count: 0 } }));
     }
     const [benRes, nonBenRes] = await Promise.all(tasks);
-    setBeneficiaryCount(benRes.data?.length ?? 0);
-    setNonBeneficiaryCount(nonBenRes.data?.length ?? 0);
+    setBeneficiaryCount(benRes.data?.response_count ?? 0);
+    setNonBeneficiaryCount(nonBenRes.data?.response_count ?? 0);
   }, [project?.before_form, project?.after_form]);
 
   useEffect(() => {

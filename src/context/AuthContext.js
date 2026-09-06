@@ -104,6 +104,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    // Best-effort server activity log of the logout for system-wide Data
+    // Maintenance coverage; never blocks the local sign-out.
+    try {
+      api.post('/auth/logout').catch(() => {});
+    } catch (e) {
+      // ignore
+    }
     clearAuthStorage();
     setUser(null);
   };
