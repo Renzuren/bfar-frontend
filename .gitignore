@@ -23,3 +23,18 @@ yarn-debug.log*
 yarn-error.log*
 
 build.log
+
+# local environment / secrets
+.env
+.env.*
+
+# supabase migration artifacts
+supabase-migration-report.json
+
+# supabase local artifacts
+/supabase/.temp/
+
+# runtime / temporary logs
+debug.log
+stderr.log
+stdout.log

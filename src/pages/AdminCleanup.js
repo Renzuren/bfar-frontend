@@ -66,7 +66,7 @@ const CATEGORY_OPTIONS = [
   {
     key: 'responses_old',
     label: 'Survey Responses (old)',
-    description: 'Complete response documents older than the selected age, across all questionnaires. Referenced photos are also removed. The single biggest Firestore consumer.',
+    description: 'Complete response records older than the selected age, across all questionnaires. Referenced photos are also removed. The single biggest database consumer.',
     icon: ClipboardList,
     color: 'text-sky-600 bg-sky-50 border-sky-200',
     storage: false,
@@ -75,7 +75,7 @@ const CATEGORY_OPTIONS = [
   {
     key: 'responses_empty',
     label: 'Empty / No-Answer Responses',
-    description: 'Draft/testing/blank responses that carry no meaningful answers but still occupy a Firestore document.',
+    description: 'Draft/testing/blank responses that carry no meaningful answers but still occupy a database record.',
     icon: FileSpreadsheet,
     color: 'text-indigo-600 bg-indigo-50 border-indigo-200',
     storage: false,
@@ -463,11 +463,11 @@ export default function AdminCleanup({ embedded = false }) {
             <div className="pointer-events-none absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-teal-500/15 blur-3xl" />
             <div className="relative">
               <Badge className="mb-3 border border-cyan-300/30 bg-cyan-400/10 text-cyan-200">
-                <Sparkles className="mr-1 h-3 w-3" /> Admin-only · Space-maximizing Firebase maintenance
+                <Sparkles className="mr-1 h-3 w-3" /> Admin-only · Space-maximizing data maintenance
               </Badge>
-              <h2 className="mb-2 text-2xl font-bold leading-tight sm:text-3xl">Reclaim Firebase Storage</h2>
+              <h2 className="mb-2 text-2xl font-bold leading-tight sm:text-3xl">Reclaim Data &amp; Storage</h2>
               <p className="max-w-2xl text-sm text-slate-300 sm:text-base">
-                A single data-maintenance tool driven by the <strong className="text-white">real contents of your Firebase</strong> —
+                A single data-maintenance tool driven by the <strong className="text-white">real contents of your database and storage</strong> —
                 it ranks the biggest storage consumers (response documents, form metadata, photo files), lets you
                 <strong className="text-white"> preview and remove old/empty responses, logs and unreferenced files</strong>, and records
                 every run. Core business data is never touched.
@@ -530,7 +530,7 @@ export default function AdminCleanup({ embedded = false }) {
                   <Database className="h-4 w-4 text-cyan-600" /> Storage Breakdown — Biggest Consumers
                 </CardTitle>
                 <CardDescription>
-                  Ranked by Firestore bytes. 317 responses currently hold ~{formatFreed(spaceReport?.total_response_bytes || 0)} of raw question answers — the top target for space savings.
+                  Ranked by database bytes. 317 responses currently hold ~{formatFreed(spaceReport?.total_response_bytes || 0)} of raw question answers — the top target for space savings.
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0">
@@ -666,7 +666,7 @@ export default function AdminCleanup({ embedded = false }) {
               </CardTitle>
               <CardDescription>
                 Select what to clean and how old it must be, then preview before deleting. <strong>Survey responses</strong> are the biggest
-                Firestore consumer — deleting old ones (and their photos) maximizes reclaimed space.
+                database consumer — deleting old ones (and their photos) maximizes reclaimed space.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 px-4 pb-4 pt-0">
@@ -1084,7 +1084,7 @@ export default function AdminCleanup({ embedded = false }) {
                 </Button>
               </CardContent>
               <CardFooter className="text-xs text-slate-400">
-                Temporary/browser data only. No Firestore, projects, forms, or responses are modified.
+                Temporary/browser data only. No projects, forms, responses, or database records are modified.
               </CardFooter>
             </Card>
 

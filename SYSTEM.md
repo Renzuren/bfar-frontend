@@ -30,8 +30,8 @@ Register/Login
 | Frontend | React 19 + Tailwind CSS + shadcn/ui | 5173 |
 | API Backend | Node.js + Express | 5000 |
 | ML Backend (mock) | Node.js + Express (standalone) | 8000 |
-| Database | Firebase Firestore (Admin SDK) | — |
-| Auth | Firebase Authentication (ID token verification) | — |
+| Database | Supabase (PostgreSQL) | — |
+| Auth | Supabase Auth (JWT verification) | — |
 | Email | Nodemailer via Gmail SMTP | — |
 
 ---
@@ -89,9 +89,9 @@ src/
 server.js                           # Entry point — starts API (5000) + ML (8000)
 src/
 ├── config/
-│   └── firebase.js                 # Firebase Admin SDK init → { admin, db }
+│   └── supabase.js                 # Supabase admin client init → creates db client
 ├── middleware/
-│   └── auth_middleware.js          # Verifies Firebase ID tokens → req.user
+│   └── auth_middleware.js          # Verifies Supabase Auth JWTs → req.user
 ├── routes/
 │   ├── auth_routes.js              # /api/auth/*
 │   ├── forms_routes.js             # /api/forms/*
@@ -116,14 +116,14 @@ src/
 
 ---
 
-## 3. Data Model (Firestore)
+## 3. Data Model (Supabase / PostgreSQL)
 
 ### Entity Relationship Diagram
 
 ```
 ┌──────────────────────────────────────────────────────┐
 │                       users                          │
-│  (doc ID = Firebase Auth UID)                        │
+│  (row ID = Supabase Auth UID)                         │
 │                                                      │
 │  user_id, first_name, middle_name, last_name, email  │
 │  status: "verifying" | "active"                      │
@@ -167,7 +167,7 @@ src/
 │  status: "draft"|"closed"|—  │                        │
 │  created_at                  │                        │
 │                              │                        │
-│  ┌─── subcollection ───┐    │                        │
+│  ┌─── child tables ───┐    │                        │
 │  │   responses          │    │                        │
 │  │   (doc ID = UUID)    │    │                        │
 │  │                      │    │                        │
@@ -183,7 +183,7 @@ src/
 │  │   submitted_at       │    │                        │
 │  └──────────────────────┘    │                        │
 │                              │                        │
-│  ┌─── subcollection ───┐    │                        │
+│  ┌─── child tables ───┐    │                        │
 │  │ respondentCounters   │    │                        │
 │  │ "B" → {last_number}  │    │                        │
 │  │ "NB"→ {last_number}  │    │                        │
@@ -232,7 +232,7 @@ Both forms share the same `project_id` field. A project can have multiple **repo
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `POST` | `/register` | No | Create account → sends verification email |
-| `POST` | `/login` | No | Login → returns Firebase ID token |
+| `POST` | `/login` | No | Login → returns Supabase session token |
 | `GET` | `/verify_account?token=` | No | Email verification link |
 | `POST` | `/forgot_password` | No | Sends 6-digit reset code via email |
 | `POST` | `/verify_reset_code` | No | Validates reset code |
@@ -290,8 +290,8 @@ Both forms share the same `project_id` field. A project can have multiple **repo
                     └──────┬───────┘
                            │ POST /api/auth/register
                            ▼
-              Creates Firebase Auth user
-              Creates Firestore users/{uid} doc
+              Creates Supabase Auth user
+              Creates users row (id = Supabase Auth UID)
               status: "verifying"
               Generates verification_link (hex token)
               Sends verification email via SMTP
@@ -309,8 +309,8 @@ Both forms share the same `project_id` field. A project can have multiple **repo
                     └──────┬───────┘
                            │ POST /api/auth/login
                            ▼
-              Firebase REST API signInWithPassword
-              Checks Firestore status == "active"
+              Supabase Auth signInWithPassword
+              Checks users.status == "active"
               Returns { idToken, refreshToken, user }
                            │
                            ▼
@@ -465,7 +465,7 @@ FormAnalytics page loads
 ```
 
 **Server-side analytics (`get_analytics.js`):**
-- Fetches form + all responses from Firestore
+- Fetches form + all responses from the database
 - Filters system fields via `getSurveyQuestions()`
 - Counts option frequencies, collects rating values, gathers text responses
 - Returns `{ total_responses, questions: [{ type, title, responses, ... }] }`
@@ -597,8 +597,8 @@ Response submitted
     │       "Yes" / "beneficiary" → prefix "B"
     │       "No"  / "non-beneficiary" → prefix "NB"
     │
-    ├── Transactional counter in respondentCounters subcollection:
-    │       Firestore transaction reads "B" or "NB" counter
+    ├── Transactional counter in respondent_counters table:
+    │       Database transaction reads "B" or "NB" counter
     │       Increments last_number atomically
     │       Returns new number
     │
@@ -614,16 +614,16 @@ Response submitted
 DELETE /api/projects/:id
     ├── Find all forms where project_id matches → delete each form (see below)
     ├── Find all reports where project_id matches → delete each report
-    ├── Delete project document
+    ├── Delete project row
     └── Done
 ```
 
 ### Delete Form
 ```
 DELETE /api/forms/:id
-    ├── Batch-delete all docs in forms/{id}/responses (batches of 500)
-    ├── Batch-delete all docs in forms/{id}/respondentCounters (batches of 500)
-    ├── Delete form document
+    ├── Delete all rows in responses where form_id matches (batched)
+    ├── Delete all rows in respondent_counters where form_id matches (batched)
+    ├── Delete form row
     └── Done
 ```
 
@@ -632,7 +632,7 @@ DELETE /api/forms/:id
 DELETE /api/reports/:id
     ├── Find associated project
     ├── Decrement project.reports_count (atomic increment -1)
-    ├── Delete report document
+    ├── Delete report row
     └── Done
 ```
 
@@ -673,15 +673,15 @@ DELETE /api/reports/:id
 | Decision | Rationale |
 |----------|-----------|
 | **Single before/after form per project** | Simplifies the comparison model — each project represents one impact evaluation |
-| **Firebase Auth + Admin SDK** | Server-side token verification ensures security; Admin SDK has elevated Firestore access |
+| **Supabase Auth + service-role client** | Server-side JWT verification ensures security; the service-role client has elevated database access |
 | **Public form submission without auth** | Field workers collect data without needing app accounts |
 | **Client-side fallback analytics** | Resilient — works even if server analytics endpoint fails |
 | **Client-side ML analysis** | No Python backend needed; all PSM/computation runs in the browser |
 | **Mock ML server (port 8000)** | Placeholder for future Python ML backend; returns structurally realistic responses |
-| **Subcollections for responses** | Natural scoping per form; efficient queries; batch deletion support |
+| **Related response tables** | Natural scoping per form; efficient queries; batch deletion support |
 | **System fields always prepended** | Guarantees consistent respondent metadata across all forms |
 | **html2canvas → jsPDF for PDF** | Client-side PDF generation avoids server-side rendering dependencies |
-| **Firestore denormalized counters** | `response_count` and `reports_count` avoid count queries |
+| **Denormalized counters** | `response_count` and `reports_count` avoid count queries |
 
 ---
 
@@ -689,11 +689,12 @@ DELETE /api/reports/:id
 
 | Variable | Purpose |
 |----------|---------|
-| `FIREBASE_API_KEY` | Firebase Web API key (used by REST API calls) |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key (used by REST API calls) |
 | `EMAIL_USER` | Gmail address for Nodemailer SMTP |
 | `EMAIL_PASS` | Gmail app password for Nodemailer |
 
-Firebase Admin SDK uses `serviceAccountKey.json` in the project root.
+Supabase admin access uses the project URL + service-role key (or bundled credentials) in the project root.
 
 ---
 
