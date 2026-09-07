@@ -1,15 +1,4 @@
 // src/pages/NoBaselineAnalysisReport.js
-// ============================================================
-// NO-BASELINE ANALYSIS REPORT
-// Automatically builds a combined Beneficiary + Non-Beneficiary
-// dataset from the project's before/after questionnaires, sends
-// it through the ML `/train` pipeline (the same one the manual
-// ML Upload page uses), and renders the shared MLAnalyticsPanel.
-// Nothing is dropped manually here — the CSV is assembled in
-// memory from the collected responses and the analysis auto-runs
-// on load, with a "Re-run" button for refreshing results.
-// ============================================================
-
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import {
@@ -29,6 +18,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api } from '../lib/apiMiddleware';
 import { buildCombinedDataset } from '../lib/combinedDataset';
 import { runMLAnalysis } from '../lib/mlAnalysisApi';
@@ -62,6 +54,11 @@ const NoBaselineAnalysisReport = () => {
   const [error, setError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const ranRef = useRef(false);
+
+  // --- NEW: outcome & caliper controls ---
+  const [availableColumns, setAvailableColumns] = useState([]);
+  const [outcomeColumn, setOutcomeColumn] = useState('');
+  const [caliperRatio, setCaliperRatio] = useState(0.2);
 
   // Data-preview table state (mirrors the ML Upload preview)
   const [showPreview, setShowPreview] = useState(true);
@@ -129,6 +126,19 @@ const NoBaselineAnalysisReport = () => {
         setDataset(merged);
         setTablePage(0);
         ranRef.current = false;
+
+        // --- NEW: populate available columns and auto-select income ---
+        const cols = (merged.columns || []).filter(c => c !== 'Status');
+        setAvailableColumns(cols);
+        const incomeCol = cols.find(c => /income|kita/i.test(c));
+        if (incomeCol) {
+          setOutcomeColumn(incomeCol);
+        } else if (cols.length) {
+          // fallback: first numeric-looking column (if any)
+          setOutcomeColumn(cols[0]);
+        } else {
+          setOutcomeColumn('');
+        }
       } catch (err) {
         if (!cancelled) setError('Failed to load questionnaire data.');
       } finally {
@@ -142,6 +152,10 @@ const NoBaselineAnalysisReport = () => {
   // Auto-run the ML analysis once the combined dataset is ready.
   const runAnalysis = useCallback(async () => {
     if (!dataset || !dataset.columns.length || !dataset.rows.length) return;
+    if (!outcomeColumn) {
+      setError('Please select an outcome column.');
+      return;
+    }
     setAnalysing(true);
     setError(null);
     setProgress(10);
@@ -150,6 +164,8 @@ const NoBaselineAnalysisReport = () => {
         columns: dataset.columns,
         rows: dataset.rows,
         treatmentColumn: 'Status',
+        outcomeColumn,          // <-- pass selected
+        caliperRatio,           // <-- pass caliper
         onProgress: setProgress,
       });
       setAnalysisResults(result);
@@ -163,15 +179,17 @@ const NoBaselineAnalysisReport = () => {
     } finally {
       setAnalysing(false);
     }
-  }, [dataset]);
+  }, [dataset, outcomeColumn, caliperRatio]);
 
+  // Trigger analysis on first load
   useEffect(() => {
     if (!dataset) return;
     if (ranRef.current) return;
     if (!dataset.columns.length || !dataset.rows.length) return;
+    if (!outcomeColumn) return; // wait for outcome selection
     ranRef.current = true;
     runAnalysis();
-  }, [dataset, runAnalysis]);
+  }, [dataset, runAnalysis, outcomeColumn]);
 
   const hasForms = Boolean(project?.before_form && project?.after_form);
   const hasData = Boolean(dataset && dataset.respondentCount > 0);
@@ -185,8 +203,10 @@ const NoBaselineAnalysisReport = () => {
   const handleReRun = () => {
     setAnalysisResults(null);
     setError(null);
+    // reset ranRef to allow re-run; runAnalysis will be called by the effect
     ranRef.current = false;
-    setReloadKey((k) => k + 1);
+    // trigger the effect by toggling a dummy state or simply call runAnalysis directly
+    runAnalysis();
   };
 
   return (
@@ -262,6 +282,48 @@ const NoBaselineAnalysisReport = () => {
             accent="text-violet-600"
             bg="bg-violet-50"
           />
+        </div>
+      )}
+
+      {/* --- NEW: Outcome & Caliper controls --- */}
+      {hasAnalysableData && (
+        <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200/50 bg-slate-50 p-4">
+          <div>
+            <Label className="text-xs font-medium text-slate-500">Outcome Column</Label>
+            <Select value={outcomeColumn} onValueChange={setOutcomeColumn}>
+              <SelectTrigger className="h-10 w-48 text-sm">
+                <SelectValue placeholder="Select outcome" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableColumns.map(col => (
+                  <SelectItem key={col} value={col}>{col}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-slate-500">Caliper Ratio</Label>
+            <Input
+              type="number"
+              step="0.1"
+              min="0.1"
+              value={caliperRatio}
+              onChange={(e) => setCaliperRatio(parseFloat(e.target.value) || 0.2)}
+              className="h-10 w-32 text-sm"
+            />
+            <p className="mt-1 text-[10px] text-slate-400">Larger = looser matching (try 2–5 if no matches)</p>
+          </div>
+          <Button onClick={handleReRun} disabled={analysing || !outcomeColumn} className="gap-2 bg-blue-600 hover:bg-blue-700">
+            {analysing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Running...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" /> Re-run with settings
+              </>
+            )}
+          </Button>
         </div>
       )}
 

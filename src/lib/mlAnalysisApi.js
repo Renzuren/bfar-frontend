@@ -41,6 +41,7 @@ export const buildCSVString = (columns, rows) => {
  * @param {string}   [options.treatmentColumn]
  * @param {string}   [options.outcomeColumn]
  * @param {string}   [options.includeFeatures]
+ * @param {number}   [options.caliperRatio]       -- NEW: caliper ratio for matching (default 0.2)
  * @param {string}   [options.mlApiUrl]
  * @param {number}   [options.timeout=120000]
  * @param {(pct:number)=>void} [options.onProgress]
@@ -51,6 +52,7 @@ export const runMLAnalysis = async ({
   treatmentColumn,
   outcomeColumn,
   includeFeatures,
+  caliperRatio,          // <-- NEW
   mlApiUrl,
   timeout = 120000,
   onProgress,
@@ -68,6 +70,10 @@ export const runMLAnalysis = async ({
   if (treatmentColumn) formData.append('treatment_column', treatmentColumn);
   if (outcomeColumn) formData.append('outcome_column', outcomeColumn);
   if (includeFeatures && includeFeatures.trim()) formData.append('include_features', includeFeatures.trim());
+  // --- NEW: append caliper_ratio if provided ---
+  if (caliperRatio !== undefined && caliperRatio !== null) {
+    formData.append('caliper_ratio', String(caliperRatio));
+  }
 
   const endpoint = `${(mlApiUrl || getMLApiUrl()).replace(/\/$/, '')}/train`;
   const controller = new AbortController();

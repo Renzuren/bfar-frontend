@@ -35,17 +35,16 @@ const MLUpload = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  // Treatment, outcome, and feature filter
+  // Treatment, outcome, feature filter, and caliper
   const [treatmentColumn, setTreatmentColumn] = useState('');
   const [outcomeColumn, setOutcomeColumn] = useState('');
   const [includeFeatures, setIncludeFeatures] = useState('');
-
+  const [caliperRatio, setCaliperRatio] = useState(0.2);   // <-- NEW
 
   const scrollPositionRef = useRef(0);
   const [tablePage, setTablePage] = useState(0);
   const tableRef = useRef(null);
   const ROWS_PER_PAGE = 100;
-
 
   // ---------- File handling (unchanged) ----------
   const handleFileSelect = (event) => {
@@ -262,6 +261,7 @@ const MLUpload = () => {
       if (treatmentColumn) formData.append('treatment_column', treatmentColumn);
       if (outcomeColumn) formData.append('outcome_column', outcomeColumn);
       if (includeFeatures.trim()) formData.append('include_features', includeFeatures.trim());
+      formData.append('caliper_ratio', String(caliperRatio));   // <-- NEW
 
       setUploadProgress(30);
       const endpoint = `${ML_API_URL.replace(/\/$/, '')}/train`;
@@ -608,9 +608,9 @@ const MLUpload = () => {
               </div>
             </div>
 
-            {/* Configuration options */}
+            {/* Configuration options - now with Caliper Ratio */}
             {columns.length > 0 && (
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200/50">
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200/50">
                 <div>
                   <Label className="mb-1.5 block text-xs font-medium text-slate-500">
                     Group / Treatment Column
@@ -651,6 +651,20 @@ const MLUpload = () => {
                     placeholder="B3:AGE, B5:SEX, ..."
                     className="h-10 text-sm"
                   />
+                </div>
+                <div>
+                  <Label className="mb-1.5 block text-xs font-medium text-slate-500">
+                    Caliper Ratio
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    value={caliperRatio}
+                    onChange={(e) => setCaliperRatio(parseFloat(e.target.value) || 0.2)}
+                    className="h-10 text-sm"
+                  />
+                  <p className="mt-1 text-[10px] text-slate-400">Larger = looser matching (try 2–5 if no matches)</p>
                 </div>
               </div>
             )}
