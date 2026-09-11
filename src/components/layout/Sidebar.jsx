@@ -1,6 +1,17 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { FolderKanban, LayoutGrid, Menu } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { FolderKanban, LayoutGrid, Menu, ChevronDown } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from '@/components/ui/dropdown-menu';
 
 // Persistent app sidebar. Uses NavLink (never `<a href>`) so navigation is
 // fully client-side: the sidebar itself never unmounts or reloads. The active
@@ -8,12 +19,17 @@ import { FolderKanban, LayoutGrid, Menu } from 'lucide-react';
 export default function Sidebar({
   items,
   project,
+  projects = [],
   open,
   collapsed,
   onToggleCollapse,
   onNavigate,
 }) {
+  const navigate = useNavigate();
   const projectId = project?.id;
+
+  const noBaselineProjects = projects.filter((p) => p.has_baseline === false);
+  const baselineProjects = projects.filter((p) => p.has_baseline !== false);
 
   const linkClasses = ({ isActive }) =>
     `group relative flex items-center rounded-lg text-sm font-medium transition-all duration-150 ${
@@ -106,53 +122,123 @@ export default function Sidebar({
           })}
         </ul>
 
-        {/* Projects section */}
-        <div className="mt-6 border-t border-slate-100 pt-4">
-          {!collapsed && (
-            <p className="px-4 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-              Projects
-            </p>
-          )}
-          <ul className="space-y-1">
-            <li>
-              <NavLink
-                to="/dashboard"
-                onClick={onNavigate}
-                title={collapsed ? 'Projects' : undefined}
-                className={linkClasses}
-              >
-                {({ isActive }) => (
-                  <>
-                    {renderAccentBar(isActive)}
-                    <LayoutGrid className={iconColor(isActive)} />
-                    {!collapsed && <span>Projects</span>}
-                  </>
-                )}
-              </NavLink>
-            </li>
-            {projectId && (
-              <li>
-                <NavLink
-                  to={`/projects/${projectId}`}
-                  end
-                  onClick={onNavigate}
-                  title={collapsed ? project?.title || 'Project' : undefined}
-                  className={projectLinkClasses}
-                >
-                  {({ isActive }) => (
-                    <>
-                      {renderAccentBar(isActive)}
-                      <FolderKanban className={iconColor(isActive)} />
-                      {!collapsed && (
-                        <span className="truncate">{project?.title || 'Loading...'}</span>
-                      )}
-                    </>
-                  )}
-                </NavLink>
-              </li>
+{/* Projects section */}
+          <div className="mt-6 border-t border-slate-100 pt-4">
+            {!collapsed && (
+              <p className="px-4 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                Projects
+              </p>
             )}
-          </ul>
-        </div>
+            <ul className="space-y-1">
+              {projectId && (
+                <li>
+                  <NavLink
+                    to={`/projects/${projectId}`}
+                    end
+                    onClick={onNavigate}
+                    title={collapsed ? project?.title || 'Project' : undefined}
+                    className={projectLinkClasses}
+                  >
+                    {({ isActive }) => (
+                      <>
+                        {renderAccentBar(isActive)}
+                        <FolderKanban className={iconColor(isActive)} />
+                        {!collapsed && (
+                          <span className="truncate">{project?.title || 'Loading...'}</span>
+                        )}
+                      </>
+                    )}
+                  </NavLink>
+                </li>
+              )}
+              <li>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        title={collapsed ? 'Projects' : undefined}
+                        className={`${linkClasses({ isActive: false })} ${
+                          collapsed ? '' : 'w-full'
+                        } cursor-pointer`}
+                      >
+                        <LayoutGrid className="h-[18px] w-[18px] shrink-0 text-slate-400" />
+                        {!collapsed && (
+                          <>
+                            <span className="min-w-0 flex-1 truncate text-left">Projects</span>
+                            <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+                          </>
+                        )}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent side="right" align="start" sideOffset={6} className="w-72">
+                      <DropdownMenuLabel className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                        Projects
+                      </DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onSelect={() => {
+                          navigate('/dashboard');
+                          onNavigate();
+                        }}
+                      >
+                        <LayoutGrid className="h-4 w-4 text-slate-400" />
+                        <span className="font-medium">All Projects</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {noBaselineProjects.length > 0 && (
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>
+                            <FolderKanban className="h-4 w-4 text-violet-500" />
+                            No Baseline
+                            <span className="ml-1 rounded-full bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600">
+                              {noBaselineProjects.length}
+                            </span>
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent className="max-h-80 overflow-y-auto">
+                            {noBaselineProjects.map((p) => (
+                              <DropdownMenuItem
+                                key={p.id}
+                                onSelect={() => {
+                                  navigate(`/projects/${p.id}`);
+                                  onNavigate();
+                                }}
+                              >
+                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-300" />
+                                <span className="truncate">{p.title}</span>
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                      )}
+                      {baselineProjects.length > 0 && (
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>
+                            <FolderKanban className="h-4 w-4 text-blue-500" />
+                            Baseline
+                            <span className="ml-1 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-600">
+                              {baselineProjects.length}
+                            </span>
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent className="max-h-80 overflow-y-auto">
+                            {baselineProjects.map((p) => (
+                              <DropdownMenuItem
+                                key={p.id}
+                                onSelect={() => {
+                                  navigate(`/projects/${p.id}`);
+                                  onNavigate();
+                                }}
+                              >
+                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-300" />
+                                <span className="truncate">{p.title}</span>
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </li>
+              </ul>
+            </div>
       </nav>
 
       {/* Sidebar footer */}

@@ -14,6 +14,7 @@ import FormResponses from './pages/FormResponses';
 import FormProfiles from './pages/FormProfiles';
 import FormAnalytics from './pages/FormAnalytics';
 import MLUpload from './pages/MLUpload';
+import AnalysisResult from './pages/AnalysisResult';
 import ProjectDashboard, {
   PROJECT_SIDEBAR_ITEMS,
   PROJECT_BREADCRUMB_LABELS,
@@ -32,6 +33,7 @@ import ReportTab from './pages/ReportTab';
 import NoBaselineAnalysisReport from './pages/NoBaselineAnalysisReport';
 import NarrativeReport from './pages/NarrativeReport';
 import ProjectBackup from './pages/ProjectBackup';
+import ResponsesTab from './pages/ResponsesTabRebuilt';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProjectProvider, useProject } from './context/ProjectContext';
 import VerifyAccount from './pages/VerifyAccount';
@@ -150,6 +152,7 @@ function App() {
               <Route path="responses" element={<ProtectedRoute><FormResponses embedded /></ProtectedRoute>} />
               <Route path="profiles" element={<ProtectedRoute><FormProfiles embedded /></ProtectedRoute>} />
               <Route path="analytics" element={<ProtectedRoute><FormAnalytics embedded /></ProtectedRoute>} />
+              <Route path="all-responses" element={<ProtectedRoute><ResponsesTab /></ProtectedRoute>} />
               <Route path="narrative-report" element={<NarrativeReport />} />
               <Route path="backup" element={<ProtectedRoute><ProjectBackup /></ProtectedRoute>} />
             </Route>
@@ -161,6 +164,7 @@ function App() {
             <Route path="/forms/:id/profiles" element={<ProtectedRoute><FormProfiles /></ProtectedRoute>} />
             <Route path="/forms/:id/analytics" element={<ProtectedRoute><FormAnalytics /></ProtectedRoute>} />
             <Route path="/ml-upload" element={<ProtectedRoute><MLUpload /></ProtectedRoute>} />
+            <Route path="/ml-analysis/:id" element={<ProtectedRoute><AnalysisResult /></ProtectedRoute>} />
             <Route path="/f/:id" element={<FormFill />} />
           </Routes>
           <Toaster />

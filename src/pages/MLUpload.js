@@ -17,6 +17,7 @@ import MLAnalyticsPanel from '../components/MLAnalyticsPanel';
 import AutoChartsReport from '../components/AutoChartsReport';
 import { resolveServiceUrl } from '../lib/apiBase';
 import { fetchWithRetry } from '../lib/fetchRetry';
+import { saveAnalysis } from '../lib/analysisStore';
 
 const MLUpload = () => {
   const navigate = useNavigate();
@@ -34,6 +35,12 @@ const MLUpload = () => {
   const [analysisResults, setAnalysisResults] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Save-to-dashboard state
+  const [analysisTitle, setAnalysisTitle] = useState('');
+  const [savingAnalysis, setSavingAnalysis] = useState(false);
+  const [savedAnalysisId, setSavedAnalysisId] = useState(null);
+  const [saveMessage, setSaveMessage] = useState('');
 
   // Treatment, outcome, feature filter, and caliper
   const [treatmentColumn, setTreatmentColumn] = useState('');
@@ -294,6 +301,9 @@ const MLUpload = () => {
 
       const result = await response.json();
       setAnalysisResults(result);
+      setAnalysisTitle(`Analysis · ${(file?.name || 'CSV Data').replace(/\.(csv|xlsx|xls)$/i, '')}`);
+      setSavedAnalysisId(null);
+      setSaveMessage('');
       setUploadProgress(100);
       setTimeout(() => setUploadProgress(0), 1000);
     } catch (err) {
@@ -445,6 +455,33 @@ const MLUpload = () => {
 
   const handleBackToDashboard = () => navigate('/dashboard');
 
+  // ---------- Save analysis to dashboard ----------
+  const handleSaveAnalysis = async () => {
+    if (!analysisResults) return;
+    setSavingAnalysis(true);
+    setSaveMessage('');
+    try {
+      const saved = await saveAnalysis({
+        title: analysisTitle.trim() || `Analysis · ${(file?.name || 'CSV Data').replace(/\.(csv|xlsx|xls)$/i, '')}`,
+        fileName: file?.name || '',
+        analysisResults,
+        columns,
+        rows: csvData,
+        treatmentColumn,
+        outcomeColumn,
+        caliperRatio,
+      });
+      if (saved) {
+        setSavedAnalysisId(saved.id);
+        setSaveMessage('Analysis saved to your dashboard.');
+      } else {
+        setSaveMessage('Could not save — the results are too large for browser storage.');
+      }
+    } finally {
+      setSavingAnalysis(false);
+    }
+  };
+
   // ---------- Main render ----------
   return (
     <div className="min-h-screen bg-slate-50">
@@ -480,7 +517,7 @@ const MLUpload = () => {
             <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
             <div className="relative">
               <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-blue-300">How it works</p>
-              <h2 className="mb-6 text-2xl font-bold">ML Analysis Pipeline</h2>
+              <h2 className="mb-6 text-2xl font-bold">No Baseline ML Analysis Pipeline</h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="flex items-start gap-3">
                   <div className="bg-white/10 p-2 rounded-xl text-blue-300">
@@ -814,7 +851,52 @@ const MLUpload = () => {
           </div>
         )}
 
-{/* Analysis Results */}
+{/* Save to Dashboard */}
+        {analysisResults && (
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-semibold text-slate-900">Save to Dashboard</h2>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Name this analysis so it appears on your dashboard.
+                </p>
+                <Input
+                  value={analysisTitle}
+                  onChange={(e) => setAnalysisTitle(e.target.value)}
+                  placeholder="e.g., Fisherfolk Income Impact 2026"
+                  className="mt-3 h-10 max-w-md text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                {savedAnalysisId && (
+                  <button
+                    onClick={() => navigate(`/ml-analysis/${savedAnalysisId}`)}
+                    className="text-sm font-semibold text-blue-600 transition hover:text-blue-700"
+                  >
+                    View saved analysis →
+                  </button>
+                )}
+                <Button
+                  onClick={handleSaveAnalysis}
+                  disabled={savingAnalysis}
+                  className="gap-2 bg-slate-900 text-sm shadow-sm hover:bg-slate-800"
+                >
+                  {savingAnalysis ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  {savedAnalysisId ? 'Save Again' : 'Save to Dashboard'}
+                </Button>
+              </div>
+            </div>
+            {saveMessage && (
+              <p className="mt-3 text-xs font-medium text-emerald-600">{saveMessage}</p>
+            )}
+          </div>
+        )}
+
+        {/* Analysis Results */}
         {analysisResults && (
           <MLAnalyticsPanel
             analysisResults={analysisResults}

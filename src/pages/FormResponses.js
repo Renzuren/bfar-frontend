@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import { generateAssessmentHeaders, mapResponseToAssessmentColumns, normalizeLocationCodes, getQuestionLabel, isReservedField } from '../lib/preprocessing';
+import { getAnswerForQuestion } from '../lib/answerResolver';
 
 // ==================== UTILITY FUNCTIONS ====================
 const isNoAnswer = (val) => !val || val === '' || val === '--' || (Array.isArray(val) && val.length === 0);
@@ -195,19 +196,8 @@ const FormResponses = ({ embedded = false }) => {
     fetchData();
   }, [fetchData]);
 
-  const getAnswerForQuestion = (response, question) => {
-    const answersArray = response.answers || [];
-    const matched = answersArray.find(a => a.question_id === question.id || a.qid === question.id);
-    if (matched && !isNoAnswer(matched.answer)) return matched.answer;
-    const byTitle = answersArray.find(a => a.question_title === question.title);
-    if (byTitle && !isNoAnswer(byTitle.answer)) return byTitle.answer;
-    if (answersArray.length && typeof answersArray[0] !== 'object') {
-      const allQs = sections.flatMap(s => s.questions);
-      const idx = allQs.findIndex(q => q.id === question.id);
-      if (idx >= 0 && idx < answersArray.length && !isNoAnswer(answersArray[idx])) return answersArray[idx];
-    }
-    return null;
-  };
+  const getAnswerForQuestionWithSections = (response, question) =>
+    getAnswerForQuestion(response, question, { sections });
 
   const formatAnswerForTable = (ans) => isNoAnswer(ans) ? '—' : (Array.isArray(ans) ? ans.join(', ') : String(ans));
 
@@ -225,7 +215,7 @@ const FormResponses = ({ embedded = false }) => {
     }
     const beneQuestion = sections.flatMap(s => s.questions).find(isBeneficiaryQuestion);
     if (beneQuestion) {
-      const ans = getAnswerForQuestion(response, beneQuestion);
+      const ans = getAnswerForQuestionWithSections(response, beneQuestion);
       if (ans === 'Yes') return 'Yes';
       if (ans === 'No') return 'No';
     }
@@ -285,7 +275,7 @@ const FormResponses = ({ embedded = false }) => {
         getLocationForRow(response, 'province') === '—' ? '' : getLocationForRow(response, 'province'),
         status || '',
         ...questionCols.map(q => {
-          const rawAns = getAnswerForQuestion(response, q);
+          const rawAns = getAnswerForQuestionWithSections(response, q);
           const numericAns = getNumericAnswer(rawAns, q);
           return String(numericAns);
         })
@@ -336,7 +326,7 @@ const FormResponses = ({ embedded = false }) => {
     if (field) {
       const question = allQuestionCols.find(field.matches);
       if (question) {
-        const ans = getAnswerForQuestion(response, question);
+        const ans = getAnswerForQuestionWithSections(response, question);
         if (!isNoAnswer(ans)) return formatAnswerForTable(ans);
       }
     }
@@ -357,7 +347,7 @@ const FormResponses = ({ embedded = false }) => {
   const getSortValue = (response, key) => {
     if (key.startsWith('q:')) {
       const question = allQuestions.find(q => `q:${q.id}` === key);
-      return question ? formatAnswerForTable(getAnswerForQuestion(response, question)).toLowerCase() : '';
+      return question ? formatAnswerForTable(getAnswerForQuestionWithSections(response, question)).toLowerCase() : '';
     }
     switch (key) {
       case 'submitted': return response.submitted_at?._seconds || 0;
@@ -779,7 +769,7 @@ const FormResponses = ({ embedded = false }) => {
                             )}
                           </td>
                           {allQuestions.map((q, colIdx) => {
-                            const ans = getAnswerForQuestion(resp, q);
+                            const ans = getAnswerForQuestionWithSections(resp, q);
                             const hasRightBorder = sectionLastIndices.includes(colIdx);
                             return (
                               <td key={q.id} className={`max-w-[180px] truncate px-6 py-4 text-sm text-slate-600 ${hasRightBorder ? 'border-r border-slate-200/80' : ''}`} title={formatAnswerForTable(ans)}>

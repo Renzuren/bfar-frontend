@@ -153,7 +153,34 @@ const buildDynamicExpressionWrapper = (child, t) =>
     false,
   );
 
+// Parent elements whose HTML content model strictly forbids a <span> as a
+// direct child (e.g., <tbody>{rows.map(...)}</tbody>). Wrapping those mapped
+// children in a <span> produces invalid HTML and React hydration errors.
+const STRICT_CHILD_PARENTS = new Set([
+  "table",
+  "thead",
+  "tbody",
+  "tfoot",
+  "tr",
+  "colgroup",
+  "ul",
+  "ol",
+  "dl",
+  "select",
+  "datalist",
+  "optgroup",
+]);
+
 const wrapDynamicExpressionChildren = (jsxPath, t) => {
+  const openingEl = jsxPath.node.openingElement;
+  const containerName =
+    openingEl?.name && t.isJSXIdentifier(openingEl.name)
+      ? openingEl.name.name
+      : null;
+  if (containerName && STRICT_CHILD_PARENTS.has(containerName)) {
+    return null; // span would be invalid here — leave children unwrapped
+  }
+
   const children = jsxPath.node.children || [];
   let didChange = false;
 

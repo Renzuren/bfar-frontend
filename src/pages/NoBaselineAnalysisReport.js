@@ -1,72 +1,79 @@
 // src/pages/NoBaselineAnalysisReport.js
+// ============================================================
+// ANALYSIS REPORT TAB — No-Baseline projects
+// Mirrors the full MLUpload.js layout & pipeline, but fully
+// automatic: the combined dataset is built from the Beneficiary
+// + Non-Beneficiary responses and the ML analysis runs
+// automatically against the same `/train` endpoint.
+// ============================================================
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import {
+  AlertCircle,
   AlertTriangle,
+  BarChart3,
   BrainCircuit,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  FileBarChart2,
+  Database,
   Inbox,
   Layers,
   ListChecks,
   Loader2,
   RefreshCw,
+  Save,
   Users,
+  XCircle,
 } from 'lucide-react';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api } from '../lib/apiMiddleware';
 import { buildCombinedDataset } from '../lib/combinedDataset';
-import { runMLAnalysis } from '../lib/mlAnalysisApi';
+import { resolveServiceUrl } from '../lib/apiBase';
+import { fetchWithRetry } from '../lib/fetchRetry';
+import { enrichImpact, isBeneficiary } from '../lib/localImpact';
 import MLAnalyticsPanel, { MLAnalysisSkeleton } from '../components/MLAnalyticsPanel';
 import AutoChartsReport from '../components/AutoChartsReport';
-
-const SummaryStat = ({ icon: Icon, label, value, sub, accent = 'text-blue-600', bg = 'bg-blue-50' }) => (
-  <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-    <div className="flex items-center gap-3">
-      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${bg} ${accent}`}>
-        <Icon className="h-5 w-5" />
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
-        <p className="text-2xl font-bold tabular-nums text-slate-900">{value}</p>
-        {sub && <p className="truncate text-[11px] text-slate-400">{sub}</p>}
-      </div>
-    </div>
-  </div>
-);
 
 const NoBaselineAnalysisReport = () => {
   const outletCtx = useOutletContext();
   const project = outletCtx?.project;
 
-  const [dataset, setDataset] = useState(null);
-  const [analysisResults, setAnalysisResults] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [analysing, setAnalysing] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const ML_API_URL = resolveServiceUrl(process.env.REACT_APP_ML_API_URL, 'http://localhost:8000');
+
+  // ---------- Automatic data state ----------
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [reloadKey, setReloadKey] = useState(0);
+  const [dataset, setDataset] = useState(null);
+  const [availableColumns, setAvailableColumns] = useState([]);
+
+  // ---------- Analysis state ----------
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResults, setAnalysisResults] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const ranRef = useRef(false);
 
-  // --- NEW: outcome & caliper controls ---
-  const [availableColumns, setAvailableColumns] = useState([]);
+  // ---------- Configuration ----------
+  const [treatmentColumn] = useState('Status');
   const [outcomeColumn, setOutcomeColumn] = useState('');
+  const [includeFeatures, setIncludeFeatures] = useState('');
   const [caliperRatio, setCaliperRatio] = useState(0.2);
 
-  // Data-preview table state (mirrors the ML Upload preview)
+  // ---------- Data-preview table state (mirrors ML Upload) ----------
   const [showPreview, setShowPreview] = useState(true);
   const [tablePage, setTablePage] = useState(0);
   const tableRef = useRef(null);
   const scrollPositionRef = useRef(0);
   const ROWS_PER_PAGE = 100;
 
+  // ---------- Scroll helpers (mirror ML Upload) ----------
   const handleScrollLeft = () => {
     if (tableRef.current) {
       const newScrollPosition = Math.max(0, scrollPositionRef.current - 200);
@@ -92,12 +99,12 @@ const NoBaselineAnalysisReport = () => {
     return Math.round((scrollPositionRef.current / maxScroll) * 100);
   };
 
-  // Fetch both questionnaires + responses (mirrors ReportTab / NarrativeReport).
+  // ---------- Fetch both questionnaires + responses and build the combined dataset ----------
   useEffect(() => {
     let cancelled = false;
     const fetchData = async () => {
       if (!project) return;
-      setLoading(true);
+      setIsLoading(true);
       setError(null);
       try {
         const [beforeForm, beforeResponses, afterForm, afterResponses] = await Promise.all([
@@ -127,69 +134,130 @@ const NoBaselineAnalysisReport = () => {
         setTablePage(0);
         ranRef.current = false;
 
-        // --- NEW: populate available columns and auto-select income ---
         const cols = (merged.columns || []).filter(c => c !== 'Status');
         setAvailableColumns(cols);
         const incomeCol = cols.find(c => /income|kita/i.test(c));
-        if (incomeCol) {
-          setOutcomeColumn(incomeCol);
-        } else if (cols.length) {
-          // fallback: first numeric-looking column (if any)
-          setOutcomeColumn(cols[0]);
-        } else {
-          setOutcomeColumn('');
-        }
+        if (incomeCol) setOutcomeColumn(incomeCol);
+        else if (cols.length) setOutcomeColumn(cols[0]);
+        else setOutcomeColumn('');
       } catch (err) {
         if (!cancelled) setError('Failed to load questionnaire data.');
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
     fetchData();
     return () => { cancelled = true; };
-  }, [project, reloadKey]);
+  }, [project]);
 
-  // Auto-run the ML analysis once the combined dataset is ready.
-  const runAnalysis = useCallback(async () => {
-    if (!dataset || !dataset.columns.length || !dataset.rows.length) return;
+  // ---------- Analyze: call /train (mirrors ML Upload handleAnalyze) ----------
+  const escapeCell = (v) => {
+    const s = v === null || v === undefined ? '' : String(v);
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+
+  const buildCSVString = (cols, dataRows) => {
+    const lines = [cols.map(escapeCell).join(',')];
+    dataRows.forEach((row) => {
+      lines.push(cols.map((col) => escapeCell(row[col])).join(','));
+    });
+    return lines.join('\r\n');
+  };
+
+  const handleAnalyze = useCallback(async () => {
+    if (!dataset || dataset.rows.length === 0) {
+      setError('No data available to analyze');
+      return;
+    }
     if (!outcomeColumn) {
       setError('Please select an outcome column.');
       return;
     }
-    setAnalysing(true);
+    setIsAnalyzing(true);
     setError(null);
-    setProgress(10);
-    try {
-      const result = await runMLAnalysis({
-        columns: dataset.columns,
-        rows: dataset.rows,
-        treatmentColumn: 'Status',
-        outcomeColumn,          // <-- pass selected
-        caliperRatio,           // <-- pass caliper
-        onProgress: setProgress,
-      });
-      setAnalysisResults(result);
-      setProgress(100);
-      setTimeout(() => setProgress(0), 1200);
-    } catch (err) {
-      setError(err.message === 'No data available to analyze'
-        ? 'No analyzable data was found.'
-        : `Analysis failed: ${err.message || 'Unknown error'}`);
-      setProgress(0);
-    } finally {
-      setAnalysing(false);
-    }
-  }, [dataset, outcomeColumn, caliperRatio]);
+    setAnalysisResults(null);
+    setShowPreview(true);
+    setUploadProgress(10);
 
-  // Trigger analysis on first load
+    try {
+      // The ML service binarizes the treatment column by taking the
+      // alphabetically-last unique value as "treated"; the labels
+      // "Beneficiary"/"Non-Beneficiary" would make it pick Non-Beneficiary.
+      // Send a numeric 0/1 encoding instead (Beneficiary = treated = 1) so
+      // the treated/control direction is correct for everything downstream.
+      const apiRows = dataset.rows.map((row) => ({
+        ...row,
+        Status: isBeneficiary(row.Status) ? '1' : '0',
+      }));
+      const csvString = buildCSVString(dataset.columns, apiRows);
+      const blob = new Blob([csvString], { type: 'text/csv' });
+      const fileToSend = new File([blob], 'combined-responses.csv', { type: 'text/csv' });
+
+      const formData = new FormData();
+      formData.append('file', fileToSend);
+      formData.append('treatment_column', treatmentColumn);
+      formData.append('outcome_column', outcomeColumn);
+      if (includeFeatures.trim()) formData.append('include_features', includeFeatures.trim());
+      formData.append('caliper_ratio', String(caliperRatio));
+
+      setUploadProgress(30);
+      const endpoint = `${ML_API_URL.replace(/\/$/, '')}/train`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      const response = await fetchWithRetry(
+        endpoint,
+        {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        },
+        {
+          retries: 2,
+          // Never retry when the timeout fired — the job may still be running server-side.
+          shouldRetry: (error) => !error || error.name !== 'AbortError',
+        }
+      );
+      clearTimeout(timeout);
+      setUploadProgress(80);
+
+      if (!response.ok) {
+        let errorMsg = `Server returned ${response.status}`;
+        try {
+          const errorJson = await response.json();
+          if (errorJson.error) errorMsg = errorJson.error;
+        } catch (_) {}
+        throw new Error(errorMsg);
+      }
+
+      const result = await response.json();
+      // Guarantee the Impact tab is fully populated even when the service
+      // reports zero matched pairs (empty ATT / no pair-details button / no
+      // Pre-Post profile) -- enrichImpact recomputes the gap from the actual
+      // responses using the service's own propensity scores.
+      setAnalysisResults(enrichImpact(result, dataset, outcomeColumn, caliperRatio));
+      setUploadProgress(100);
+      setTimeout(() => setUploadProgress(0), 1200);
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        setError('Request timed out. Training may be taking too long.');
+      } else {
+        setError(`Analysis failed: ${err.message || 'Unknown error'}`);
+      }
+      setUploadProgress(0);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [dataset, outcomeColumn, includeFeatures, caliperRatio, treatmentColumn, ML_API_URL]);
+
+  // ---------- Auto-run the analysis once the combined dataset is ready ----------
   useEffect(() => {
     if (!dataset) return;
     if (ranRef.current) return;
     if (!dataset.columns.length || !dataset.rows.length) return;
     if (!outcomeColumn) return; // wait for outcome selection
     ranRef.current = true;
-    runAnalysis();
-  }, [dataset, runAnalysis, outcomeColumn]);
+    handleAnalyze();
+  }, [dataset, handleAnalyze, outcomeColumn]);
 
   const hasForms = Boolean(project?.before_form && project?.after_form);
   const hasData = Boolean(dataset && dataset.respondentCount > 0);
@@ -200,327 +268,379 @@ const NoBaselineAnalysisReport = () => {
     return dataset.statusCounts || { Beneficiary: 0, 'Non-Beneficiary': 0 };
   }, [dataset]);
 
-  const handleReRun = () => {
-    setAnalysisResults(null);
-    setError(null);
-    // reset ranRef to allow re-run; runAnalysis will be called by the effect
-    ranRef.current = false;
-    // trigger the effect by toggling a dummy state or simply call runAnalysis directly
-    runAnalysis();
-  };
-
+  // ---------- Main render (mirrors ML Upload layout) ----------
   return (
-    <div className="w-full space-y-8">
-      {/* Header */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 px-8 py-10 text-white shadow-2xl shadow-emerald-900/20 sm:px-12 sm:py-12">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-emerald-300/20 blur-3xl" />
-        <div className="relative text-left">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-5">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
-                <FileBarChart2 className="h-7 w-7" />
-              </div>
-              <div>
-                <p className="mb-1 text-sm font-medium uppercase tracking-[0.2em] text-emerald-200">Analysis Report</p>
-                <h2 className="mb-2 text-3xl font-bold leading-tight sm:text-4xl">
-                  Automatic Impact Analysis
-                </h2>
-                <p className="max-w-2xl text-base text-emerald-100">
-                  Combines Beneficiary and Non-Beneficiary responses into one dataset, then runs the ML
-                  matching pipeline automatically. No file upload needed — results are generated from your
-                  collected responses.
-                </p>
+    <div className="min-h-screen bg-slate-50">
+      <div className="w-full px-3 pb-24 pt-0 sm:px-4">
+        {/* Header */}
+        <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+          <div className="flex w-full items-center justify-between px-4 py-3 sm:px-5">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm font-semibold text-slate-900 sm:text-base">Analysis Report</h1>
               </div>
             </div>
-            {(hasAnalysableData || analysisResults) && (
-              <button
-                onClick={handleReRun}
-                disabled={analysing}
-                className="hidden shrink-0 items-center gap-2 rounded-xl bg-white/15 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/25 disabled:opacity-50 sm:inline-flex"
-              >
-                <RefreshCw className={`h-4 w-4 ${analysing ? 'animate-spin' : ''}`} />
-                Re-run Analysis
-              </button>
-            )}
-          </div>
-        </div>
-      </section>
 
-      {/* Data summary */}
-      {dataset && (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <SummaryStat
-            icon={Users}
-            label="Respondents"
-            value={dataset.respondentCount.toLocaleString()}
-            sub="combined dataset rows"
-            accent="text-blue-600"
-            bg="bg-blue-50"
-          />
-          <SummaryStat
-            icon={Layers}
-            label="Beneficiaries"
-            value={groupStats.Beneficiary.toLocaleString()}
-            sub="Status = Beneficiary"
-            accent="text-emerald-600"
-            bg="bg-emerald-50"
-          />
-          <SummaryStat
-            icon={ListChecks}
-            label="Non-Beneficiaries"
-            value={groupStats['Non-Beneficiary'].toLocaleString()}
-            sub="Status = Non-Beneficiary"
-            accent="text-rose-600"
-            bg="bg-rose-50"
-          />
-          <SummaryStat
-            icon={BrainCircuit}
-            label="Features"
-            value={(dataset.columns.length - 1).toLocaleString()}
-            sub="questions mapped to columns"
-            accent="text-violet-600"
-            bg="bg-violet-50"
-          />
-        </div>
-      )}
-
-      {/* --- NEW: Outcome & Caliper controls --- */}
-      {hasAnalysableData && (
-        <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200/50 bg-slate-50 p-4">
-          <div>
-            <Label className="text-xs font-medium text-slate-500">Outcome Column</Label>
-            <Select value={outcomeColumn} onValueChange={setOutcomeColumn}>
-              <SelectTrigger className="h-10 w-48 text-sm">
-                <SelectValue placeholder="Select outcome" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableColumns.map(col => (
-                  <SelectItem key={col} value={col}>{col}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="hidden border-slate-200 text-[10px] text-slate-400 sm:inline-flex">
+                PSM · SES Impact
+              </Badge>
+            </div>
           </div>
-          <div>
-            <Label className="text-xs font-medium text-slate-500">Caliper Ratio</Label>
-            <Input
-              type="number"
-              step="0.1"
-              min="0.1"
-              value={caliperRatio}
-              onChange={(e) => setCaliperRatio(parseFloat(e.target.value) || 0.2)}
-              className="h-10 w-32 text-sm"
-            />
-            <p className="mt-1 text-[10px] text-slate-400">Larger = looser matching (try 2–5 if no matches)</p>
-          </div>
-          <Button onClick={handleReRun} disabled={analysing || !outcomeColumn} className="gap-2 bg-blue-600 hover:bg-blue-700">
-            {analysing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Running...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4" /> Re-run with settings
-              </>
-            )}
-          </Button>
-        </div>
-      )}
+        </header>
 
-      {/* Data Preview (combined Beneficiary + Non-Beneficiary rows) */}
-      {dataset && dataset.rows.length > 0 && (() => {
-        const totalPages = Math.ceil(dataset.rows.length / ROWS_PER_PAGE);
-        const pageData = dataset.rows.slice(tablePage * ROWS_PER_PAGE, (tablePage + 1) * ROWS_PER_PAGE);
-        return (
-          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowPreview((v) => !v)}
-                  className="flex items-center gap-2 text-sm font-semibold text-slate-900 transition hover:text-slate-600"
-                >
-                  {showPreview ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
-                  Data Preview
-                </button>
-                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500">
-                  {dataset.rows.length.toLocaleString()} rows × {dataset.columns.length} cols
-                </span>
+        {/* How it works - only show before data is loaded */}
+        {!dataset && !isLoading && (
+          <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 p-8 text-white shadow-2xl shadow-slate-900/20 sm:p-10">
+            <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-blue-400/20 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
+            <div className="relative">
+              <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-blue-300">How it works</p>
+              <h2 className="mb-6 text-2xl font-bold">Automatic ML Analysis Pipeline</h2>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="flex items-start gap-3">
+                  <div className="bg-white/10 p-2 rounded-xl text-blue-300">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-white">1. Collect</h4>
+                    <p className="text-sm text-blue-200">Beneficiary & Non-Beneficiary responses</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="bg-white/10 p-2 rounded-xl text-indigo-300">
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-white">2. Combine</h4>
+                    <p className="text-sm text-blue-200">Merge both groups into one dataset</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="bg-white/10 p-2 rounded-xl text-emerald-300">
+                    <BarChart3 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-white">3. Auto-Analyze</h4>
+                    <p className="text-sm text-blue-200">PS scores, balance, SHAP & impact</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="bg-white/10 p-2 rounded-xl text-purple-300">
+                    <Save className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-white">4. Review</h4>
+                    <p className="text-sm text-blue-200">Save or download results for later</p>
+                  </div>
+                </div>
               </div>
-              {showPreview && dataset.columns.length > 6 && (
-                <div className="flex items-center gap-1.5">
-                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleScrollLeft}>
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                  </Button>
-                  <span className="min-w-[60px] text-center text-xs text-slate-500">{getScrollPercentage()}%</span>
-                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleScrollRight}>
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
+            </div>
+          </section>
+        )}
+
+        {/* Loading state */}
+        {isLoading && <MLAnalysisSkeleton />}
+
+        {/* Empty states */}
+        {!isLoading && !hasForms && (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-100">
+              <Inbox className="h-10 w-10 text-slate-400" />
+            </div>
+            <h3 className="mb-2 text-xl font-bold text-slate-900">No Questionnaires Yet</h3>
+            <p className="mx-auto max-w-md text-sm text-slate-500">
+              Create both a Beneficiary and a Non-Beneficiary questionnaire to run the automatic ML analysis.
+            </p>
+          </div>
+        )}
+
+        {!isLoading && hasForms && !hasData && (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-100">
+              <Inbox className="h-10 w-10 text-slate-400" />
+            </div>
+            <h3 className="mb-2 text-xl font-bold text-slate-900">No Responses Collected Yet</h3>
+            <p className="mx-auto max-w-md text-sm text-slate-500">
+              Responses from both groups are required. The analysis will run automatically as soon as data is available.
+            </p>
+          </div>
+        )}
+
+        {/* Automatic Data Card (mirrors ML Upload's Import File card) */}
+        {!isLoading && hasAnalysableData && (
+          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-slate-100 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+                  <Database className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900">Automatic Dataset</h2>
+                  <p className="text-xs text-slate-500">
+                    Combined Beneficiary + Non-Beneficiary responses · no upload needed
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              {error && (
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
+                  <AlertCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" />
+                  <p className="text-sm text-red-800 flex-1">{error}</p>
+                  <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600">
+                    <XCircle className="w-5 h-5" />
+                  </button>
                 </div>
               )}
-            </div>
-            {showPreview && (
-              <>
-                <div className="overflow-x-auto">
-                  <div className="max-h-96 overflow-y-auto" ref={tableRef} onScroll={handleTableScroll}>
-                    <table className="w-full text-xs">
-                      <thead className="sticky top-0 z-20 bg-slate-50">
-                        <tr>
-                          {dataset.columns.map((column, index) => (
-                            <th key={index} className="whitespace-nowrap border-b border-slate-200 px-6 py-3 text-left font-semibold text-slate-600">
-                              {column}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50">
-                        {pageData.map((row, rowIndex) => (
-                          <tr key={rowIndex} className="transition-colors hover:bg-slate-50/50">
-                            {dataset.columns.map((column, colIndex) => (
-                              <td key={colIndex} className="whitespace-nowrap px-6 py-3 text-sm text-slate-600">
-                                {column === 'Status' ? (
-                                  <span
-                                    className={
-                                      row[column] === 'Beneficiary'
-                                        ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700'
-                                        : 'inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700'
-                                    }
-                                  >
-                                    <span className={row[column] === 'Beneficiary' ? 'h-1.5 w-1.5 rounded-full bg-emerald-500' : 'h-1.5 w-1.5 rounded-full bg-rose-500'} />
-                                    {row[column]}
-                                  </span>
-                                ) : (
-                                  row[column] || <span className="text-slate-300">—</span>
-                                )}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+
+              {/* Dataset summary stats */}
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                    <Users className="h-4 w-4" /> Respondents
                   </div>
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
+                    {dataset.respondentCount.toLocaleString()}
+                  </p>
                 </div>
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3">
-                    <p className="text-xs text-slate-500">
-                      Showing {(tablePage * ROWS_PER_PAGE + 1).toLocaleString()}–{Math.min((tablePage + 1) * ROWS_PER_PAGE, dataset.rows.length).toLocaleString()} of {dataset.rows.length.toLocaleString()}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setTablePage((p) => Math.max(0, p - 1))} disabled={tablePage === 0}>
-                        <ChevronLeft className="h-3.5 w-3.5" />
-                      </Button>
-                      <span className="text-xs text-slate-600">{tablePage + 1} / {totalPages}</span>
-                      <Button variant="outline" size="sm" onClick={() => setTablePage((p) => Math.min(totalPages - 1, p + 1))} disabled={tablePage >= totalPages - 1}>
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/50 p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium text-emerald-600">
+                    <Layers className="h-4 w-4" /> Beneficiaries
+                  </div>
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-700">
+                    {groupStats.Beneficiary.toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-rose-200/80 bg-rose-50/50 p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium text-rose-600">
+                    <ListChecks className="h-4 w-4" /> Non-Beneficiaries
+                  </div>
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-rose-700">
+                    {groupStats['Non-Beneficiary'].toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-violet-200/80 bg-violet-50/50 p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium text-violet-600">
+                    <BrainCircuit className="h-4 w-4" /> Features
+                  </div>
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-violet-700">
+                    {(dataset.columns.length - 1).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Configuration options (mirrors ML Upload) */}
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200/50">
+                <div>
+                  <Label className="mb-1.5 block text-xs font-medium text-slate-500">
+                    Group / Treatment Column
+                  </Label>
+                  <Input value="Status" readOnly className="h-10 text-sm bg-white" />
+                </div>
+                <div>
+                  <Label className="mb-1.5 block text-xs font-medium text-slate-500">
+                    Outcome Column
+                  </Label>
+                  <Select value={outcomeColumn} onValueChange={setOutcomeColumn}>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="Auto-detect" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableColumns.map((col) => (
+                        <SelectItem key={col} value={col} className="text-sm">{col}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="mb-1.5 block text-xs font-medium text-slate-500">
+                    Include Features
+                  </Label>
+                  <Input
+                    value={includeFeatures}
+                    onChange={(e) => setIncludeFeatures(e.target.value)}
+                    placeholder="B3:AGE, B5:SEX, ..."
+                    className="h-10 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="mb-1.5 block text-xs font-medium text-slate-500">
+                    Caliper Ratio
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    value={caliperRatio}
+                    onChange={(e) => setCaliperRatio(parseFloat(e.target.value) || 0.2)}
+                    className="h-10 text-sm"
+                  />
+                  <p className="mt-1 text-[10px] text-slate-400">Larger = looser matching (try 2–5 if no matches)</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Data Preview (mirrors ML Upload) */}
+        {dataset && dataset.rows.length > 0 && (() => {
+          const totalPages = Math.ceil(dataset.rows.length / ROWS_PER_PAGE);
+          const pageData = dataset.rows.slice(tablePage * ROWS_PER_PAGE, (tablePage + 1) * ROWS_PER_PAGE);
+          return (
+            <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setShowPreview((v) => !v)}
+                    className="flex items-center gap-2 text-sm font-semibold text-slate-900 transition hover:text-slate-600"
+                  >
+                    {showPreview ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                    Data Preview
+                  </button>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500">
+                    {dataset.rows.length.toLocaleString()} rows × {dataset.columns.length} cols
+                  </span>
+                </div>
+                {showPreview && dataset.columns.length > 6 && (
+                  <div className="flex items-center gap-1.5">
+                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleScrollLeft}>
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </Button>
+                    <span className="min-w-[60px] text-center text-xs text-slate-500">{getScrollPercentage()}%</span>
+                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleScrollRight}>
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 )}
-              </>
-            )}
-          </div>
-        );
-      })()}
+              </div>
+              {showPreview && (
+                <>
+                  <div className="overflow-x-auto">
+                    <div className="max-h-96 overflow-y-auto" ref={tableRef} onScroll={handleTableScroll}>
+                      <table className="w-full text-xs">
+                        <thead className="sticky top-0 z-20 bg-slate-50">
+                          <tr>
+                            {dataset.columns.map((column, index) => (
+                              <th key={index} className="whitespace-nowrap border-b border-slate-200 px-6 py-3 text-left font-semibold text-slate-600">
+                                {column}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {pageData.map((row, rowIndex) => (
+                            <tr key={rowIndex} className="transition-colors hover:bg-slate-50/50">
+                              {dataset.columns.map((column, colIndex) => (
+                                <td key={colIndex} className="whitespace-nowrap px-6 py-3 text-sm text-slate-600">
+                                  {column === 'Status' ? (
+                                    <span
+                                      className={
+                                        String(row[column]).toLowerCase().includes('benef')
+                                          ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700'
+                                          : 'inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700'
+                                      }
+                                    >
+                                      <span className={String(row[column]).toLowerCase().includes('benef') ? 'h-1.5 w-1.5 rounded-full bg-emerald-500' : 'h-1.5 w-1.5 rounded-full bg-rose-500'} />
+                                      {row[column]}
+                                    </span>
+                                  ) : (
+                                    row[column] || <span className="text-slate-300">—</span>
+                                  )}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3">
+                      <p className="text-xs text-slate-500">
+                        Showing {(tablePage * ROWS_PER_PAGE + 1).toLocaleString()}–{Math.min((tablePage + 1) * ROWS_PER_PAGE, dataset.rows.length).toLocaleString()} of {dataset.rows.length.toLocaleString()}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setTablePage((p) => Math.max(0, p - 1))} disabled={tablePage === 0}>
+                          <ChevronLeft className="h-3.5 w-3.5" />
+                        </Button>
+                        <span className="text-xs text-slate-600">{tablePage + 1} / {totalPages}</span>
+                        <Button variant="outline" size="sm" onClick={() => setTablePage((p) => Math.min(totalPages - 1, p + 1))} disabled={tablePage >= totalPages - 1}>
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })()}
 
-      {/* States */}
-      {loading && <MLAnalysisSkeleton />}
-
-      {!loading && !hasForms && (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-left shadow-sm">
-          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600">
-            <Inbox className="h-10 w-10" />
-          </div>
-          <h3 className="mb-2 text-xl font-bold text-slate-900">No Questionnaires Yet</h3>
-          <p className="mb-6 max-w-md text-sm text-slate-500">
-            Create both a Beneficiary and a Non-Beneficiary questionnaire to run the automatic ML analysis.
-          </p>
-        </div>
-      )}
-
-      {!loading && hasForms && !hasData && (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-left shadow-sm">
-          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 text-amber-600">
-            <Inbox className="h-10 w-10" />
-          </div>
-          <h3 className="mb-2 text-xl font-bold text-slate-900">No Responses Collected Yet</h3>
-          <p className="mb-6 max-w-md text-sm text-slate-500">
-            Responses from both groups are required. The analysis will run automatically as soon as data is available.
-          </p>
-        </div>
-      )}
-
-      {!loading && hasData && !hasAnalysableData && (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-left shadow-sm">
-          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-500">
-            <AlertTriangle className="h-10 w-10" />
-          </div>
-          <h3 className="mb-2 text-xl font-bold text-slate-900">No Analyzable Data</h3>
-          <p className="mb-6 max-w-md text-sm text-slate-500">
-            Responses exist, but no analyzable questions were found in the questionnaires. Add questions to enable the ML analysis.
-          </p>
-        </div>
-      )}
-
-      {error && (
-        <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-          <div>
-            <p className="font-semibold">Analysis could not be completed</p>
-            <p className="mt-0.5 text-red-600">{error}</p>
-            <button
-              onClick={handleReRun}
-              disabled={analysing}
-              className="mt-3 inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+        {/* Action Buttons */}
+        {hasAnalysableData && (
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button
+              onClick={handleAnalyze}
+              disabled={isAnalyzing || !outcomeColumn}
+              className="gap-2 bg-blue-600 text-sm shadow-sm hover:bg-blue-700"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${analysing ? 'animate-spin' : ''}`} />
-              Try again
-            </button>
+              {isAnalyzing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Analyzing...
+                </>
+              ) : (
+                <>
+                  <BarChart3 className="h-4 w-4" /> Run Analysis
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={() => { ranRef.current = false; handleAnalyze(); }}
+              disabled={isAnalyzing || !outcomeColumn}
+              variant="outline"
+              className="gap-2 border-slate-200 text-sm"
+            >
+              <RefreshCw className={`h-4 w-4 ${isAnalyzing ? 'animate-spin' : ''}`} /> Re-run
+            </Button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Progress during analysis */}
-      {analysing && !analysisResults && (
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+        {/* Progress bar (mirrors ML Upload) */}
+        {isAnalyzing && uploadProgress > 0 && uploadProgress < 100 && (
+          <div className="w-full">
+            <Progress value={uploadProgress} className="h-2" />
+            <p className="text-xs text-slate-500 mt-1 text-center">Training in progress… {uploadProgress}%</p>
+          </div>
+        )}
+
+        {/* Analysis error after auto-run failed */}
+        {error && hasAnalysableData && (
+          <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-slate-900">Running ML analysis…</p>
-              <p className="text-xs text-slate-500">
-                Matching {groupStats.Beneficiary.toLocaleString()} beneficiaries against {groupStats['Non-Beneficiary'].toLocaleString()} non-beneficiaries
-              </p>
+              <p className="font-semibold">Analysis could not be completed</p>
+              <p className="mt-0.5 text-red-600">{error}</p>
             </div>
           </div>
-          {progress > 0 && (
-            <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          )}
-          <p className="mt-2 text-right text-[11px] tabular-nums text-slate-400">{progress}%</p>
-        </div>
-      )}
+        )}
 
-      {/* Analysis results */}
-      {analysisResults && !analysing && (
-        <MLAnalyticsPanel
-          analysisResults={analysisResults}
-          columns={dataset.columns}
-          rows={dataset.rows}
-          treatmentColumn="Status"
-          defaultTab="summary"
-        />
-      )}
+        {/* Analysis Results (mirrors ML Upload) */}
+        {analysisResults && (
+          <MLAnalyticsPanel
+            analysisResults={analysisResults}
+            columns={dataset.columns}
+            rows={dataset.rows}
+            treatmentColumn={treatmentColumn}
+            defaultTab="impact"
+          />
+        )}
 
-      {/* Auto charts (computed live from the combined dataset) */}
-      {!loading && hasAnalysableData && (
-        <AutoChartsReport
-          columns={dataset.columns}
-          rows={dataset.rows}
-          analysisResults={analysisResults}
-        />
-      )}
+        {/* Auto charts (computed live from the combined dataset) */}
+        {dataset && dataset.rows.length > 0 && (
+          <AutoChartsReport columns={dataset.columns} rows={dataset.rows} />
+        )}
+      </div>
     </div>
   );
 };

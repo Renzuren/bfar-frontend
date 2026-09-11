@@ -782,23 +782,24 @@ export const MLAnalyticsPanel = ({
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="whitespace-nowrap border-b border-slate-200 px-6 py-3 text-left font-semibold text-slate-600">Feature</th>
-                    <th className="whitespace-nowrap border-b border-slate-200 px-3 py-3 text-center font-semibold text-slate-600" colSpan="3">Treated</th>
-                    <th className="whitespace-nowrap border-b border-slate-200 px-3 py-3 text-center font-semibold text-slate-600" colSpan="3">Control</th>
-                  </tr>
-                  <tr className="bg-slate-50/70">
-                    <th className="border-b border-slate-200 px-6 py-2"></th>
-                    <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-green-600">↑</th>
-                    <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-red-600">↓</th>
-                    <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-slate-400">–</th>
-                    <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-green-600">↑</th>
-                    <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-red-600">↓</th>
-                    <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-slate-400">–</th>
-                  </tr>
-                </thead>
+              <div className="max-h-96 overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 z-10 bg-slate-50">
+                    <tr>
+                      <th className="whitespace-nowrap border-b border-slate-200 px-6 py-3 text-left font-semibold text-slate-600">Feature</th>
+                      <th className="whitespace-nowrap border-b border-slate-200 px-3 py-3 text-center font-semibold text-slate-600" colSpan="3">Treated</th>
+                      <th className="whitespace-nowrap border-b border-slate-200 px-3 py-3 text-center font-semibold text-slate-600" colSpan="3">Control</th>
+                    </tr>
+                    <tr className="bg-slate-50/70">
+                      <th className="border-b border-slate-200 px-6 py-2"></th>
+                      <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-green-600">↑</th>
+                      <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-red-600">↓</th>
+                      <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-slate-400">–</th>
+                      <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-green-600">↑</th>
+                      <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-red-600">↓</th>
+                      <th className="border-b border-slate-200 px-3 py-2 text-[10px] font-semibold text-slate-400">–</th>
+                    </tr>
+                  </thead>
                 <tbody className="divide-y divide-slate-50">
                     {profile_updates.map((item, idx) => {
                       const tTotal = item.treated.total || 1;
@@ -861,6 +862,7 @@ export const MLAnalyticsPanel = ({
                     })}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}
@@ -875,41 +877,40 @@ export const MLAnalyticsPanel = ({
               </span>
             </summary>
             <div className="mt-4 overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Pair</th>
-                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Treated ID</th>
-                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Control ID</th>
-                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Treated Outcome</th>
-                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Control Outcome</th>
-                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Difference</th>
-                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {pair_profiles.slice(0, 50).map((pair, idx) => (
-                    <tr key={idx} className="transition-colors hover:bg-slate-50/50">
-                      <td className="whitespace-nowrap px-4 py-2 text-center text-slate-500">{idx + 1}</td>
-                      <td className="whitespace-nowrap px-4 py-2 text-slate-600">{pair.treated_index}</td>
-                      <td className="whitespace-nowrap px-4 py-2 text-slate-600">{pair.control_index}</td>
-                      <td className="whitespace-nowrap px-4 py-2 text-slate-600">{pair.treated_outcome?.toFixed(2)}</td>
-                      <td className="whitespace-nowrap px-4 py-2 text-slate-600">{pair.control_outcome?.toFixed(2)}</td>
-                      <td className="whitespace-nowrap px-4 py-2 text-slate-600">{pair.outcome_difference?.toFixed(2)}</td>
-                      <td className="whitespace-nowrap px-4 py-2">
-                        <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                          pair.status === 'Increased' ? 'bg-green-50 text-green-600' :
-                          pair.status === 'Decreased' ? 'bg-red-50 text-red-600' :
-                          'bg-slate-100 text-slate-500'
-                        }`}>{pair.status}</span>
-                      </td>
+              <div className="max-h-96 overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 z-10 bg-slate-50">
+                    <tr>
+                      <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Pair</th>
+                      <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Treated ID</th>
+                      <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Control ID</th>
+                      <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Treated Outcome</th>
+                      <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Control Outcome</th>
+                      <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Difference</th>
+                      <th className="whitespace-nowrap border-b border-slate-200 px-4 py-2 text-left font-semibold text-slate-600">Status</th>
                     </tr>
-                  ))}
-                  {pair_profiles.length > 50 && (
-                    <tr><td colSpan="7" className="py-3 text-center text-xs text-slate-400">… and {pair_profiles.length - 50} more</td></tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {pair_profiles.map((pair, idx) => (
+                      <tr key={idx} className="transition-colors hover:bg-slate-50/50">
+                        <td className="whitespace-nowrap px-4 py-2 text-center text-slate-500">{idx + 1}</td>
+                        <td className="whitespace-nowrap px-4 py-2 text-slate-600">{pair.treated_index}</td>
+                        <td className="whitespace-nowrap px-4 py-2 text-slate-600">{pair.control_index}</td>
+                        <td className="whitespace-nowrap px-4 py-2 text-slate-600">{pair.treated_outcome?.toFixed(2)}</td>
+                        <td className="whitespace-nowrap px-4 py-2 text-slate-600">{pair.control_outcome?.toFixed(2)}</td>
+                        <td className="whitespace-nowrap px-4 py-2 text-slate-600">{pair.outcome_difference?.toFixed(2)}</td>
+                        <td className="whitespace-nowrap px-4 py-2">
+                          <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            pair.status === 'Increased' ? 'bg-green-50 text-green-600' :
+                            pair.status === 'Decreased' ? 'bg-red-50 text-red-600' :
+                            'bg-slate-100 text-slate-500'
+                          }`}>{pair.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </details>
         )}

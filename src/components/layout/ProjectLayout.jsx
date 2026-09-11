@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import {
   ChevronRight,
@@ -26,10 +26,16 @@ export default function ProjectLayout({ sidebarItems, breadcrumbLabels = {}, chi
   const { id } = useParams();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { updateProject, currentProject, setCurrentProject } = useProject();
+  const { updateProject, currentProject, setCurrentProject, projects, fetchProjects, loading: projectsLoading } = useProject();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
+
+  // Make sure the sidebar Projects folder has the full list even when the user
+  // lands directly on a project page (fetchProjects is normally called on /dashboard).
+  useEffect(() => {
+    if (!projects.length && !projectsLoading) fetchProjects();
+  }, [projects.length, projectsLoading, fetchProjects]);
 
   // Breadcrumb segments for nested pages (e.g. Projects > Final Test > Before > View Responses)
   const subSegments = location.pathname
@@ -94,6 +100,7 @@ export default function ProjectLayout({ sidebarItems, breadcrumbLabels = {}, chi
       <Sidebar
         items={sidebarItems}
         project={currentProject}
+        projects={projects}
         open={sidebarOpen}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => {

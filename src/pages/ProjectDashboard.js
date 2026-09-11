@@ -7,6 +7,7 @@ import {
   Layers,
   FileBarChart2,
   DatabaseBackup,
+  ClipboardList,
 } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 
@@ -37,6 +38,11 @@ export const PROJECT_SIDEBAR_ITEMS = [
     icon: BarChart3,
   },
   {
+    label: 'Responses',
+    path: 'all-responses',
+    icon: ClipboardList,
+  },
+  {
     label: 'Data Backup & Import',
     path: 'backup',
     icon: DatabaseBackup,
@@ -49,6 +55,7 @@ export const PROJECT_BREADCRUMB_LABELS = {
   'before': 'Before',
   'after': 'After',
   'report': 'Analysis Report',
+  'all-responses': 'All Responses',
   'responses': 'View Responses',
   'profiles': 'View Profiles',
   'analytics': 'View Analytics',

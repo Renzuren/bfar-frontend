@@ -7,6 +7,7 @@ import {
   Layers,
   FileBarChart2,
   DatabaseBackup,
+  ClipboardList,
 } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 import { api } from '../lib/apiMiddleware';
@@ -26,6 +27,11 @@ export const NO_BASELINE_SIDEBAR_ITEMS = [
     label: 'Non-Beneficiary',
     path: 'after',
     icon: ListChecks,
+  },
+  {
+    label: 'Responses',
+    path: 'all-responses',
+    icon: ClipboardList,
   },
   {
     label: 'Analysis Report',
@@ -49,6 +55,7 @@ export const NO_BASELINE_BREADCRUMB_LABELS = {
   'before': 'Beneficiary',
   'after': 'Non-Beneficiary',
   'report': 'Analysis Report',
+  'all-responses': 'All Responses',
   'responses': 'View Responses',
   'profiles': 'View Profiles',
   'analytics': 'View Analytics',
@@ -146,7 +153,7 @@ const NoBaselineOverview = ({ project }) => {
       label: 'Narrative Report',
       desc:
         project.before_form && project.after_form
-          ? 'Compare Beneficiary vs. Non-Beneficiary results'
+          ? 'Impact Assessment Narrative Results'
           : 'Complete both questionnaires to compare',
       icon: BarChart3,
       color: 'bg-amber-50 text-amber-600',

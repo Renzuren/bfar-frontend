@@ -3,7 +3,6 @@ import { useNavigate, useParams, useOutletContext } from 'react-router-dom';
 import {
   Plus,
   Layers,
-  Eye,
   ExternalLink,
   Trash2,
   Pencil,
@@ -27,6 +26,24 @@ import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import { useProject } from '../context/ProjectContext';
 import { copyToClipboard } from '../lib/utils';
+import ResponsesTable from '../components/responses/ResponsesTable';
+
+const getResponseList = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.responses)) return payload.responses;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
+
+const fetchFormResponses = async (formId) => {
+  try {
+    const response = await api.get(`/forms/${formId}/responses`);
+    return getResponseList(response.data);
+  } catch {
+    const response = await api.get(`/forms/public/${formId}/responses`);
+    return getResponseList(response.data);
+  }
+};
 
 const BeforeTab = () => {
   const outletCtx = useOutletContext();
@@ -37,7 +54,9 @@ const BeforeTab = () => {
   const { id: projectId } = useParams();
   const { fetchProject } = useProject();
   const [form, setForm] = useState(null);
+  const [afterForm, setAfterForm] = useState(null);
   const [responses, setResponses] = useState([]);
+  const [afterResponses, setAfterResponses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -45,14 +64,16 @@ const BeforeTab = () => {
     const fetchData = async () => {
       if (!project) return;
       try {
-        if (project.before_form) {
-          const [formRes, responsesRes] = await Promise.all([
-            api.get(`/forms/${project.before_form}`),
-            api.get(`/forms/${project.before_form}/responses`).catch(() => ({ data: [] })),
-          ]);
-          setForm(formRes.data);
-          setResponses(responsesRes.data || []);
-        }
+        const [beforeFormRes, afterFormRes, beforeList, afterList] = await Promise.all([
+          project.before_form ? api.get(`/forms/${project.before_form}`).catch(() => ({ data: null })) : Promise.resolve({ data: null }),
+          project.after_form ? api.get(`/forms/${project.after_form}`).catch(() => ({ data: null })) : Promise.resolve({ data: null }),
+          project.before_form ? fetchFormResponses(project.before_form) : Promise.resolve([]),
+          project.after_form ? fetchFormResponses(project.after_form) : Promise.resolve([]),
+        ]);
+        setForm(beforeFormRes.data);
+        setAfterForm(afterFormRes.data);
+        setResponses(beforeList.map(r => ({ ...r, _source: 'before' })));
+        setAfterResponses(afterList.map(r => ({ ...r, _source: 'after' })));
       } catch (error) {
         toast.error(`Failed to load ${tabLabel} questionnaire`);
       } finally {
@@ -268,19 +289,6 @@ const BeforeTab = () => {
         </button>
 
         <button
-          onClick={() => navigate(`/projects/${projectId}/responses?type=before`, { state: { project_id: projectId, questionnaire_type: 'before' } })}
-          className="group flex items-center gap-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-sm hover:border-emerald-200"
-        >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-100">
-            <Eye className="h-5 w-5" />
-          </div>
-          <div className="text-left">
-            <p className="font-semibold text-slate-900">View Responses</p>
-            <p className="text-xs text-slate-500">Browse submitted responses</p>
-          </div>
-        </button>
-
-        <button
           onClick={() => navigate(`/projects/${projectId}/profiles?type=before`, { state: { project_id: projectId, questionnaire_type: 'before' } })}
           className="group flex items-center gap-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-sm hover:border-cyan-200"
         >
@@ -320,6 +328,16 @@ const BeforeTab = () => {
         </button>
         </section>
       </Card>
+
+      {/* Responses */}
+      <ResponsesTable
+        initialFilter="before"
+        project={project}
+        beforeForm={form}
+        afterForm={afterForm}
+        beforeResponses={responses}
+        afterResponses={afterResponses}
+      />
 
       {/* Delete Button */}
       <div className="flex justify-start">
