@@ -19,6 +19,7 @@ import {
 } from 'recharts';
 import { preprocessAnalyticsData, getQuestionLabel, normalizeLocationCodes, isReservedField } from '../lib/preprocessing';
 import { api } from '../lib/apiMiddleware';
+import { buildCsv } from '../lib/csv';
 
 const CHART_COLORS = ['#0ea5e9', '#2563eb', '#14b8a6', '#22c55e', '#f97316', '#ef4444', '#8b5cf6', '#ec4899', '#ddb02b', '#94a3b8'];
 
@@ -235,8 +236,6 @@ const FormAnalytics = ({ embedded = false }) => {
   const getQuestionAnalyticsLabel = (questionData, index) =>
     getQuestionLabel(questionCodeMap.get(questionData?.question_id) || questionData, index);
 
-  const escapeCsvValue = (value) => `"${String(value).replace(/"/g, '""')}"`;
-
   const downloadAnalyticsCSV = () => {
     const rows = [];
     rows.push(['Form Title', form.title || '']);
@@ -308,8 +307,8 @@ const FormAnalytics = ({ embedded = false }) => {
       });
     }
 
-    const csv = rows.map((row) => row.map((cell) => escapeCsvValue(cell)).join(',')).join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const csv = buildCsv(rows);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

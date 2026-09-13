@@ -84,7 +84,8 @@ const CHART_COLORS = ['#2563eb', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#0
 const AGE_GROUP_OPTIONS = ['18–35', '36–52', '53–69', '70+'];
 
 const downloadCSV = (filename, content) => {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const prefix = content.startsWith('\ufeff') ? '' : '\ufeff';
+  const blob = new Blob([prefix + content], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

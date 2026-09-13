@@ -12,8 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
-import { isReservedField, normalizeLocationCodes, getQuestionLabel } from '../lib/preprocessing';
+import { isReservedField, normalizeLocationCodes, normalizeQuestionCode, getQuestionLabel } from '../lib/preprocessing';
 import { getAnswerForQuestion } from '../lib/answerResolver';
+import { buildCsv } from '../lib/csv';
 
 const COLORS = ['#0d9488', '#d97706', '#2563eb', '#7c3aed', '#dc2626', '#0891b2'];
 const isEmpty = (value) => value === null || value === undefined || value === '' || value === '--' || (Array.isArray(value) && value.length === 0);
@@ -112,6 +113,62 @@ const dateText = (value) => {
   if (!value) return 'No date';
   const date = typeof value === 'object' && value._seconds ? new Date(value._seconds * 1000) : new Date(value);
   return Number.isNaN(date.getTime()) ? 'No date' : date.toLocaleString();
+};
+
+const cleanHeaderPart = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toUpperCase()
+  .replace(/[^A-Z0-9]+/g, '_')
+  .replace(/^_+|_+$/g, '');
+
+const cleanText = (value) => String(value)
+  .replace(/[\r\n]+/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const isoDate = (value) => {
+  const text = cleanText(value);
+  const dayFirst = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (dayFirst) return `${dayFirst[3]}-${dayFirst[2].padStart(2, '0')}-${dayFirst[1].padStart(2, '0')}`;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return text;
+  return date.toISOString().slice(0, 10);
+};
+
+const isDateQuestion = (question) => /date|birth|dob|petsa|kapanganakan/i.test(`${question.type || ''} ${question.code || ''} ${question.title || ''}`);
+const choiceTypes = new Set(['multiple_choice', 'dropdown', 'checkboxes', 'radio']);
+const optionText = (option) => {
+  if (option && typeof option === 'object') return option.label ?? option.value ?? option.title ?? '';
+  return option;
+};
+
+const normalizeAnswer = (value, question) => {
+  if (isEmpty(value)) return '';
+  const values = Array.isArray(value) ? value : [value];
+  const normalized = values.map((item) => {
+    const text = cleanText(item);
+    const lower = text.toLowerCase();
+    if (isDateQuestion(question)) return isoDate(text);
+    if (!choiceTypes.has(question.type)) return text;
+    const optionIndex = (question.options || []).findIndex((option) => cleanText(optionText(option)).toLowerCase() === lower);
+    if (optionIndex !== -1) return optionIndex + 1;
+    if (lower === 'meron' || lower === 'yes' || lower === 'true' || lower === 'oo') return '1';
+    if (lower === 'wala' || lower === 'no' || lower === 'false' || lower === 'hindi') return '0';
+    return text;
+  });
+  return Array.isArray(value) ? normalized.join(',') : normalized[0];
+};
+
+const exportValue = (value, question) => {
+  return normalizeAnswer(value, question);
+};
+
+const exportQuestionHeader = (question, index) => {
+  const code = cleanHeaderPart(question.code || normalizeQuestionCode(question));
+  const title = cleanHeaderPart(question.title);
+  if (code) return title && !code.endsWith(`_${title}`) ? `${code}_${title}` : code;
+  return `Q${index + 1}`;
 };
 
 const Pill = ({ children, tone = 'slate' }) => <span className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold bg-${tone}-50 text-${tone}-700 ring-1 ring-${tone}-200/70`}>{children}</span>;
@@ -216,18 +273,35 @@ const ResponsesTabRebuilt = () => {
   const afterChart = chartData(afterDemo, 'after');
 
   const exportCsv = () => {
-    const columns = [
-      ['Source', (row) => row.source === 'before' ? labels.before : labels.after], ['Submitted At', (row) => dateText(row.response.submitted_at)],
-      ['Respondent ID', respondentId], ['Name', name], ['Municipality', (row) => location(row, 'municipality')],
-      ['Barangay', (row) => location(row, 'barangay')], ['Province', (row) => location(row, 'province')],
-      ...beforeQuestions.map((question, index) => [getQuestionLabel(question, index), (row) => row.source === 'before' ? display(answer(row, question)) : '—']),
-      ...afterQuestions.map((question, index) => [getQuestionLabel(question, index), (row) => row.source === 'after' ? display(answer(row, question)) : '—']),
+    const sourceQuestions = [
+      ['before', [...beforeDemo, ...beforeQuestions]],
+      ['after', [...afterDemo, ...afterQuestions]],
     ];
-    const quote = (value) => `"${String(value).replace(/"/g, '""')}"`;
-    const csv = [columns.map(([label]) => quote(label)).join(','), ...filtered.map((row) => columns.map(([, getter]) => quote(getter(row))).join(','))].join('\r\n');
+    const columns = [];
+    const headerCounts = new Map();
+    sourceQuestions.forEach(([sourceName, questions]) => questions.forEach((question, index) => {
+      const code = normalizeQuestionCode(question);
+      const title = String(question.title || '').toLowerCase().replace(/[\s_-]/g, '');
+      if (question.type === 'profile_photo' || code.startsWith('RESP') || title === 'respondentid' || title === 'respondentname') return;
+      const baseHeader = exportQuestionHeader(question, index);
+      const nextCount = (headerCounts.get(baseHeader) || 0) + 1;
+      headerCounts.set(baseHeader, nextCount);
+      const header = nextCount === 1 ? baseHeader : `${baseHeader}_${nextCount}`;
+      columns.push({ header, questions: { [sourceName]: question } });
+    }));
+
+    const headers = ['RESPONSE', ...columns.map(({ header }) => header)];
+    const csvRows = filtered.map((row, rowIndex) => [
+      rowIndex + 1,
+      ...columns.map(({ questions }) => {
+        const question = questions[row.source];
+        return question ? exportValue(answer(row, question), question) : '';
+      }),
+    ]);
+    const csv = buildCsv([headers, ...csvRows]);
     const link = document.createElement('a');
     link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    link.download = `${(project?.title || 'project').replace(/\s+/g, '_')}-all-responses.csv`;
+    link.download = `${(project?.title || 'project').replace(/\s+/g, '_')}-bfar-responses.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
   };

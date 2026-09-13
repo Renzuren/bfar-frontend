@@ -9,26 +9,23 @@
 
 import { resolveServiceUrl } from './apiBase';
 import { fetchWithRetry } from './fetchRetry';
+import { escapeCsvCell, withCsvBom } from './csv';
 
 export const DEFAULT_ML_API_URL = 'http://localhost:8000';
 
 export const getMLApiUrl = () =>
   resolveServiceUrl(process.env.REACT_APP_ML_API_URL || DEFAULT_ML_API_URL, DEFAULT_ML_API_URL).replace(/\/$/, '');
 
-const escapeCell = (v) => {
-  const s = v === null || v === undefined ? '' : String(v);
-  return `"${s.replace(/"/g, '""')}"`;
-};
-
 /**
- * Serializes a { columns, rows } dataset into a CSV string.
+ * Serializes a { columns, rows } dataset into a CSV string (UTF-8 with BOM,
+ * comma-delimited, RFC-4180 quoting, missing values exported as empty).
  */
 export const buildCSVString = (columns, rows) => {
-  const lines = [columns.map(escapeCell).join(',')];
+  const lines = [columns.map(escapeCsvCell).join(',')];
   rows.forEach((row) => {
-    lines.push(columns.map((col) => escapeCell(row[col])).join(','));
+    lines.push(columns.map((col) => escapeCsvCell(row[col])).join(','));
   });
-  return lines.join('\r\n');
+  return withCsvBom(lines.join('\r\n'));
 };
 
 /**

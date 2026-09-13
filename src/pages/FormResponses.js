@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import { generateAssessmentHeaders, mapResponseToAssessmentColumns, normalizeLocationCodes, getQuestionLabel, isReservedField } from '../lib/preprocessing';
 import { getAnswerForQuestion } from '../lib/answerResolver';
+import { buildCsv } from '../lib/csv';
 
 // ==================== UTILITY FUNCTIONS ====================
 const isNoAnswer = (val) => !val || val === '' || val === '--' || (Array.isArray(val) && val.length === 0);
@@ -262,7 +263,7 @@ const FormResponses = ({ embedded = false }) => {
     const rows = filteredResponses.map((response, rowIdx) => {
       const submittedAt = response.submitted_at?._seconds
         ? new Date(response.submitted_at._seconds * 1000).toLocaleString()
-        : 'No date';
+        : '';
       const status = getBeneficiaryStatus(response);
 
       return [
@@ -277,17 +278,12 @@ const FormResponses = ({ embedded = false }) => {
         ...questionCols.map(q => {
           const rawAns = getAnswerForQuestionWithSections(response, q);
           const numericAns = getNumericAnswer(rawAns, q);
-          return String(numericAns);
+          return String(numericAns ?? '');
         })
       ];
     });
 
-    const escapeCell = (cell) => `"${String(cell).replace(/"/g, '""')}"`;
-    const csvLines = [
-      headers.map(escapeCell).join(','),
-      ...rows.map(row => row.map(escapeCell).join(','))
-    ];
-    const csv = csvLines.join('\r\n');
+    const csv = buildCsv([headers, ...rows]);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

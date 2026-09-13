@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { normalizeLocationCodes, isReservedField, getQuestionLabel } from '../../lib/preprocessing';
 import { getAnswerForQuestion as resolveAnswerForQuestion } from '../../lib/answerResolver';
+import { buildCsv } from '../../lib/csv';
 
 const isNoAnswer = (val) => val === null || val === undefined || val === '' || val === '--' || (Array.isArray(val) && val.length === 0);
 
@@ -306,7 +307,7 @@ const ResponsesTable = ({
     ];
     const rows = filteredResponses.map((response, rowIdx) => {
       const submittedAt = response.submitted_at?._seconds
-        ? new Date(response.submitted_at._seconds * 1000).toLocaleString() : 'No date';
+        ? new Date(response.submitted_at._seconds * 1000).toLocaleString() : '';
       const status = getResponseStatus(response);
       return [
         rowIdx + 1,
@@ -320,12 +321,11 @@ const ResponsesTable = ({
         status || '',
         ...allFormQuestions.map(q => {
           const rawAns = getAnswerForQuestion(response, q, response._source);
-          return String(formatAnswerForTable(rawAns));
+          return formatAnswerForTable(rawAns);
         }),
       ];
     });
-    const escapeCell = (cell) => `"${String(cell).replace(/"/g, '""')}"`;
-    const csv = [headers.map(escapeCell).join(','), ...rows.map(row => row.map(escapeCell).join(','))].join('\r\n');
+    const csv = buildCsv([headers, ...rows]);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

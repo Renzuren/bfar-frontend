@@ -9,6 +9,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { escapeCsvCell } from '../lib/csv';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -151,17 +152,12 @@ const NoBaselineAnalysisReport = () => {
   }, [project]);
 
   // ---------- Analyze: call /train (mirrors ML Upload handleAnalyze) ----------
-  const escapeCell = (v) => {
-    const s = v === null || v === undefined ? '' : String(v);
-    return `"${s.replace(/"/g, '""')}"`;
-  };
-
   const buildCSVString = (cols, dataRows) => {
-    const lines = [cols.map(escapeCell).join(',')];
+    const lines = [cols.map(escapeCsvCell).join(',')];
     dataRows.forEach((row) => {
-      lines.push(cols.map((col) => escapeCell(row[col])).join(','));
+      lines.push(cols.map((col) => escapeCsvCell(row[col])).join(','));
     });
-    return lines.join('\r\n');
+    return '\ufeff' + lines.join('\r\n');
   };
 
   const handleAnalyze = useCallback(async () => {
@@ -545,7 +541,9 @@ const NoBaselineAnalysisReport = () => {
                                       {row[column]}
                                     </span>
                                   ) : (
-                                    row[column] || <span className="text-slate-300">—</span>
+                                    row[column] === '' || row[column] === null || row[column] === undefined
+                                      ? <span className="font-medium text-slate-400">N/A</span>
+                                      : row[column]
                                   )}
                                 </td>
                               ))}

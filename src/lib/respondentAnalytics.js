@@ -15,6 +15,8 @@ import {
   findAreaKey,
 } from './geoData';
 
+import { buildCsv } from './csv';
+
 // ---------- Base helpers ----------
 export const normalize = (value) => String(value ?? '').trim();
 export const normalizeLower = (value) => normalize(value).toLowerCase();
@@ -481,11 +483,6 @@ export const buildComparison = (allRecords) => {
 
 // ---------- Export helpers (CSV) ----------
 export const toCSV = (columns, rows) => {
-  const lines = [columns.join(',')];
-  rows.forEach((row) => lines.push(columns.map((c) => {
-    const v = row[c];
-    const s = v === null || v === undefined ? '' : String(v);
-    return `"${s.replace(/"/g, '""')}"`;
-  }).join(',')));
-  return lines.join('\n');
+  const dataRows = rows.map((row) => columns.map((c) => row[c]));
+  return buildCsv([columns, ...dataRows]);
 };

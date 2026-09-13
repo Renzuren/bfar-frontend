@@ -36,6 +36,31 @@ const normalizeLabel = (s) =>
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
+const optionText = (option) => {
+  if (option && typeof option === 'object') return option.label ?? option.value ?? option.title ?? '';
+  return option;
+};
+
+const isGeographicQuestion = (question) => {
+  const code = normalizeCode(question);
+  const title = normalizeLabel(question?.title);
+  return ['A1', 'A2', 'A3'].includes(code) ||
+    question?.type === 'location_text' ||
+    /municipal|barangay|province|brgy/.test(title);
+};
+
+const isDateQuestion = (question) => /date|birth|dob|petsa|kapanganakan/i.test(
+  `${question?.type || ''} ${question?.code || ''} ${question?.title || ''}`
+);
+
+const cleanDate = (answer) => {
+  const value = String(answer || '').trim();
+  const match = value.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (match) return `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+};
+
 /**
  * True when a question adds no analytic signal for the ML pipeline:
  * respondent identity/name fields and photo uploads.
@@ -75,16 +100,24 @@ export const resolveBeneficiaryStatus = (response, form) => {
 };
 
 const formatChoiceAnswer = (answer, q) => {
-  if (Array.isArray(answer)) return answer.map((a) => String(a)).join(';');
-  if (['multiple_choice', 'dropdown'].includes(q.type) && Array.isArray(q.options) && q.options.length) {
-    const idx = q.options.findIndex((o) => o === answer);
-    return idx !== -1 ? String(idx + 1) : String(answer);
+  if (isGeographicQuestion(q)) return String(answer).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (isDateQuestion(q)) return cleanDate(answer);
+  const text = String(answer ?? '').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (/^-?\d+(\.\d+)?$/.test(text)) return text;
+  if (['multiple_choice', 'dropdown', 'radio', 'checkboxes'].includes(q.type)) {
+    const normalized = text.toLowerCase();
+    if (['oo', 'yes', 'true', 'meron'].includes(normalized)) return '1';
+    if (['hindi', 'no', 'false', 'wala'].includes(normalized)) return '0';
+    const idx = (q.options || []).findIndex((option) =>
+      String(optionText(option)).trim().toLowerCase() === normalized
+    );
+    return idx === -1 ? '' : String(idx + 1);
   }
   if (q.type === 'rating') {
     const n = Number(answer);
-    return Number.isFinite(n) ? String(n) : String(answer);
+    return Number.isFinite(n) ? String(n) : '';
   }
-  return String(answer);
+  return '';
 };
 
 const buildColumnModel = (questions) => {

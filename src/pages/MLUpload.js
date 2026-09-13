@@ -259,7 +259,7 @@ const MLUpload = () => {
       let fileToSend = file;
       if (file && file.name.toLowerCase().endsWith('.xlsx')) {
         const csvString = await convertXLSXtoCSV(file);
-        const blob = new Blob([csvString], { type: 'text/csv' });
+        const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv' });
         fileToSend = new File([blob], file.name.replace(/\.xlsx$/i, '.csv'), { type: 'text/csv' });
       }
 
