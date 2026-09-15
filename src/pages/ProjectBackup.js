@@ -17,6 +17,7 @@ import {
   Download,
   FileJson,
   Loader2,
+  MessageSquareText,
   RefreshCw,
   Upload,
 } from 'lucide-react';
@@ -54,9 +55,12 @@ const ProjectBackup = () => {
   const [restoring, setRestoring] = useState(false);
   const [pendingBackup, setPendingBackup] = useState(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [includeResponses, setIncludeResponses] = useState(true);
+  const [restoreResponses, setRestoreResponses] = useState(true);
 
   // ---- Export -------------------------------------------------------
-  const buildBackup = async () => {
+  const buildBackup = async (opts = {}) => {
+    const includeResponses = opts.includeResponses !== false;
     const project = (await api.get(`/projects/${id}`)).data;
     if (!project) throw new Error('Could not load project data');
 
@@ -74,11 +78,13 @@ const ProjectBackup = () => {
       if (!form) continue;
 
       let responses = [];
-      try {
-        const res = await api.get(`/forms/${formId}/responses`);
-        responses = res.data || [];
-      } catch (error) {
-        toast.warning(`Could not load responses for "${form.title || formId}".`);
+      if (includeResponses) {
+        try {
+          const res = await api.get(`/forms/${formId}/responses`);
+          responses = res.data || [];
+        } catch (error) {
+          toast.warning(`Could not load responses for "${form.title || formId}".`);
+        }
       }
       forms.push({ form_id: form.id || formId, form, responses });
     }
@@ -91,6 +97,7 @@ const ProjectBackup = () => {
       project_id: project.id || id,
       project,
       forms,
+      include_responses: includeResponses,
     };
   };
 
@@ -98,7 +105,7 @@ const ProjectBackup = () => {
     if (exporting) return;
     setExporting(true);
     try {
-      const backup = await buildBackup();
+      const backup = await buildBackup({ includeResponses });
       const totalResponses = countResponses(backup.forms);
       const name = `bfar-backup-${slugify(backup.project.title)}-${new Date().toISOString().slice(0, 10)}.json`;
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -110,7 +117,7 @@ const ProjectBackup = () => {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toast.success(`Backup saved · ${backup.forms.length} ${backup.forms.length === 1 ? 'questionnaire' : 'questionnaires'}, ${totalResponses} responses (${formatBytes(blob.size)})`);
+      toast.success(`Backup saved · ${backup.forms.length} ${backup.forms.length === 1 ? 'questionnaire' : 'questionnaires'}${includeResponses ? `, ${totalResponses} responses` : ' (questionnaires only, no responses)'} (${formatBytes(blob.size)})`);
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to create backup');
     } finally {
@@ -142,6 +149,8 @@ const ProjectBackup = () => {
         throw new Error(`Backup uses an unsupported schema version (${parsed.schema_version}).`);
       }
       setPendingBackup({ ...parsed, fileName: file.name, fileBytes: file.size });
+      const hasResponses = countResponses(parsed.forms) > 0;
+      setRestoreResponses(parsed.include_responses !== false && hasResponses);
       toast.success(`Loaded backup of "${parsed.project.title || 'untitled project'}"`);
     } catch (error) {
       toast.error(error.message || 'Could not read the backup file');
@@ -158,8 +167,13 @@ const ProjectBackup = () => {
         schema_version: pendingBackup.schema_version,
         project: pendingBackup.project,
         forms: pendingBackup.forms,
+        include_responses: restoreResponses,
       });
-      toast.success(`Project restored · ${res.data.total_restored_responses} responses imported`);
+      toast.success(
+        restoreResponses
+          ? `Project restored · ${res.data.total_restored_responses} responses imported`
+          : 'Project restored · questionnaires restored, current responses kept'
+      );
       await fetchProject(id);
       setPendingBackup(null);
       setConfirmed(false);
@@ -173,6 +187,8 @@ const ProjectBackup = () => {
   const isForeignBackup =
     pendingBackup && String(pendingBackup.project_id) !== String(id);
 
+  const fileHasResponses = pendingBackup ? countResponses(pendingBackup.forms) > 0 : false;
+
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-1 py-6">
       <PageHeader
@@ -185,7 +201,7 @@ const ProjectBackup = () => {
       {/* Export */}
       <CardSection
         title="Export Backup"
-        subtitle="Download a portable copy of the entire project — metadata, questionnaires, and every response — as a single .json file. Keep it somewhere safe (e.g., a drive, email, or cloud folder)."
+        subtitle="Download a portable copy of the project as a single .json file. Pick what to include — questionnaires only, or questionnaires plus every response. Keep it somewhere safe (e.g., a drive, email, or cloud folder)."
       >
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-4">
@@ -195,7 +211,7 @@ const ProjectBackup = () => {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-900">Current project data</p>
               <p className="mt-0.5 text-sm text-slate-500">
-                Includes metadata, questionnaires, respondent profiles, and all answers.
+                Metadata, questionnaires, and {includeResponses ? 'respondent profiles and all answers' : 'no responses — questionnaires and project info only'}.
               </p>
             </div>
           </div>
@@ -204,12 +220,46 @@ const ProjectBackup = () => {
             {exporting ? 'Preparing backup…' : 'Download backup (.json)'}
           </Button>
         </div>
+
+        {/* What to include */}
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => setIncludeResponses(true)}
+            className={`flex flex-col items-start gap-1.5 rounded-2xl border-2 p-4 text-left transition ${
+              includeResponses
+                ? 'border-teal-500 bg-teal-50/60 shadow-sm'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            }`}
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <MessageSquareText className={`h-4 w-4 ${includeResponses ? 'text-teal-600' : 'text-slate-400'}`} />
+              Questionnaires + Responses
+            </span>
+            <span className="text-xs text-slate-500">Kasama ang lahat ng sagot at profile ng respondents.</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIncludeResponses(false)}
+            className={`flex flex-col items-start gap-1.5 rounded-2xl border-2 p-4 text-left transition ${
+              !includeResponses
+                ? 'border-teal-500 bg-teal-50/60 shadow-sm'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            }`}
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <FileJson className={`h-4 w-4 ${!includeResponses ? 'text-teal-600' : 'text-slate-400'}`} />
+              Questionnaires lang
+            </span>
+            <span className="text-xs text-slate-500">Mga tanong lang, hindi kasama ang mga sagot ng respondents.</span>
+          </button>
+        </div>
       </CardSection>
 
       {/* Import */}
       <CardSection
         title="Import & Restore"
-        subtitle="Upload a previously saved backup file and bring its data back into this project. Restoring replaces the current questionnaires and responses with the ones from the file."
+        subtitle="Upload a previously saved backup file and bring its data back into this project. Pick what to restore — questionnaires only, or questionnaires plus the responses stored in the file."
       >
         {/* File picker */}
         <input
@@ -277,6 +327,58 @@ const ProjectBackup = () => {
                   </p>
                 </div>
               )}
+
+              {pendingBackup.include_responses === false && (
+                <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-sky-200 bg-sky-50 p-3.5 text-sm text-sky-800">
+                  <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0" />
+                  <p>
+                    This backup contains <span className="font-semibold">questionnaires only</span> (no responses were
+                    exported). Current responses will be kept unless you choose to import responses from a different file.
+                  </p>
+                </div>
+              )}
+
+              {/* What to include when restoring */}
+              <div className="mt-4">
+                <p className="mb-2 text-sm font-semibold text-slate-800">I-restore:</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setRestoreResponses(true)}
+                    disabled={!fileHasResponses}
+                    className={`flex flex-col items-start gap-1.5 rounded-2xl border-2 p-4 text-left transition ${
+                      restoreResponses
+                        ? 'border-teal-500 bg-teal-50/60 shadow-sm'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    } ${!fileHasResponses ? 'cursor-not-allowed opacity-55' : ''}`}
+                  >
+                    <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                      <MessageSquareText className={`h-4 w-4 ${restoreResponses ? 'text-teal-600' : 'text-slate-400'}`} />
+                      Questionnaires + Responses
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      {fileHasResponses
+                        ? 'Papalitan din ang mga kasalukuyang sagot ng nasa file.'
+                        : 'Walang responses sa file — questionnaires lang ang maaaring i-restore.'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRestoreResponses(false)}
+                    className={`flex flex-col items-start gap-1.5 rounded-2xl border-2 p-4 text-left transition ${
+                      !restoreResponses
+                        ? 'border-teal-500 bg-teal-50/60 shadow-sm'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                      <FileJson className={`h-4 w-4 ${!restoreResponses ? 'text-teal-600' : 'text-slate-400'}`} />
+                      Questionnaires lang
+                    </span>
+                    <span className="text-xs text-slate-500">Hindi babaguhin ang kasalukuyang mga sagot ng respondents.</span>
+                  </button>
+                </div>
+              </div>
 
               <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-700">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />

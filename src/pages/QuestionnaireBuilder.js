@@ -316,12 +316,37 @@ const QuestionnaireBuilder = () => {
     if (sec.questions.length > 0) {
       if (!window.confirm(`Delete "${sec.title || sec.section_type}" section and its ${sec.questions.length} question(s)?`)) return;
     }
+    if (editingTabIndex !== null) {
+      setEditingTabIndex(null);
+      setEditingTabValue('');
+    }
     const updated = sections.filter((_, i) => i !== sectionIdx);
     setSections(updated);
     if (currentSectionIndex >= updated.length) {
       setCurrentSectionIndex(updated.length - 1);
     }
     toast.success('Section deleted');
+  };
+
+  const startEditSectionName = (idx) => {
+    setEditingTabIndex(idx);
+    setEditingTabValue(sections[idx]?.title || '');
+  };
+
+  const cancelSectionEdit = () => {
+    setEditingTabIndex(null);
+    setEditingTabValue('');
+  };
+
+  const commitSectionName = (idx) => {
+    const title = editingTabValue.trim();
+    const changed = title && title !== sections[idx]?.title;
+    if (changed) {
+      setSections(sections.map((sec, si) => (si === idx ? { ...sec, title } : sec)));
+      toast.success(`Section renamed to "${title}"`);
+    }
+    setEditingTabIndex(null);
+    setEditingTabValue('');
   };
 
   const updateQuestion = (sectionIdx, qIdx, field, value) => {
@@ -823,30 +848,79 @@ const QuestionnaireBuilder = () => {
           const cfg = SECTION_TYPE_CONFIG[sec.section_type] || SECTION_TYPE_CONFIG.demographics;
           const Icon = cfg.icon;
           const isActive = idx === currentSectionIndex;
+          const isEditing = editingTabIndex === idx;
           return (
             <div key={sec.id} className="group relative">
-              <button
-                draggable
-                data-drag-target="section"
-                data-drag-type="section"
-                data-drag-index={idx}
-                onDragStart={(e) => handleSectionDragStart(e, idx)}
-                onDragOver={handleSectionDragOver}
-                onDragEnd={resetDrag}
-                onClick={() => setCurrentSectionIndex(idx)}
-                className={`flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition ${
-                  isActive
-                    ? `bg-${cfg.color}-600 text-white shadow-lg shadow-${cfg.color}-600/20`
-                    : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
-                } ${dragItem?.type === 'section' && dragItem.fromIndex === idx ? 'opacity-50' : ''} ${dragOver?.type === 'section' && dragOver.index === idx ? 'ring-2 ring-cyan-400' : ''}`}
-              >
-                <GripVertical className="h-3.5 w-3.5 opacity-50" />
-                <Icon className="h-4 w-4" />
-                <span className="font-bold">{sec.title || cfg.label}</span>
-                <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                  {sec.questions.filter(q => !isReservedField(q)).length}
-                </span>
-              </button>
+              {isEditing ? (
+                <form
+                  onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); commitSectionName(idx); }}
+                  onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) commitSectionName(idx); }}
+                  className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-medium shadow-lg shadow-cyan-500/20 ring-2 ring-cyan-500"
+                >
+                  <Icon className="h-4 w-4 text-slate-500" />
+                  <Input
+                    autoFocus
+                    value={editingTabValue}
+                    onChange={(e) => setEditingTabValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.currentTarget.blur();
+                      }
+                      if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancelSectionEdit();
+                      }
+                    }}
+                    onFocus={(e) => e.stopPropagation()}
+                    className="h-8 w-44"
+                  />
+                  <Button type="submit" size="sm" className="h-8 shrink-0">
+                    Save
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); cancelSectionEdit(); }}
+                    className="h-8 shrink-0 text-xs font-semibold text-slate-400 transition hover:text-slate-600"
+                  >
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <button
+                  draggable
+                  data-drag-target="section"
+                  data-drag-type="section"
+                  data-drag-index={idx}
+                  onDragStart={(e) => handleSectionDragStart(e, idx)}
+                  onDragOver={handleSectionDragOver}
+                  onDragEnd={resetDrag}
+                  onClick={() => setCurrentSectionIndex(idx)}
+                  className={`flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition ${
+                    isActive
+                      ? `bg-${cfg.color}-600 text-white shadow-lg shadow-${cfg.color}-600/20`
+                      : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
+                  } ${dragItem?.type === 'section' && dragItem.fromIndex === idx ? 'opacity-50' : ''} ${dragOver?.type === 'section' && dragOver.index === idx ? 'ring-2 ring-cyan-400' : ''}`}
+                >
+                  <GripVertical className="h-3.5 w-3.5 opacity-50" />
+                  <Icon className="h-4 w-4" />
+                  <span className="font-bold">{sec.title || cfg.label}</span>
+                  <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    {sec.questions.filter(q => !isReservedField(q)).length}
+                  </span>
+                </button>
+              )}
+              {!isEditing && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); startEditSectionName(idx); }}
+                  title="Rename section"
+                  className={`absolute -bottom-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full text-white opacity-0 shadow transition group-hover:opacity-100 ${isActive ? 'bg-slate-700/80 hover:bg-slate-900' : 'bg-slate-400 hover:bg-slate-600'}`}
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              )}
               {sections.length > 2 && (
                 <button
                   onClick={(e) => { e.stopPropagation(); deleteSection(idx); }}
