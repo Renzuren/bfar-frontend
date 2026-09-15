@@ -86,6 +86,19 @@ const SortableTh = ({ label, colKey, sortConfig, onSort, rowSpan, className = ''
   </th>
 );
 
+const yesNoToken = (value) => {
+  const normalized = String(value ?? '').toLowerCase().trim();
+  if (['oo', 'yes', 'true', 'meron', 'sige'].includes(normalized)) return '1';
+  if (['hindi', 'no', 'false', 'wala'].includes(normalized)) return '0';
+  return null;
+};
+
+const isYesNoQuestion = (question) => {
+  if (question?.type === 'yes_no') return true;
+  const options = (question?.options || []).map((o) => String(o || '').toLowerCase().trim());
+  return options.length > 0 && options.every((o) => ['oo', 'yes', 'true', 'meron', 'hindi', 'no', 'false', 'wala'].includes(o));
+};
+
 const getNumericAnswer = (answer, question) => {
   if (isNoAnswer(answer)) return '—';
 
@@ -97,6 +110,13 @@ const getNumericAnswer = (answer, question) => {
       })
       .filter(i => i !== null);
     return indices.length ? indices.join(',') : '—';
+  }
+
+  if (isYesNoQuestion(question)) {
+    if (Array.isArray(answer)) {
+      return answer.map((a) => yesNoToken(a) ?? String(a)).join(',');
+    }
+    return yesNoToken(answer) ?? String(answer);
   }
 
   if (['multiple_choice', 'dropdown'].includes(question.type)) {

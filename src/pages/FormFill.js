@@ -607,7 +607,7 @@ const FormFill = () => {
             />
           )}
 
-          {question.type === 'multiple_choice' && (
+          {['multiple_choice', 'yes_no'].includes(question.type) && (
             <RadioGroup
               value={answers[question.id] || ''}
               onValueChange={(v) => setAnswers({ ...answers, [question.id]: v })}

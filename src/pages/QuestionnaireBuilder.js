@@ -20,6 +20,7 @@ const DEMOGRAPHICS_QUESTION_TYPES = [
   { value: 'multiple_choice', label: 'Multiple Choice' },
   { value: 'checkboxes', label: 'Checkboxes' },
   { value: 'dropdown', label: 'Dropdown' },
+  { value: 'yes_no', label: 'Yes/No (Oo/Hindi)' },
   { value: 'date', label: 'Date' },
   { value: 'rating', label: 'Rating Scale (1-5)' },
   { value: 'profile_photo', label: 'Profile Photo / Image Upload' },
@@ -29,6 +30,7 @@ const QUESTIONNAIRE_QUESTION_TYPES = [
   { value: 'multiple_choice', label: 'Multiple Choice' },
   { value: 'checkboxes', label: 'Checkboxes' },
   { value: 'dropdown', label: 'Dropdown' },
+  { value: 'yes_no', label: 'Yes/No (Oo/Hindi)' },
   { value: 'date', label: 'Date' },
   { value: 'rating', label: 'Rating Scale (1-5)' },
 ];
@@ -364,7 +366,9 @@ const QuestionnaireBuilder = () => {
         questions: sec.questions.map((q, qi) => {
           if (qi !== qIdx) return q;
           const next = { ...q, type: newType };
-          if (['multiple_choice', 'checkboxes', 'dropdown'].includes(newType)) {
+          if (newType === 'yes_no') {
+            next.options = ['Oo', 'Hindi'];
+          } else if (['multiple_choice', 'checkboxes', 'dropdown'].includes(newType)) {
             next.options = q.options?.length ? [...q.options] : ['Option 1', 'Option 2'];
           } else {
             delete next.options;
@@ -515,7 +519,7 @@ const QuestionnaireBuilder = () => {
         toast.error(`Question ${i + 1} is missing a title`);
         return false;
       }
-      if (['multiple_choice', 'checkboxes', 'dropdown'].includes(q.type)) {
+      if (['multiple_choice', 'checkboxes', 'dropdown', 'yes_no'].includes(q.type)) {
         if (!q.options || q.options.length < 2 || q.options.some(opt => !opt.trim())) {
           toast.error(`Question ${i + 1} needs at least 2 valid options`);
           return false;
@@ -961,6 +965,21 @@ const QuestionnaireBuilder = () => {
                       <Button variant="ghost" size="sm" onClick={() => addOption(currentSectionIndex, qIdx)} className="mt-3 text-cyan-700 hover:bg-cyan-50">
                         <Plus className="mr-1.5 h-4 w-4" /> Add Option
                       </Button>
+                    </div>
+                  )}
+
+                  {q.type === 'yes_no' && (
+                    <div className="rounded-xl bg-slate-50/80 p-5">
+                      <Label className="mb-3 block text-xs font-semibold uppercase tracking-wide text-slate-500">Options</Label>
+                      <div className="space-y-3">
+                        {q.options?.map((opt, oi) => (
+                          <div key={oi} className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-xs font-bold text-slate-400 ring-1 ring-slate-200">{oi + 1}</div>
+                            <Input value={opt} readOnly className="bg-slate-100 text-slate-500" />
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-xs text-slate-400">Oo / Yes = 1, Hindi / No = 0 sa pag-export.</p>
                     </div>
                   )}
 

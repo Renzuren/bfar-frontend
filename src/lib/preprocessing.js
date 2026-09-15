@@ -166,7 +166,7 @@ export const canonicalizeSystemFields = (questions) =>
  * fallback for legacy text questions and any unknown types.
  */
 export const isTextQuestionType = (type) => {
-  const known = ['multiple_choice', 'checkboxes', 'dropdown', 'rating', 'date', 'respondent_id', 'respondent_name', 'location_text'];
+  const known = ['multiple_choice', 'checkboxes', 'dropdown', 'rating', 'date', 'yes_no', 'respondent_id', 'respondent_name', 'location_text'];
   return !known.includes(type);
 };
 
@@ -190,6 +190,7 @@ export const preprocessFormAnswers = (answers, questions) => {
     switch (question.type) {
       case 'multiple_choice':
       case 'dropdown':
+      case 'yes_no':
         processed[question.id] = preprocessSingleChoice(answer);
         break;
 
@@ -821,6 +822,7 @@ export const validatePreprocessedData = (answers, questions) => {
       switch (question.type) {
         case 'multiple_choice':
         case 'dropdown':
+        case 'yes_no':
           if (question.options && !question.options.includes(answer)) {
             errors.push(`Invalid answer for "${question.title}"`);
           }

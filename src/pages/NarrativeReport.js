@@ -45,7 +45,7 @@ const computeQuestionAnalytics = (responses, question) => {
 
   const validAnswers = allAnswers.filter((ans) => !isNoAnswer(ans));
 
-  if (['multiple_choice', 'checkboxes', 'dropdown'].includes(question.type)) {
+  if (['multiple_choice', 'checkboxes', 'dropdown', 'yes_no'].includes(question.type)) {
     const optionCounts = {};
     validAnswers.forEach((answer) => {
       if (Array.isArray(answer)) {
@@ -187,7 +187,7 @@ const NarrativeReport = () => {
       );
       if (!aq) return;
 
-      if (['multiple_choice', 'checkboxes', 'dropdown'].includes(bq.type)) {
+      if (['multiple_choice', 'checkboxes', 'dropdown', 'yes_no'].includes(bq.type)) {
         const beforeAnalytics = computeQuestionAnalytics(baseResponses, bq);
         const afterAnalytics = computeQuestionAnalytics(targetResponses, aq);
 

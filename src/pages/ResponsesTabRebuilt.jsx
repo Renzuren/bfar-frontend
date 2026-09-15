@@ -146,7 +146,7 @@ const isoDate = (value) => {
 };
 
 const isDateQuestion = (question) => /date|birth|dob|petsa|kapanganakan/i.test(`${question.type || ''} ${question.code || ''} ${question.title || ''}`);
-const choiceTypes = new Set(['multiple_choice', 'dropdown', 'checkboxes', 'radio', 'checkbox', 'single_choice', 'multi_select', 'select', 'choice', 'multiple_response']);
+const choiceTypes = new Set(['multiple_choice', 'dropdown', 'checkboxes', 'radio', 'checkbox', 'single_choice', 'multi_select', 'select', 'choice', 'multiple_response', 'yes_no']);
 const isChoiceQuestion = (question) =>
   choiceTypes.has(question?.type) || (Array.isArray(question?.options) && question.options.length > 0);
 const optionText = (option) => {
@@ -236,6 +236,20 @@ const unwrapAnswer = (item) => {
   return item;
 };
 
+const yesNoToken = (value) => {
+  const lower = normalizeText(value);
+  if (/^(meron|yes|true|oo)$/.test(lower)) return '1';
+  if (/^(wala|no|false|hindi)$/.test(lower)) return '0';
+  return null;
+};
+
+const isYesNoQuestion = (question) => {
+  if (!question) return false;
+  if (question.type === 'yes_no') return true;
+  const opts = (question.options || []).map((o) => normalizeText(optionText(o))).filter(Boolean);
+  return opts.length > 0 && opts.every((o) => ['oo', 'yes', 'true', 'meron', 'hindi', 'no', 'false', 'wala'].includes(o));
+};
+
 const normalizeAnswer = (value, question) => {
   if (isEmpty(value)) return '';
   const v = unwrapAnswer(value);
@@ -244,6 +258,12 @@ const normalizeAnswer = (value, question) => {
     return isEmpty(text) ? '' : isoDate(text);
   }
   const textOf = (item) => cleanText(unwrapAnswer(item));
+  if (question?.type === 'yes_no') {
+    const whole = textOf(Array.isArray(v) ? v[0] : v);
+    if (!whole) return '';
+    if (/^-?\d+(\.\d+)?$/.test(whole)) return whole;
+    return yesNoToken(whole) ?? whole;
+  }
   if (!isChoiceQuestion(question)) {
     return Array.isArray(v)
       ? v.map((item) => textOf(item)).filter(Boolean).join(', ')
@@ -253,6 +273,7 @@ const normalizeAnswer = (value, question) => {
     const whole = textOf(v);
     if (!whole) return '';
     if (/^-?\d+(\.\d+)?$/.test(whole)) return whole;
+    if (isYesNoQuestion(question)) return yesNoToken(whole) ?? whole;
     const wholeOptions = question?.options || [];
     const wholeExact = wholeOptions.findIndex((option) => normalizeText(optionText(option)) === normalizeText(whole));
     if (wholeExact !== -1) return String(wholeExact + 1);
@@ -264,6 +285,9 @@ const normalizeAnswer = (value, question) => {
 const convertChoiceToken = (text, question) => {
   if (!text) return '';
   if (/^-?\d+(\.\d+)?$/.test(text)) return text;
+  if (isYesNoQuestion(question)) {
+    return yesNoToken(text) ?? text;
+  }
   const optionIndex = findOptionIndex(question, text);
   if (optionIndex !== -1) return String(optionIndex + 1);
   const lower = normalizeText(text);

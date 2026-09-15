@@ -99,16 +99,23 @@ export const resolveBeneficiaryStatus = (response, form) => {
   return '';
 };
 
+const isYesNoQuestion = (question) => {
+  if (!question) return false;
+  if (question.type === 'yes_no') return true;
+  const options = (question.options || []).map((o) => String(optionText(o)).toLowerCase().trim()).filter(Boolean);
+  return options.length > 0 && options.every((o) => ['oo', 'yes', 'true', 'meron', 'hindi', 'no', 'false', 'wala'].includes(o));
+};
+
 const formatChoiceAnswer = (answer, q) => {
   if (isGeographicQuestion(q)) return String(answer).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
   if (isDateQuestion(q)) return cleanDate(answer);
   const text = String(answer ?? '').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
   if (/^-?\d+(\.\d+)?$/.test(text)) return text;
-  const choiceTypes = ['multiple_choice', 'dropdown', 'radio', 'checkboxes', 'checkbox', 'single_choice', 'multi_select', 'select', 'choice', 'multiple_response'];
+  const choiceTypes = ['multiple_choice', 'dropdown', 'radio', 'checkboxes', 'checkbox', 'single_choice', 'multi_select', 'select', 'choice', 'multiple_response', 'yes_no'];
   if (choiceTypes.includes(q.type) || (Array.isArray(q.options) && q.options.length)) {
     const normalized = text.toLowerCase();
-    if (['oo', 'yes', 'true', 'meron'].includes(normalized)) return '1';
-    if (['hindi', 'no', 'false', 'wala'].includes(normalized)) return '0';
+    const yesNo = { oo: '1', yes: '1', true: '1', meron: '1', hindi: '0', no: '0', false: '0', wala: '0' };
+    if (isYesNoQuestion(q) && Object.prototype.hasOwnProperty.call(yesNo, normalized)) return yesNo[normalized];
     const idx = (q.options || []).findIndex((option) =>
       String(optionText(option)).trim().toLowerCase() === normalized
     );
