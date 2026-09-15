@@ -89,13 +89,27 @@ const ProjectBackup = () => {
       forms.push({ form_id: form.id || formId, form, responses });
     }
 
+    // A questionnaire-only backup must never carry the project's identity
+    // (title, description, status) so importing it can only ever bring in
+    // the questionnaires. Only the structural fields needed to map the
+    // forms back into the before/after (Beneficiary / Non-Beneficiary)
+    // slots are kept.
+    const projectField = includeResponses
+      ? project
+      : {
+          id: project.id || id,
+          before_form: project.before_form ?? null,
+          after_form: project.after_form ?? null,
+          has_baseline: project.has_baseline === false ? false : true,
+        };
+
     return {
       app: 'bfar',
       type: 'project-backup',
       schema_version: SCHEMA_VERSION,
       exported_at: new Date().toISOString(),
       project_id: project.id || id,
-      project,
+      project: projectField,
       forms,
       include_responses: includeResponses,
     };
@@ -105,9 +119,10 @@ const ProjectBackup = () => {
     if (exporting) return;
     setExporting(true);
     try {
+      const projectTitle = currentProject?.title || 'project';
       const backup = await buildBackup({ includeResponses });
       const totalResponses = countResponses(backup.forms);
-      const name = `bfar-backup-${slugify(backup.project.title)}-${new Date().toISOString().slice(0, 10)}.json`;
+      const name = `bfar-backup-${slugify(projectTitle)}-${new Date().toISOString().slice(0, 10)}.json`;
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -151,7 +166,12 @@ const ProjectBackup = () => {
       setPendingBackup({ ...parsed, fileName: file.name, fileBytes: file.size });
       const hasResponses = countResponses(parsed.forms) > 0;
       setRestoreResponses(parsed.include_responses !== false && hasResponses);
-      toast.success(`Loaded backup of "${parsed.project.title || 'untitled project'}"`);
+      const title = parsed.project.title;
+      toast.success(
+        title
+          ? `Loaded backup of "${title}"`
+          : `Loaded questionnaire-only backup · ${parsed.forms.length} ${parsed.forms.length === 1 ? 'questionnaire' : 'questionnaires'}`
+      );
     } catch (error) {
       toast.error(error.message || 'Could not read the backup file');
     } finally {
@@ -165,6 +185,7 @@ const ProjectBackup = () => {
     try {
       const res = await api.post(`/projects/${id}/backup/restore`, {
         schema_version: pendingBackup.schema_version,
+        project_id: pendingBackup.project_id,
         project: pendingBackup.project,
         forms: pendingBackup.forms,
         include_responses: restoreResponses,
@@ -305,7 +326,7 @@ const ProjectBackup = () => {
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-slate-400">Project</dt>
-                  <dd className="mt-0.5 truncate font-medium text-slate-700">{pendingBackup.project.title || 'Untitled'}</dd>
+                  <dd className="mt-0.5 truncate font-medium text-slate-700">{pendingBackup.project.title || 'Questionnaires only'}</dd>
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-slate-400">Questionnaires</dt>
@@ -321,9 +342,9 @@ const ProjectBackup = () => {
                 <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-sm text-amber-800">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                   <p>
-                    This backup was exported from a different project. Restoring will still apply it to{' '}
-                    <span className="font-semibold">{currentProject?.title || 'this project'}</span>, overwriting its
-                    current data.
+                    This backup was exported from a different project. Only its questionnaires will be imported into{' '}
+                    <span className="font-semibold">{currentProject?.title || 'this project'}</span> — its title, type, and
+                    settings will be kept.
                   </p>
                 </div>
               )}

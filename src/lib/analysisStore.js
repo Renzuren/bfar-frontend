@@ -82,3 +82,12 @@ export const deleteAnalysis = (id) => {
   writeList(readList().filter((analysis) => analysis.id !== id));
   return true;
 };
+
+export const renameAnalysis = (id, title) => {
+  const list = readList();
+  const next = list.map((analysis) =>
+    analysis.id === id ? { ...analysis, title: (title || '').trim() || 'Analysis' } : analysis
+  );
+  writeList(next);
+  return getSavedAnalysis(id);
+};

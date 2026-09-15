@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   FileText,
@@ -8,7 +8,10 @@ import {
   FileBarChart2,
   DatabaseBackup,
   ClipboardList,
+  Pencil,
+  Loader2,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useProject } from '../context/ProjectContext';
 
 export const PROJECT_SIDEBAR_ITEMS = [
@@ -72,6 +75,10 @@ const ProjectDashboard = () => {
 const ProjectOverview = ({ project }) => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { updateProject } = useProject();
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState('');
+  const [titleSaving, setTitleSaving] = useState(false);
   const isBaseline = project?.has_baseline !== false;
   const tabLabels = {
     before: isBaseline ? 'Before' : 'Beneficiary',
@@ -85,6 +92,21 @@ const ProjectOverview = ({ project }) => {
       </div>
     );
   }
+
+  const startEditTitle = () => {
+    setTitleValue(project.title || '');
+    setEditingTitle(true);
+  };
+
+  const commitTitle = async () => {
+    const trimmed = titleValue.trim();
+    setEditingTitle(false);
+    if (!trimmed || trimmed === project.title || titleSaving) return;
+    setTitleSaving(true);
+    const updated = await updateProject(id, { title: trimmed });
+    setTitleSaving(false);
+    if (updated) setTitleValue(updated.title || '');
+  };
 
   const formatDate = (value) => {
     if (!value) return 'N/A';
@@ -147,9 +169,56 @@ const ProjectOverview = ({ project }) => {
             Project Overview
           </p>
           <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-3xl font-bold leading-tight sm:text-4xl">
-              {project.title}
-            </h2>
+            {editingTitle ? (
+              <form
+                onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); commitTitle(); }}
+                onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) commitTitle(); }}
+                className="flex items-center gap-2"
+              >
+                <input
+                  autoFocus
+                  value={titleValue}
+                  onChange={(e) => setTitleValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.currentTarget.blur();
+                    }
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setEditingTitle(false);
+                    }
+                  }}
+                  placeholder="Project title"
+                  className="w-full max-w-md rounded-xl border border-white/20 bg-white/10 px-3.5 py-2 text-2xl font-bold leading-tight text-white placeholder-white/40 outline-none transition focus:border-cyan-300 focus:bg-white/15 sm:text-3xl"
+                />
+                <Button type="submit" size="sm" className="shrink-0" disabled={titleSaving}>
+                  {titleSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+                </Button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setEditingTitle(false); }}
+                  className="shrink-0 rounded-lg px-2 py-1 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                >
+                  Cancel
+                </button>
+              </form>
+            ) : (
+              <>
+                <h2 className="text-3xl font-bold leading-tight sm:text-4xl">
+                  {project.title}
+                </h2>
+                <button
+                  type="button"
+                  onClick={startEditTitle}
+                  title="Rename project"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white/70 ring-1 ring-white/20 backdrop-blur transition hover:bg-white/20 hover:text-white"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              </>
+            )}
             <span className="inline-flex items-center rounded-full bg-blue-500/20 px-3 py-1 text-xs font-semibold text-blue-200 ring-1 ring-blue-400/30 backdrop-blur">
               Baseline
             </span>

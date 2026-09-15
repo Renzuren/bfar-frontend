@@ -15,6 +15,7 @@ import {
   Shield,
   Settings,
   ArrowUpDown,
+  Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -42,7 +43,7 @@ import {
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
-import { getSavedAnalyses } from '../lib/analysisStore';
+import { getSavedAnalyses, renameAnalysis } from '../lib/analysisStore';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -58,6 +59,8 @@ const Dashboard = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newProject, setNewProject] = useState({ title: '', description: '', hasBaseline: true });
   const [creating, setCreating] = useState(false);
+  const [renameAnalysisId, setRenameAnalysisId] = useState(null);
+  const [renameAnalysisTitle, setRenameAnalysisTitle] = useState('');
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -103,6 +106,29 @@ const Dashboard = () => {
     logout();
     navigate('/');
     toast.success('Logged out successfully');
+  };
+
+  const startRenameAnalysis = (analysis) => {
+    setRenameAnalysisId(analysis.id);
+    setRenameAnalysisTitle(analysis.title || '');
+  };
+
+  const commitRenameAnalysis = () => {
+    const trimmed = renameAnalysisTitle.trim();
+    if (!trimmed) {
+      setRenameAnalysisId(null);
+      setRenameAnalysisTitle('');
+      return;
+    }
+    renameAnalysis(renameAnalysisId, trimmed);
+    toast.success('Analysis renamed');
+    setRenameAnalysisId(null);
+    setRenameAnalysisTitle('');
+  };
+
+  const cancelRenameAnalysis = () => {
+    setRenameAnalysisId(null);
+    setRenameAnalysisTitle('');
   };
 
   const formatDate = (value) => {
@@ -344,7 +370,7 @@ const Dashboard = () => {
                 return (
                   <button
                     key={tab.key}
-                    onClick={() => setActiveTab(tab.key)}
+                    onClick={() => { setRenameAnalysisId(null); setRenameAnalysisTitle(''); setActiveTab(tab.key); }}
                     className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition-all ${
                       activeTab === tab.key
                         ? 'bg-slate-900 text-white shadow-sm'
@@ -471,10 +497,18 @@ const Dashboard = () => {
                 {filteredAnalyses.map((analysis) => {
                   const att = analysis.analysisResults?.att_result || {};
                   return (
-                    <button
+                    <div
                       key={analysis.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => navigate(`/ml-analysis/${analysis.id}`)}
-                      className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          navigate(`/ml-analysis/${analysis.id}`);
+                        }
+                      }}
+                      className="group relative cursor-pointer overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
                     >
                       <div className="mb-3 flex items-center justify-between">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-200">
@@ -485,9 +519,62 @@ const Dashboard = () => {
                           {formatDate(analysis.createdAt)}
                         </span>
                       </div>
-                      <h3 className="mb-3 line-clamp-2 text-base font-bold text-slate-900">
-                        {analysis.title}
-                      </h3>
+                      {renameAnalysisId === analysis.id ? (
+                        <form
+                          onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); commitRenameAnalysis(); }}
+                          onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) commitRenameAnalysis(); }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="mb-3 flex items-center gap-2"
+                        >
+                          <input
+                            autoFocus
+                            value={renameAnalysisTitle}
+                            onChange={(e) => setRenameAnalysisTitle(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => {
+                              e.stopPropagation();
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                e.currentTarget.blur();
+                              }
+                              if (e.key === 'Escape') {
+                                e.preventDefault();
+                                cancelRenameAnalysis();
+                              }
+                            }}
+                            placeholder="Analysis title"
+                            className="w-full rounded-lg border border-blue-200 bg-blue-50/50 px-2.5 py-1.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                          />
+                          <button
+                            type="submit"
+                            onClick={(e) => e.stopPropagation()}
+                            className="shrink-0 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); cancelRenameAnalysis(); }}
+                            className="shrink-0 rounded-lg px-1.5 py-1.5 text-xs font-semibold text-slate-400 transition hover:text-slate-600"
+                          >
+                            Cancel
+                          </button>
+                        </form>
+                      ) : (
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <h3 className="line-clamp-2 text-base font-bold text-slate-900">
+                            {analysis.title}
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); startRenameAnalysis(analysis); }}
+                            title="Rename analysis"
+                            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 opacity-0 transition group-hover:opacity-100 hover:bg-blue-100 hover:text-blue-700"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
                       <div className="grid grid-cols-3 gap-2">
                         <div className="rounded-lg bg-slate-50 px-2 py-2">
                           <p className="text-[10px] font-medium text-slate-400">Matched Pairs</p>
@@ -508,7 +595,7 @@ const Dashboard = () => {
                           </p>
                         </div>
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
