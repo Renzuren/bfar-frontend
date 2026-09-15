@@ -361,7 +361,7 @@ const ResponsesTabRebuilt = () => {
     return match ? display(answer(row, match)) : '—';
   };
   const name = (row) => row.response.full_name || row.response.name || '—';
-  const respondentId = (row) => row.response.respondent_id || row.response.id || '—';
+
   const groupOf = (row) => {
     const response = row.response;
     const status = response?.beneficiary_status;
@@ -377,13 +377,44 @@ const ResponsesTabRebuilt = () => {
     return '';
   };
 
+  // Derive sequential display IDs from the group:
+  //   group "1" -> B-1, B-2, B-3 ...    (Beneficiary)
+  //   group "0" -> NB-1, NB-2, NB-3 ... (Non-Beneficiary)
+  // Uses the response _rowKey so the same row always gets the same ID,
+  // even across filtering / pagination / tab switches.
+  const respondentIdMap = useMemo(() => {
+    const counters = { '1': 0, '0': 0 };
+    const map = new Map();
+    rows.forEach((row) => {
+      const key = row.response._rowKey;
+      if (!key) return;
+      const group = groupOf(row);
+      if (group === '1') {
+        counters['1'] += 1;
+        map.set(key, `B-${counters['1']}`);
+      } else if (group === '0') {
+        counters['0'] += 1;
+        map.set(key, `NB-${counters['0']}`);
+      } else {
+        // Unknown group: keep whatever the response actually has.
+        map.set(key, row.response.respondent_id || row.response.id || '—');
+      }
+    });
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
+
+  const respondentId = (row) =>
+    respondentIdMap.get(row.response._rowKey) || row.response.respondent_id || row.response.id || '—';
+
   const filtered = useMemo(() => rows.filter((row) => {
     if (source !== 'all' && row.source !== source) return false;
     if (municipality !== 'all' && location(row, 'municipality') !== municipality) return false;
     if (!query.trim()) return true;
     const text = [respondentId(row), name(row), location(row, 'municipality'), location(row, 'barangay'), location(row, 'province')].join(' ').toLowerCase();
     return text.includes(query.trim().toLowerCase());
-  }), [rows, source, municipality, query]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [rows, source, municipality, query, respondentIdMap]);
 
   useEffect(() => { setPage(1); }, [source, municipality, query, tab]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -420,8 +451,8 @@ const ResponsesTabRebuilt = () => {
     });
 
     const headers = ['RESPONSE', 'GROUP', 'Municipality', 'Barangay', 'Province', ...columns.map(({ header }) => header)];
-    const csvRows = filtered.map((row, rowIndex) => [
-      rowIndex + 1,
+    const csvRows = filtered.map((row) => [
+      respondentId(row),
       groupOf(row),
       location(row, 'municipality'),
       location(row, 'barangay'),
