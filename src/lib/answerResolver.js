@@ -112,6 +112,9 @@ const getAnswerForQuestion = (response, question, { sections = [] } = {}) => {
   // Positional fallback: answers stored as a plain array aligned to the full
   // section question order. Records are unwrapped, so object arrays like
   // { question_id, answer } (as stored by FormFill) also resolve here.
+  // Guard against responses whose positional array is aligned to an older form
+  // order: a record whose question id does not belong to this question is
+  // ignored (treated as unanswered) instead of misassigning its value.
   for (const [sourceName, answers] of [
     ['answers', response.answers],
     ['questionnaire_answers', response.questionnaire_answers],
@@ -125,6 +128,14 @@ const getAnswerForQuestion = (response, question, { sections = [] } = {}) => {
     const idx = sourceQuestions.findIndex((q) => q.id === question.id);
     if (idx < 0 || idx >= positionalAnswers.length) continue;
     const value = getAnswerValue(positionalAnswers[idx]);
+    const rawRecord = positionalAnswers[idx];
+    if (rawRecord && typeof rawRecord === 'object' && (rawRecord.question_id || rawRecord.qid)) {
+      const rawId = String(rawRecord.question_id || rawRecord.qid || '');
+      const keyMatches = [question.id, question.code, question.title]
+        .filter(Boolean)
+        .some((key) => answerKeyMatches(rawId, [key]));
+      if (!keyMatches) continue;
+    }
     if (!isNoAnswer(value)) return value;
   }
 

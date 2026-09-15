@@ -104,7 +104,8 @@ const formatChoiceAnswer = (answer, q) => {
   if (isDateQuestion(q)) return cleanDate(answer);
   const text = String(answer ?? '').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
   if (/^-?\d+(\.\d+)?$/.test(text)) return text;
-  if (['multiple_choice', 'dropdown', 'radio', 'checkboxes'].includes(q.type)) {
+  const choiceTypes = ['multiple_choice', 'dropdown', 'radio', 'checkboxes', 'checkbox', 'single_choice', 'multi_select', 'select', 'choice', 'multiple_response'];
+  if (choiceTypes.includes(q.type) || (Array.isArray(q.options) && q.options.length)) {
     const normalized = text.toLowerCase();
     if (['oo', 'yes', 'true', 'meron'].includes(normalized)) return '1';
     if (['hindi', 'no', 'false', 'wala'].includes(normalized)) return '0';
@@ -172,22 +173,34 @@ export const buildCombinedDataset = ({ beforeForm, beforeResponses = [], afterFo
     if (!form) return;
     responses.forEach((r) => {
       const answers = Array.isArray(r?.answers) ? r.answers : [];
-      const findAnswer = (qid, title) => {
-        let hit = answers.find((a) => a?.question_id === qid || a?.qid === qid);
-        if (!hit && title) hit = answers.find((a) => a?.question_title === title);
+      const findAnswer = (q) => {
+        if (!q) return null;
+        const qid = q.id;
+        const co = normalizeCode(q);
+        const t = normalizeLabel(q.title);
+        const hit = answers.find((a) =>
+          a?.question_id === qid ||
+          a?.qid === qid ||
+          (co && (normalizeCode({ code: a?.question_code }) === co || normalizeCode({ code: a?.qid }) === co)) ||
+          (t && (normalizeLabel(a?.question_title) === t || normalizeLabel(a?.title) === t))
+        );
         return hit ? hit.answer : null;
       };
       const status = resolveBeneficiaryStatus(r, form) || fallbackStatus;
       if (status) statusCounts[status] = (statusCounts[status] || 0) + 1;
       const row = { Status: status || fallbackStatus };
       cols.forEach((c) => {
-        const raw = findAnswer(c.q.id, c.q.title);
+        const raw = findAnswer(c.q);
         if (raw === null || raw === undefined || raw === '') {
           row[c.key] = '';
           return;
         }
         if (c.kind === 'checkbox') {
-          row[c.key] = Array.isArray(raw) ? (raw.includes(c.option) ? '1' : '0') : raw === c.option ? '1' : '0';
+          const selected = Array.isArray(raw)
+            ? raw
+            : String(raw).split(/[,;|]/).map((s) => s.trim());
+          const opt = String(optionText(c.option)).trim().toLowerCase();
+          row[c.key] = selected.some((item) => String(item).trim().toLowerCase() === opt) ? '1' : '0';
         } else {
           row[c.key] = formatChoiceAnswer(raw, c.q);
         }
