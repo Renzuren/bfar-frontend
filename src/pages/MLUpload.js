@@ -301,6 +301,10 @@ const MLUpload = () => {
 
       const result = await response.json();
       setAnalysisResults(result);
+      // Show the columns that were actually used — when the user left them on
+      // "Auto-detect", the backend picks them, so surface the real names here.
+      if (result && result.treatment_column) setTreatmentColumn(result.treatment_column);
+      if (result && result.outcome_column) setOutcomeColumn(result.outcome_column);
       setAnalysisTitle(`Analysis · ${(file?.name || 'CSV Data').replace(/\.(csv|xlsx|xls)$/i, '')}`);
       setSavedAnalysisId(null);
       setSaveMessage('');

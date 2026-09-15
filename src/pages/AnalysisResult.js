@@ -63,6 +63,7 @@ const AnalysisResult = () => {
 
   const att = record.analysisResults?.att_result || {};
   const treat = record.analysisResults?.treatment_column || record.treatmentColumn || '';
+  const outcome = record.analysisResults?.outcome_column || record.outcomeColumn || '';
   const rowCount =
     (Array.isArray(record.rows) ? record.rows.length : 0) ||
     (Array.isArray(record.analysisResults?.ps_output?.ps) ? record.analysisResults.ps_output.ps.length : 0);
@@ -70,7 +71,7 @@ const AnalysisResult = () => {
   const statCards = [
     { label: 'Matched Pairs', value: att.matched_pairs ?? '—', accent: 'text-blue-600' },
     { label: 'Mean ATT', value: att.att_mean == null ? '—' : `₱${Number(att.att_mean).toFixed(2)}`, accent: 'text-teal-600' },
-    { label: 'Outcome', value: record.outcomeColumn || 'Auto-detect', accent: 'text-indigo-600' },
+    { label: 'Outcome', value: outcome || 'Auto-detect', accent: 'text-indigo-600' },
     { label: 'Rows', value: rowCount.toLocaleString(), accent: 'text-violet-600' },
   ];
 

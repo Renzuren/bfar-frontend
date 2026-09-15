@@ -374,13 +374,13 @@ export const MLAnalyticsPanel = ({
   if (!analysisResults) return null;
 
   const renderSummary = () => {
-    const { rows: totalRows, treatment_column, treatment_detection_method, retrained, retrain_attempts, feature_selection } = analysisResults;
+    const { rows: totalRows, treatment_column, treatment_detection_method, outcome_column, retrained, retrain_attempts, feature_selection } = analysisResults;
     const topFeatures = feature_selection?.selected || [];
     const importanceData = prepareFeatureImportance(topFeatures);
 
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
           <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
             <p className="text-xs font-medium text-slate-500">Rows</p>
             <p className="mt-1 text-2xl font-bold text-slate-900">{totalRows}</p>
@@ -389,6 +389,11 @@ export const MLAnalyticsPanel = ({
             <p className="text-xs font-medium text-slate-500">Treatment Column</p>
             <p className="mt-1 truncate text-sm font-semibold text-slate-900">{treatment_column || 'N/A'}</p>
             <p className="text-[11px] text-slate-400">{treatment_detection_method}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Outcome Column</p>
+            <p className="mt-1 truncate text-sm font-semibold text-slate-900">{outcome_column || 'N/A'}</p>
+            <p className="text-[11px] text-slate-400">treatment group vs control</p>
           </div>
           <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
             <p className="text-xs font-medium text-slate-500">Retrained</p>
