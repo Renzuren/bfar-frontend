@@ -227,6 +227,37 @@ const NarrativeReport = () => {
           beforeAnalytics,
           afterAnalytics,
         });
+      } else if (bq.type === 'date') {
+        const beforeAnalytics = computeQuestionAnalytics(baseResponses, bq);
+        const afterAnalytics = computeQuestionAnalytics(targetResponses, aq);
+
+        const countDates = (analytics) => {
+          const counts = {};
+          (analytics.responses || []).forEach((v) => {
+            const key = String(v ?? '').trim();
+            if (!key) return;
+            counts[key] = (counts[key] || 0) + 1;
+          });
+          return Object.entries(counts).map(([date, count]) => ({ date, count }));
+        };
+        const beforeCounts = countDates(beforeAnalytics);
+        const afterCounts = countDates(afterAnalytics);
+        const allDates = new Set([...beforeCounts.map(c => c.date), ...afterCounts.map(c => c.date)]);
+
+        const data = Array.from(allDates).sort().map(date => ({
+          option: date,
+          before: beforeCounts.find(c => c.date === date)?.count || 0,
+          after: afterCounts.find(c => c.date === date)?.count || 0,
+        }));
+
+        paired.push({
+          question: bq,
+          afterQuestion: aq,
+          type: 'date',
+          data,
+          beforeAnalytics,
+          afterAnalytics,
+        });
       }
     });
     return paired;
@@ -241,7 +272,8 @@ const NarrativeReport = () => {
   const narrative = useMemo(() => {
     const pairedItems = comparisonData;
     const ratingItems = pairedItems.filter(i => i.type === 'rating');
-    const choiceItems = pairedItems.filter(i => i.type !== 'rating');
+    const dateItems = pairedItems.filter(i => i.type === 'date');
+    const choiceItems = pairedItems.filter(i => ['multiple_choice', 'checkboxes', 'dropdown', 'yes_no'].includes(i.type));
 
     const ratingChanges = ratingItems.map(item => ({
       label: getQuestionLabel(item.question, 0),
@@ -298,6 +330,10 @@ const NarrativeReport = () => {
 
     if (!improvedRatings.length && !declinedRatings.length && !increasedOptions.length && !decreasedOptions.length) {
       findings.push('Overall, indicator values remained largely stable between the benchmark and current periods.');
+    }
+
+    if (dateItems.length > 0) {
+      findings.push(`Responses to date-type indicators (${dateItems.map(i => `"${getQuestionLabel(i.question, 0)}"`).join(', ')}) were captured in both phases and are itemized in the comparative analysis.`);
     }
 
     if (afterResponses.length < beforeResponses.length) {
@@ -583,6 +619,61 @@ const NarrativeReport = () => {
     );
   };
 
+  // Paired date figure: response-date counts before vs after (counts, not %)
+  const renderDateFigure = (item, index) => {
+    figCounter += 1;
+    item._figNum = figCounter;
+    const qLabel = getQuestionLabel(item.question, index);
+    const rows = [...item.data]
+      .sort((a, b) => (b.before + b.after) - (a.before + a.after))
+      .slice(0, 12);
+    const isTruncated = rows.length < item.data.length;
+
+    return (
+      <figure key={index} className="print-break-inside-avoid mb-10 break-inside-avoid-page">
+        <figcaption className="mb-3 text-sm font-semibold text-slate-800">
+          Figure 3.{item._figNum} — {qLabel}
+        </figcaption>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <table className="min-w-full border border-slate-300 text-sm">
+            <thead>
+              <tr className="bg-slate-100">
+                <th className="border border-slate-300 px-3 py-2 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Date</th>
+                <th className="border border-slate-300 px-3 py-2 text-right text-xs font-bold uppercase tracking-wider text-slate-600">{tabLabels.before} (n)</th>
+                <th className="border border-slate-300 px-3 py-2 text-right text-xs font-bold uppercase tracking-wider text-slate-600">{tabLabels.after} (n)</th>
+                <th className="border border-slate-300 px-3 py-2 text-right text-xs font-bold uppercase tracking-wider text-slate-600">Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((d, i) => {
+                const diff = d.after - d.before;
+                const DiffIcon = diff > 0 ? ArrowUpRight : diff < 0 ? ArrowDownRight : Minus;
+                const diffColor = diff > 0 ? 'text-emerald-700' : diff < 0 ? 'text-rose-700' : 'text-slate-400';
+                return (
+                  <tr key={i} className={i % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}>
+                    <td className="border border-slate-300 px-3 py-2 font-medium text-slate-800">{d.option}</td>
+                    <td className="border border-slate-300 px-3 py-2 text-right text-slate-600">{d.before}</td>
+                    <td className="border border-slate-300 px-3 py-2 text-right text-slate-600">{d.after}</td>
+                    <td className={`border border-slate-300 px-3 py-2 text-right font-semibold ${diffColor}`}>
+                      <span className="inline-flex items-center gap-1">
+                        <DiffIcon className="h-3.5 w-3.5" />
+                        {diff > 0 ? '+' : ''}{diff}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="mt-3 text-justify text-sm leading-relaxed text-slate-700">
+            The table compares the dates reported by {tabLabels.before.toLowerCase()} and {tabLabels.after.toLowerCase()} respondents for this indicator.
+            {isTruncated ? ` The ${item.data.length - rows.length} least frequently reported date(s) are omitted.` : ''}
+          </p>
+        </div>
+      </figure>
+    );
+  };
+
   const totalComparable = comparisonData.length;
 
   return (
@@ -764,7 +855,11 @@ const NarrativeReport = () => {
               <SubHeading num="3.1" title="Comparative Analysis: Benchmark versus Current" />
               <div className="space-y-10">
                 {comparisonData.map((item, index) =>
-                  item.type === 'rating' ? renderRatingFigure(item, index) : renderChoiceFigure(item, index)
+                  item.type === 'rating'
+                    ? renderRatingFigure(item, index)
+                    : item.type === 'date'
+                      ? renderDateFigure(item, index)
+                      : renderChoiceFigure(item, index)
                 )}
               </div>
             </>

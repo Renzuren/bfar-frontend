@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Plus, Trash2, ArrowLeft, Save, ChevronLeft, ChevronRight, Layers, Pencil, GripVertical, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,127 @@ const generateCSVHeaders = (questions) => {
   });
   return headers.join(',');
 };
+
+const FormQuestionCard = React.memo(function FormQuestionCard({
+  question: q,
+  dragIndex,
+  isSys,
+  surveyNumber,
+  isDragging,
+  isDragOver,
+  sectionIdx,
+  moveTargets,
+  onUpdate,
+  onDelete,
+  onTypeChange,
+  onAddOption,
+  onUpdateOption,
+  onDeleteOption,
+  onMove,
+  onDragStart,
+  onDragOver,
+  onDragEnd,
+}) {
+  return (
+    <div
+      draggable={!isSys}
+      data-drag-target="question"
+      data-drag-type="question"
+      data-drag-index={dragIndex}
+      onDragStart={(e) => onDragStart(e, dragIndex)}
+      onDragOver={onDragOver}
+      onDragEnd={onDragEnd}
+      className={`py-6 transition ${isDragging ? 'opacity-50' : ''} ${isDragOver ? 'rounded-xl bg-cyan-50/60' : ''}`}
+    >
+      <div className="flex gap-4">
+        {!isSys && (
+          <div className="flex cursor-grab items-start pt-2 text-slate-300 active:cursor-grabbing" title="Drag to reorder questions">
+            <GripVertical className="h-5 w-5" />
+          </div>
+        )}
+        <div className="flex-1 space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-50 text-xs font-bold text-cyan-700 ring-1 ring-cyan-100">
+              {isSys ? 'S' : surveyNumber}
+            </span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">{isSys ? 'System Field' : 'Question'}</span>
+            {isSys && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600 ring-1 ring-indigo-100">Always included</span>}
+            {q.required && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-600 ring-1 ring-rose-100">Required</span>}
+          </div>
+          {isSys ? (
+            <div className="grid gap-3 lg:grid-cols-3">
+              <div><Label>Field</Label><Input value={q.title} disabled className="bg-slate-50 text-slate-600" /></div>
+              <div><Label>Type</Label><Input value={q.type} disabled className="bg-slate-50 text-slate-600" /></div>
+              <div><Label>Code</Label><Input value={q.code || ''} disabled className="bg-slate-50 text-slate-600" /></div>
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-3 lg:grid-cols-2">
+                <div className="lg:col-span-2"><Label>Question text</Label><Input value={q.title} onChange={e => onUpdate(q.id, 'title', e.target.value)} placeholder="Enter your question" /></div>
+                <div><Label>Type</Label><Select value={q.type} onValueChange={v => onTypeChange(q.id, v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{QUESTION_TYPES.some(t => t.value === q.type) ? null : <SelectItem value={q.type} disabled>Text (legacy)</SelectItem>}{QUESTION_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
+                <div><Label>Question code</Label><Input value={q.code || ''} onChange={e => onUpdate(q.id, 'code', e.target.value)} placeholder="e.g., A1" /></div>
+                <div className="lg:col-span-2"><Label>Description (optional)</Label><Input value={q.description || ''} onChange={e => onUpdate(q.id, 'description', e.target.value)} placeholder="Add helper text" /></div>
+              </div>
+
+              {['multiple_choice', 'checkboxes', 'dropdown'].includes(q.type) && (
+                <div className="rounded-xl bg-slate-50/80 p-4">
+                  <Label className="mb-3 block text-xs font-semibold uppercase tracking-wide text-slate-500">Options</Label>
+                  <div className="space-y-2">
+                    {q.options?.map((opt, oi) => (
+                      <div key={oi} className="flex gap-2">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-xs font-bold text-slate-400 ring-1 ring-slate-200">{oi + 1}</div>
+                        <Input value={opt} onChange={e => onUpdateOption(q.id, oi, e.target.value)} placeholder={`Option ${oi + 1}`} />
+                        <Button variant="outline" size="icon" onClick={() => onDeleteOption(q.id, oi)} className="text-rose-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => onAddOption(q.id)} className="mt-3 text-cyan-700 hover:bg-cyan-50">
+                    <Plus className="mr-1.5 h-4 w-4" /> Add Option
+                  </Button>
+                </div>
+              )}
+
+              {q.type === 'yes_no' && (
+                <div className="rounded-xl bg-slate-50/80 p-4">
+                  <Label className="mb-3 block text-xs font-semibold uppercase tracking-wide text-slate-500">Options</Label>
+                  <div className="space-y-2">
+                    {q.options?.map((opt, oi) => (
+                      <div key={oi} className="flex items-center gap-2">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-xs font-bold text-slate-400 ring-1 ring-slate-200">{oi + 1}</div>
+                        <Input value={opt} readOnly className="bg-slate-100 text-slate-500" />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-400">Oo / Yes = 1, Hindi / No = 0 sa pag-export.</p>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                <div className="flex items-center gap-2">
+                  <Switch checked={q.required} onCheckedChange={c => onUpdate(q.id, 'required', c)} />
+                  <Label className="text-sm font-medium text-slate-700">Required question</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-44">
+                    <Select value={String(sectionIdx)} onValueChange={val => onMove(q.id, parseInt(val))}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>{moveTargets.map(sec => <SelectItem key={sec.id} value={String(sec.idx)}>{sec.title}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => onDelete(q.id)} className="text-rose-500 hover:bg-rose-50 hover:text-rose-600">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 const FormBuilder = () => {
   const navigate = useNavigate();
@@ -201,21 +322,6 @@ const FormBuilder = () => {
     setSections(newSections);
   };
 
-  const moveQuestionToSection = (questionId, fromIdx, toIdx) => {
-    if (fromIdx === toIdx) return;
-    const newSections = sections.map(sec => ({
-      ...sec,
-      questions: [...sec.questions],
-    }));
-    const qIndex = newSections[fromIdx].questions.findIndex(q => q.id === questionId);
-    if (qIndex === -1) return;
-    const moved = { ...newSections[fromIdx].questions[qIndex], section: newSections[toIdx].title };
-    newSections[fromIdx].questions.splice(qIndex, 1);
-    newSections[toIdx].questions.push(moved);
-    setSections(newSections);
-    toast.success(`Moved to "${newSections[toIdx].title}"`);
-  };
-
   const addQuestion = () => {
     const current = sections[currentSectionIndex];
     const newQuestion = {
@@ -265,72 +371,88 @@ const FormBuilder = () => {
     toast.success('Beneficiary question added to current section.');
   };
 
-  const updateQuestion = (sectionIdx, qIdx, field, value) => {
-    const updated = sections.map((sec, si) =>
-      si === sectionIdx
-        ? { ...sec, questions: sec.questions.map((q, qi) => qi === qIdx ? { ...q, [field]: value } : q) }
-        : sec
-    );
-    setSections(updated);
-  };
+  const sectionsRef = useRef(sections);
+  useEffect(() => { sectionsRef.current = sections; });
+  const currentSectionIndexRef = useRef(currentSectionIndex);
+  useEffect(() => { currentSectionIndexRef.current = currentSectionIndex; });
 
-  const deleteQuestion = (sectionIdx, qIdx) => {
-    const updated = sections.map((sec, si) =>
-      si === sectionIdx
-        ? { ...sec, questions: sec.questions.filter((_, qi) => qi !== qIdx) }
-        : sec
-    );
-    setSections(updated);
-  };
+  const updateQuestionById = useCallback((questionId, field, value) => {
+    setSections(prev => prev.map(sec => ({
+      ...sec,
+      questions: sec.questions.map(q => q.id === questionId ? { ...q, [field]: value } : q)
+    })));
+  }, []);
 
-  const handleTypeChange = (sectionIdx, qIdx, newType) => {
-    const updated = sections.map((sec, si) => {
-      if (si !== sectionIdx) return sec;
-      return {
-        ...sec,
-        questions: sec.questions.map((q, qi) => {
-          if (qi !== qIdx) return q;
-          const next = { ...q, type: newType };
-          if (newType === 'yes_no') {
-            next.options = ['Oo', 'Hindi'];
-          } else if (['multiple_choice', 'checkboxes', 'dropdown'].includes(newType)) {
-            next.options = q.options?.length ? [...q.options] : ['Option 1', 'Option 2'];
-          } else {
-            delete next.options;
-          }
-          return next;
-        }),
-      };
+  const deleteQuestionById = useCallback((questionId) => {
+    setSections(prev => prev.map(sec => ({
+      ...sec,
+      questions: sec.questions.filter(q => q.id !== questionId)
+    })));
+  }, []);
+
+  const changeTypeById = useCallback((questionId, newType) => {
+    setSections(prev => prev.map(sec => ({
+      ...sec,
+      questions: sec.questions.map(q => {
+        if (q.id !== questionId) return q;
+        const next = { ...q, type: newType };
+        if (newType === 'yes_no') {
+          next.options = ['Oo', 'Hindi'];
+        } else if (['multiple_choice', 'checkboxes', 'dropdown'].includes(newType)) {
+          next.options = q.options?.length ? [...q.options] : ['Option 1', 'Option 2'];
+        } else {
+          delete next.options;
+        }
+        return next;
+      })
+    })));
+  }, []);
+
+  const addOptionById = useCallback((questionId) => {
+    setSections(prev => prev.map(sec => ({
+      ...sec,
+      questions: sec.questions.map(q => q.id === questionId ? { ...q, options: [...(q.options || []), ''] } : q)
+    })));
+  }, []);
+
+  const updateOptionById = useCallback((questionId, optIdx, value) => {
+    setSections(prev => prev.map(sec => ({
+      ...sec,
+      questions: sec.questions.map(q => q.id === questionId
+        ? { ...q, options: q.options.map((o, oi) => oi === optIdx ? value : o) }
+        : q)
+    })));
+  }, []);
+
+  const deleteOptionById = useCallback((questionId, optIdx) => {
+    setSections(prev => prev.map(sec => ({
+      ...sec,
+      questions: sec.questions.map(q => q.id === questionId
+        ? { ...q, options: q.options.filter((_, oi) => oi !== optIdx) }
+        : q)
+    })));
+  }, []);
+
+  const moveQuestionById = useCallback((questionId, toIdx) => {
+    const sourceIdx = currentSectionIndexRef.current;
+    const sourceSections = sectionsRef.current;
+    if (sourceIdx === toIdx || !sourceSections[sourceIdx] || !sourceSections[toIdx]) return;
+    const qIndex = sourceSections[sourceIdx].questions.findIndex(q => q.id === questionId);
+    if (qIndex === -1) return;
+    const targetTitle = sourceSections[toIdx].title;
+    setSections(current => {
+      const next = current.map(sec => ({ ...sec, questions: [...sec.questions] }));
+      const src = next[sourceIdx];
+      const dst = next[toIdx];
+      const srcQIndex = src.questions.findIndex(q => q.id === questionId);
+      if (srcQIndex === -1) return current;
+      const moved = { ...src.questions[srcQIndex], section: dst.title };
+      src.questions.splice(srcQIndex, 1);
+      dst.questions.push(moved);
+      return next;
     });
-    setSections(updated);
-  };
-
-  const addOption = (sectionIdx, qIdx) => {
-    const updated = sections.map((sec, si) =>
-      si === sectionIdx
-        ? { ...sec, questions: sec.questions.map((q, qi) => qi === qIdx ? { ...q, options: [...(q.options || []), ''] } : q) }
-        : sec
-    );
-    setSections(updated);
-  };
-
-  const updateOption = (sectionIdx, qIdx, optIdx, value) => {
-    const updated = sections.map((sec, si) =>
-      si === sectionIdx
-        ? { ...sec, questions: sec.questions.map((q, qi) => qi === qIdx ? { ...q, options: q.options.map((o, oi) => oi === optIdx ? value : o) } : q) }
-        : sec
-    );
-    setSections(updated);
-  };
-
-  const deleteOption = (sectionIdx, qIdx, optIdx) => {
-    const updated = sections.map((sec, si) =>
-      si === sectionIdx
-        ? { ...sec, questions: sec.questions.map((q, qi) => qi === qIdx ? { ...q, options: q.options.filter((_, oi) => oi !== optIdx) } : q) }
-        : sec
-    );
-    setSections(updated);
-  };
+    toast.success(`Moved to "${targetTitle}"`);
+  }, []);
 
   const reorderArray = useCallback((arr, from, to) => {
     if (from === to) return arr;
@@ -346,12 +468,12 @@ const FormBuilder = () => {
     stopAutoScroll();
   }, [stopAutoScroll]);
 
-  const handleSectionDragStart = (e, fromIndex) => {
+  const handleSectionDragStart = useCallback((e, fromIndex) => {
     if (editingTabIndex === fromIndex) {
       e.preventDefault();
       return;
     }
-    if ((sections[fromIndex]?.questions || []).some(isSystemField)) {
+    if ((sectionsRef.current[fromIndex]?.questions || []).some(isSystemField)) {
       e.preventDefault();
       return;
     }
@@ -360,21 +482,21 @@ const FormBuilder = () => {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(fromIndex));
     startAutoScroll(e);
-  };
+  }, [editingTabIndex, startAutoScroll]);
 
-  const handleSectionDragOver = (e) => {
+  const handleSectionDragOver = useCallback((e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     updateAutoScroll(e);
-  };
+  }, [updateAutoScroll]);
 
-  const handleQuestionDragStart = (e, fromIndex) => {
+  const handleQuestionDragStart = useCallback((e, fromIndex) => {
     const tag = (e.target.tagName || '').toUpperCase();
     if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'OPTION', 'LABEL', 'A'].includes(tag)) {
       e.preventDefault();
       return;
     }
-    const question = sections[currentSectionIndex]?.questions[fromIndex];
+    const question = sectionsRef.current[currentSectionIndexRef.current]?.questions[fromIndex];
     if (question && isSystemField(question)) {
       e.preventDefault();
       return;
@@ -384,13 +506,13 @@ const FormBuilder = () => {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(fromIndex));
     startAutoScroll(e);
-  };
+  }, [startAutoScroll]);
 
-  const handleQuestionDragOver = (e) => {
+  const handleQuestionDragOver = useCallback((e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     updateAutoScroll(e);
-  };
+  }, [updateAutoScroll]);
 
   useEffect(() => {
     if (!dragItem) return undefined;
@@ -409,25 +531,27 @@ const FormBuilder = () => {
       if (target && target.dataset.dragType === dragItem.type) {
         const toIndex = Number(target.dataset.dragIndex);
         if (toIndex !== fromIndex) {
+          const current = sectionsRef.current;
+          const curIdx = currentSectionIndexRef.current;
           if (dragItem.type === 'section') {
-            const systemSection = sections.findIndex(sec => (sec.questions || []).some(isSystemField));
+            const systemSection = current.findIndex(sec => (sec.questions || []).some(isSystemField));
             if (systemSection !== -1 && (toIndex === 0 || fromIndex === systemSection || toIndex === systemSection)) {
               toast.warning('The section containing system fields must stay first');
             } else {
-              const currentId = sections[currentSectionIndex]?.id;
-              const next = reorderArray(sections, fromIndex, toIndex);
+              const currentId = current[curIdx]?.id;
+              const next = reorderArray(current, fromIndex, toIndex);
               setSections(next);
               const newIdx = next.findIndex(s => s.id === currentId);
               if (newIdx !== -1) setCurrentSectionIndex(newIdx);
             }
           } else if (dragItem.type === 'question') {
-            const systemCount = sections[currentSectionIndex]?.questions.filter(isSystemField).length || 0;
+            const systemCount = current[curIdx]?.questions.filter(isSystemField).length || 0;
             if (systemCount > 0 && toIndex < systemCount) {
               toast.warning('System fields must stay at the beginning of the section');
             } else {
-              const updated = [...sections];
-              updated[currentSectionIndex].questions = reorderArray(
-                updated[currentSectionIndex].questions,
+              const updated = [...current];
+              updated[curIdx].questions = reorderArray(
+                updated[curIdx].questions,
                 fromIndex,
                 toIndex
               );
@@ -445,7 +569,13 @@ const FormBuilder = () => {
       document.removeEventListener('dragover', handleDocumentDragOver);
       document.removeEventListener('drop', handleDocumentDrop);
     };
-  }, [dragItem, sections, currentSectionIndex, reorderArray, resetDrag]);
+  }, [dragItem, reorderArray, resetDrag]);
+
+  const sectionTitleSignature = sections.map(s => `${s.id}:${s.title}`).join('|');
+  const moveTargets = useMemo(
+    () => sections.map((sec, idx) => ({ id: sec.id, title: sec.title, idx })),
+    [sectionTitleSignature]
+  );
 
   const validateForm = () => {
     if (!formData.title.trim()) {
@@ -624,113 +754,29 @@ const FormBuilder = () => {
               current.questions.forEach(question => {
                 if (!isReservedField(question)) surveyNumbers.set(question.id, ++surveyCount);
               });
-              return current.questions.map((q, qIdx) => {
-              const isSys = isSystemField(q);
-              return (
-              <div
-                key={q.id}
-                draggable={!isSys}
-                data-drag-target="question"
-                data-drag-type="question"
-                data-drag-index={qIdx}
-                onDragStart={(e) => handleQuestionDragStart(e, qIdx)}
-                onDragOver={handleQuestionDragOver}
-                onDragEnd={resetDrag}
-                className={`py-6 transition ${
-                  dragItem?.type === 'question' && dragItem.fromIndex === qIdx ? 'opacity-50' : ''
-                } ${
-                  dragOver?.type === 'question' && dragOver.index === qIdx ? 'rounded-xl bg-cyan-50/60' : ''
-                }`}
-              >
-                <div className="flex gap-4">
-                  {!isSys && (
-                    <div className="flex cursor-grab items-start pt-2 text-slate-300 active:cursor-grabbing" title="Drag to reorder questions">
-                      <GripVertical className="h-5 w-5" />
-                    </div>
-                  )}
-                  <div className="flex-1 space-y-4">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-50 text-xs font-bold text-cyan-700 ring-1 ring-cyan-100">
-                        {isSys ? 'S' : surveyNumbers.get(q.id)}
-                      </span>
-                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">{isSys ? 'System Field' : 'Question'}</span>
-                      {isSys && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600 ring-1 ring-indigo-100">Always included</span>}
-                      {q.required && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-600 ring-1 ring-rose-100">Required</span>}
-                    </div>
-                    {isSys ? (
-                      <div className="grid gap-3 lg:grid-cols-3">
-                        <div><Label>Field</Label><Input value={q.title} disabled className="bg-slate-50 text-slate-600" /></div>
-                        <div><Label>Type</Label><Input value={q.type} disabled className="bg-slate-50 text-slate-600" /></div>
-                        <div><Label>Code</Label><Input value={q.code || ''} disabled className="bg-slate-50 text-slate-600" /></div>
-                      </div>
-                    ) : (
-                      <>
-                    <div className="grid gap-3 lg:grid-cols-2">
-                      <div className="lg:col-span-2"><Label>Question text</Label><Input value={q.title} onChange={e => updateQuestion(currentSectionIndex, qIdx, 'title', e.target.value)} placeholder="Enter your question" /></div>
-                      <div><Label>Type</Label><Select value={q.type} onValueChange={v => handleTypeChange(currentSectionIndex, qIdx, v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{QUESTION_TYPES.some(t => t.value === q.type) ? null : <SelectItem value={q.type} disabled>Text (legacy)</SelectItem>}{QUESTION_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
-                      <div><Label>Question code</Label><Input value={q.code || ''} onChange={e => updateQuestion(currentSectionIndex, qIdx, 'code', e.target.value)} placeholder="e.g., A1" /></div>
-                      <div className="lg:col-span-2"><Label>Description (optional)</Label><Input value={q.description || ''} onChange={e => updateQuestion(currentSectionIndex, qIdx, 'description', e.target.value)} placeholder="Add helper text" /></div>
-                    </div>
-
-                    {['multiple_choice', 'checkboxes', 'dropdown'].includes(q.type) && (
-                      <div className="rounded-xl bg-slate-50/80 p-4">
-                        <Label className="mb-3 block text-xs font-semibold uppercase tracking-wide text-slate-500">Options</Label>
-                        <div className="space-y-2">
-                          {q.options?.map((opt, oi) => (
-                            <div key={oi} className="flex gap-2">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-xs font-bold text-slate-400 ring-1 ring-slate-200">{oi + 1}</div>
-                              <Input value={opt} onChange={e => updateOption(currentSectionIndex, qIdx, oi, e.target.value)} placeholder={`Option ${oi + 1}`} />
-                              <Button variant="outline" size="icon" onClick={() => deleteOption(currentSectionIndex, qIdx, oi)} className="text-rose-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                        <Button variant="ghost" size="sm" onClick={() => addOption(currentSectionIndex, qIdx)} className="mt-3 text-cyan-700 hover:bg-cyan-50">
-                          <Plus className="mr-1.5 h-4 w-4" /> Add Option
-                        </Button>
-                      </div>
-                    )}
-
-                    {q.type === 'yes_no' && (
-                      <div className="rounded-xl bg-slate-50/80 p-4">
-                        <Label className="mb-3 block text-xs font-semibold uppercase tracking-wide text-slate-500">Options</Label>
-                        <div className="space-y-2">
-                          {q.options?.map((opt, oi) => (
-                            <div key={oi} className="flex items-center gap-2">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-xs font-bold text-slate-400 ring-1 ring-slate-200">{oi + 1}</div>
-                              <Input value={opt} readOnly className="bg-slate-100 text-slate-500" />
-                            </div>
-                          ))}
-                        </div>
-                        <p className="mt-2 text-xs text-slate-400">Oo / Yes = 1, Hindi / No = 0 sa pag-export.</p>
-                      </div>
-                    )}
-
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                      <div className="flex items-center gap-2">
-                        <Switch checked={q.required} onCheckedChange={c => updateQuestion(currentSectionIndex, qIdx, 'required', c)} />
-                        <Label className="text-sm font-medium text-slate-700">Required question</Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-44">
-                          <Select value={currentSectionIndex.toString()} onValueChange={val => moveQuestionToSection(q.id, currentSectionIndex, parseInt(val))}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>{sections.map((sec, idx) => <SelectItem key={sec.id} value={idx.toString()}>{sec.title}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </div>
-                        <Button variant="ghost" size="sm" onClick={() => deleteQuestion(currentSectionIndex, qIdx)} className="text-rose-500 hover:bg-rose-50 hover:text-rose-600">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    </>
-                    )}
-                  </div>
-                </div>
-              </div>
-              );
-              });
+              return current.questions.map((q, qIdx) => (
+                <FormQuestionCard
+                  key={q.id}
+                  question={q}
+                  dragIndex={qIdx}
+                  isSys={isSystemField(q)}
+                  surveyNumber={surveyNumbers.get(q.id)}
+                  isDragging={dragItem?.type === 'question' && dragItem.fromIndex === qIdx}
+                  isDragOver={dragOver?.type === 'question' && dragOver.index === qIdx}
+                  sectionIdx={currentSectionIndex}
+                  moveTargets={moveTargets}
+                  onUpdate={updateQuestionById}
+                  onDelete={deleteQuestionById}
+                  onTypeChange={changeTypeById}
+                  onAddOption={addOptionById}
+                  onUpdateOption={updateOptionById}
+                  onDeleteOption={deleteOptionById}
+                  onMove={moveQuestionById}
+                  onDragStart={handleQuestionDragStart}
+                  onDragOver={handleQuestionDragOver}
+                  onDragEnd={resetDrag}
+                />
+              ));
             })()}
           </div>
 

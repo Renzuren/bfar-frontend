@@ -402,6 +402,8 @@ const FormFill = () => {
 
     for (const q of sectionQuestions) {
       if (q.type === 'profile_photo') continue;
+      if (isReservedField(q)) continue;
+      if (form?.has_baseline === false && isBeneficiaryQuestion(q)) continue;
       if (q.required) {
         const ans = answers[q.id];
         const isEmpty =
