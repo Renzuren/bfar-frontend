@@ -178,14 +178,23 @@ export const buildCombinedDataset = ({ beforeForm, beforeResponses = [], afterFo
   const beforeQs = normalizeLocationCodes(flattenQuestions(beforeForm));
   const afterQs = normalizeLocationCodes(flattenQuestions(afterForm));
 
-  // Union the questions from both forms, deduped by code (or title) so a
-  // copied questionnaire doesn't produce duplicate columns.
+  // Union the questions from both forms, deduped so a copied questionnaire
+  // doesn't produce duplicate columns. Two questions are only treated as the
+  // same column when BOTH their code and title match (or they're literally
+  // the same question object, shared by id, as with common items asked to
+  // both groups) -- Beneficiary and Non-Beneficiary questionnaires often
+  // reuse the same code (e.g. "K1"/"K01" normalize to the same code, or a
+  // literal same code like "J4a") for entirely different questions, and
+  // matching on code alone would silently merge their unrelated answers
+  // into one column.
   const qByUid = new Map();
   const orderedQs = [];
   [beforeQs, afterQs].forEach((qs) => {
     qs.forEach((q) => {
       if (!q || !q.id) return;
-      const uid = normalizeCode(q) || normalizeLabel(q.title);
+      const code = normalizeCode(q);
+      const title = normalizeLabel(q.title);
+      const uid = code && title ? `${code}::${title}` : (code || title || q.id);
       if (uid && !qByUid.has(uid)) {
         qByUid.set(uid, q);
         orderedQs.push(q);
