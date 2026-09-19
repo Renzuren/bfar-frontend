@@ -124,7 +124,8 @@ const getNumericAnswer = (answer, question) => {
     return idx !== -1 ? (idx + 1).toString() : answer;
   }
 
-  return answer;
+  // Preserve text answers for open-ended fields; don't strip or extract
+  return Array.isArray(answer) ? answer.join(', ') : answer;
 };
 
 // ==================== MAIN COMPONENT ====================
