@@ -182,7 +182,11 @@ const findOptionIndex = (question, stored) => {
 const normalizeForMatch = (question) => {
   const code = normalizeQuestionCode(question);
   const title = String(question?.title || '').toLowerCase().replace(/[\s_-]+/g, '');
-  return code || title || String(question?.id || '');
+  // Two questions are only the same column when BOTH code and title match --
+  // the Beneficiary and Non-Beneficiary questionnaires reuse the same codes
+  // (e.g. "K1"/"K01", or the literal same code "J4a") for entirely different
+  // questions, so matching on code alone merges unrelated answers together.
+  return code && title ? `${code}::${title}` : (code || title || String(question?.id || ''));
 };
 
 const mergeQuestionLists = (beforeQuestions, afterQuestions) => {
