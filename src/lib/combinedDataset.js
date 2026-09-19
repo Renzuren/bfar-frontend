@@ -106,11 +106,30 @@ const isYesNoQuestion = (question) => {
   return options.length > 0 && options.every((o) => ['oo', 'yes', 'true', 'meron', 'hindi', 'no', 'false', 'wala'].includes(o));
 };
 
+/**
+ * Extracts a numeric value from text that may contain currency symbols,
+ * comma thousand-separators, and/or trailing units/suffixes.
+ * Examples: "₱1,500" → 1500, "1500 pesos" → 1500, "42 years" → 42,
+ *           "1,500.00/month" → 1500, "N/A" → null.
+ */
+const extractNumeric = (text) => {
+  if (text === null || text === undefined || text === '') return null;
+  const cleaned = String(text)
+    .replace(/[₱$€£¥₩,%]/g, '')
+    .replace(/\s*(pesos?|php|ng|manila|months?|yrs?|years?|kg|kilos?|lbs?|g\b|units?|pcs?|pieces?|hours?|days?|items?|bags?|packs?)\b/gi, '')
+    .trim();
+  const n = Number(cleaned);
+  if (Number.isFinite(n)) return n;
+  return null;
+};
+
 const formatChoiceAnswer = (answer, q) => {
   if (isGeographicQuestion(q)) return String(answer).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
   if (isDateQuestion(q)) return cleanDate(answer);
   const text = String(answer ?? '').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
   if (/^-?\d+(\.\d+)?$/.test(text)) return text;
+  // Handle numbers with comma thousand-separators (e.g. "1,500" → "1500")
+  if (/^-?[\d,]+(\.\d+)?$/.test(text)) return text.replace(/,/g, '');
   const choiceTypes = ['multiple_choice', 'dropdown', 'radio', 'checkboxes', 'checkbox', 'single_choice', 'multi_select', 'select', 'choice', 'multiple_response', 'yes_no'];
   if (choiceTypes.includes(q.type) || (Array.isArray(q.options) && q.options.length)) {
     const normalized = text.toLowerCase();
@@ -125,7 +144,12 @@ const formatChoiceAnswer = (answer, q) => {
     const n = Number(answer);
     return Number.isFinite(n) ? String(n) : '';
   }
-  return '';
+  // Only extract numbers for numeric/currency question types; preserve full text otherwise
+  if (['number', 'currency'].includes(q.type)) {
+    const num = extractNumeric(text);
+    if (num !== null) return String(num);
+  }
+  return text;
 };
 
 const buildColumnModel = (questions) => {
