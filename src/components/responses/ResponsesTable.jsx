@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { normalizeLocationCodes, isReservedField, getQuestionLabel } from '../../lib/preprocessing';
 import { getAnswerForQuestion as resolveAnswerForQuestion } from '../../lib/answerResolver';
 import { buildCsv } from '../../lib/csv';
+import { resolveRespondentGroup, groupToYesNo } from '../../lib/respondentGroup';
 
 const isNoAnswer = (val) => val === null || val === undefined || val === '' || val === '--' || (Array.isArray(val) && val.length === 0);
 
@@ -162,30 +163,19 @@ const ResponsesTable = ({
       sections: source === 'before' ? beforeSections : afterSections,
     });
 
+  // Same rule as every other screen (see lib/respondentGroup.js).
   const getBeneficiaryStatus = (response) => {
-    const status = response.beneficiary_status;
-    if (status === true) return 'Yes';
-    if (status === false) return 'No';
-    if (status === 'Yes' || status === 'No') return status;
-    const rid = response.respondent_id || '';
-    if (/^B-/i.test(rid)) return 'Yes';
-    if (/^NB-/i.test(rid)) return 'No';
     const source = response._source;
     const form = source === 'before' ? beforeForm : afterForm;
-    if (form?.has_baseline === false && form?.questionnaire_type) {
-      return form.questionnaire_type === 'before' ? 'Yes' : 'No';
-    }
-    const allQs = (source === 'before' ? beforeSections : afterSections).flatMap(s => s.questions);
-    const beneQ = allQs.find(
-      q => String(q.code || '').trim().toUpperCase() === 'BENE' ||
-        String(q.title || '').toLowerCase().includes('beneficiary')
-    );
-    if (beneQ) {
-      const ans = getAnswerForQuestion(response, beneQ, source);
-      if (ans === 'Yes') return 'Yes';
-      if (ans === 'No') return 'No';
-    }
-    return source === 'before' ? 'Yes' : 'No';
+    const group = resolveRespondentGroup(response, form, () => {
+      const allQs = (source === 'before' ? beforeSections : afterSections).flatMap(s => s.questions);
+      const beneQ = allQs.find(
+        q => String(q.code || '').trim().toUpperCase() === 'BENE' ||
+          String(q.title || '').toLowerCase().includes('beneficiary')
+      );
+      return beneQ ? getAnswerForQuestion(response, beneQ, source) : null;
+    });
+    return groupToYesNo(group) || (source === 'before' ? 'Yes' : 'No');
   };
 
   const getResponseStatus = (response) => {

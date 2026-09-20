@@ -13,6 +13,7 @@ import { api } from '../lib/apiMiddleware';
 import { generateAssessmentHeaders, mapResponseToAssessmentColumns, normalizeLocationCodes, getQuestionLabel, isReservedField } from '../lib/preprocessing';
 import { getAnswerForQuestion } from '../lib/answerResolver';
 import { buildCsv } from '../lib/csv';
+import { resolveRespondentGroup, groupToYesNo } from '../lib/respondentGroup';
 
 // ==================== UTILITY FUNCTIONS ====================
 const isNoAnswer = (val) => !val || val === '' || val === '--' || (Array.isArray(val) && val.length === 0);
@@ -223,25 +224,13 @@ const FormResponses = ({ embedded = false }) => {
 
   const formatAnswerForTable = (ans) => isNoAnswer(ans) ? '—' : (Array.isArray(ans) ? ans.join(', ') : String(ans));
 
+  // Same rule as every other screen (see lib/respondentGroup.js), so a record is
+  // a Beneficiary here exactly when it is one in All Responses.
   const getBeneficiaryStatus = (response) => {
-    const status = response.beneficiary_status;
-    if (status === true) return 'Yes';
-    if (status === false) return 'No';
-    if (status === 'Yes' || status === 'No') return status;
-    const id = response.respondent_id || '';
-    if (/^B-/i.test(id)) return 'Yes';
-    if (/^NB-/i.test(id)) return 'No';
-    // No Baseline: derive from form's questionnaire_type
-    if (form?.has_baseline === false && form?.questionnaire_type) {
-      return form.questionnaire_type === 'before' ? 'Yes' : 'No';
-    }
-    const beneQuestion = sections.flatMap(s => s.questions).find(isBeneficiaryQuestion);
-    if (beneQuestion) {
-      const ans = getAnswerForQuestionWithSections(response, beneQuestion);
-      if (ans === 'Yes') return 'Yes';
-      if (ans === 'No') return 'No';
-    }
-    return null;
+    return groupToYesNo(resolveRespondentGroup(response, form, () => {
+      const beneQuestion = sections.flatMap(s => s.questions).find(isBeneficiaryQuestion);
+      return beneQuestion ? getAnswerForQuestionWithSections(response, beneQuestion) : null;
+    }));
   };
 
   useEffect(() => {

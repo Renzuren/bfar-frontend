@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import { normalizeLocationCodes, isReservedField, getQuestionLabel } from '../lib/preprocessing';
+import { resolveRespondentGroup, groupToYesNo } from '../lib/respondentGroup';
 
 // ==================== UTILITY FUNCTIONS ====================
 const isNoAnswer = (val) => !val || val === '' || val === '--' || (Array.isArray(val) && val.length === 0);
@@ -194,25 +195,12 @@ const FormProfiles = ({ embedded = false }) => {
 
   const formatAnswer = (ans) => isNoAnswer(ans) ? '—' : (Array.isArray(ans) ? ans.join(', ') : String(ans));
 
-  const getBeneficiaryStatus = (response) => {
-    const status = response.beneficiary_status;
-    if (status === true) return 'Yes';
-    if (status === false) return 'No';
-    if (status === 'Yes' || status === 'No') return status;
-    const rid = response.respondent_id || '';
-    if (/^B-/i.test(rid)) return 'Yes';
-    if (/^NB-/i.test(rid)) return 'No';
-    if (form?.has_baseline === false && form?.questionnaire_type) {
-      return form.questionnaire_type === 'before' ? 'Yes' : 'No';
-    }
-    const beneQuestion = demographicsQuestions.find(isBeneficiaryQuestion);
-    if (beneQuestion) {
-      const ans = getAnswerForQuestion(response, beneQuestion);
-      if (ans === 'Yes') return 'Yes';
-      if (ans === 'No') return 'No';
-    }
-    return null;
-  };
+  // Same rule as every other screen (see lib/respondentGroup.js).
+  const getBeneficiaryStatus = (response) =>
+    groupToYesNo(resolveRespondentGroup(response, form, () => {
+      const beneQuestion = demographicsQuestions.find(isBeneficiaryQuestion);
+      return beneQuestion ? getAnswerForQuestion(response, beneQuestion) : null;
+    }));
 
   const getRespondentId = (response) => response.respondent_id || response.id || '—';
 
