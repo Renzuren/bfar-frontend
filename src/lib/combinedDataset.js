@@ -118,23 +118,30 @@ const extractNumeric = (text) => {
     .replace(/[₱$€£¥₩,%]/g, '')
     .replace(/\s*(pesos?|php|ng|manila|months?|yrs?|years?|kg|kilos?|lbs?|g\b|units?|pcs?|pieces?|hours?|days?|items?|bags?|packs?)\b/gi, '')
     .trim();
+  // Unit-only text such as "kg" or "pesos" is empty once the unit is stripped,
+  // and Number('') is 0 -- require a digit so it isn't read as a real zero.
+  if (!/\d/.test(cleaned)) return null;
   const n = Number(cleaned);
   if (Number.isFinite(n)) return n;
   return null;
 };
 
+const YES_NO_TOKENS = { oo: '1', yes: '1', true: '1', meron: '1', hindi: '0', no: '0', false: '0', wala: '0' };
+
+const CHOICE_TYPES = ['multiple_choice', 'dropdown', 'radio', 'checkboxes', 'checkbox', 'single_choice', 'multi_select', 'select', 'choice', 'multiple_response', 'yes_no'];
+const isChoiceQuestion = (q) => CHOICE_TYPES.includes(q?.type) || (Array.isArray(q?.options) && q.options.length > 0);
+
 const formatChoiceAnswer = (answer, q) => {
   if (isGeographicQuestion(q)) return String(answer).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
-  if (isDateQuestion(q)) return cleanDate(answer);
+  // A choice question is option-coded even when a word like "update" or "date" appears in its title.
+  if (isDateQuestion(q) && !isChoiceQuestion(q)) return cleanDate(answer);
   const text = String(answer ?? '').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
   if (/^-?\d+(\.\d+)?$/.test(text)) return text;
   // Handle numbers with comma thousand-separators (e.g. "1,500" → "1500")
   if (/^-?[\d,]+(\.\d+)?$/.test(text)) return text.replace(/,/g, '');
-  const choiceTypes = ['multiple_choice', 'dropdown', 'radio', 'checkboxes', 'checkbox', 'single_choice', 'multi_select', 'select', 'choice', 'multiple_response', 'yes_no'];
-  if (choiceTypes.includes(q.type) || (Array.isArray(q.options) && q.options.length)) {
+  if (isChoiceQuestion(q)) {
     const normalized = text.toLowerCase();
-    const yesNo = { oo: '1', yes: '1', true: '1', meron: '1', hindi: '0', no: '0', false: '0', wala: '0' };
-    if (isYesNoQuestion(q) && Object.prototype.hasOwnProperty.call(yesNo, normalized)) return yesNo[normalized];
+    if (isYesNoQuestion(q) && Object.prototype.hasOwnProperty.call(YES_NO_TOKENS, normalized)) return YES_NO_TOKENS[normalized];
     const idx = (q.options || []).findIndex((option) =>
       String(optionText(option)).trim().toLowerCase() === normalized
     );
@@ -150,6 +157,70 @@ const formatChoiceAnswer = (answer, q) => {
     if (num !== null) return String(num);
   }
   return text;
+};
+
+/**
+ * Strict numeric form of formatChoiceAnswer, used by the All Responses CSV
+ * export. It applies the same option-index / yes-no / rating / number rules as
+ * the analysis dataset, but every result is a number: an answer with no numeric
+ * code (free text, a label that matches no option) is '' instead of raw text.
+ *   choice       -> 1-based option index (yes/no -> 1/0)
+ *   multi-select -> comma-separated option indexes, e.g. "1,3"
+ *   date         -> YYYY/MM/DD, e.g. 1986/10/07 (the one non-numeric exception)
+ *   number       -> the number, e.g. "₱1,500" -> 1500
+ */
+export const encodeAnswerNumeric = (answer, q) => {
+  if (answer === null || answer === undefined || answer === '') return '';
+  if (Array.isArray(answer)) {
+    return answer.map((item) => encodeAnswerNumeric(item, q)).filter(Boolean).join(',');
+  }
+  if (isDateQuestion(q) && !isChoiceQuestion(q)) return cleanDate(answer).replace(/-/g, '/');
+  const encoded = formatChoiceAnswer(answer, q);
+  if (/^-?\d+(\.\d+)?$/.test(encoded)) return encoded;
+  // Only a non-choice answer can still be numeric here (e.g. "₱1,500", "40 years").
+  if (isChoiceQuestion(q)) return '';
+  const num = extractNumeric(encoded);
+  return num === null ? '' : String(num);
+};
+
+/**
+ * True for free-form text questions: no option list, and not a date, number or
+ * rating. Only these can hold categorical answers (e.g. "Raw materials") that
+ * have no option index and so need buildTextCodebook.
+ */
+export const isTextQuestion = (q) =>
+  !isChoiceQuestion(q) && !isDateQuestion(q) && !['rating', 'number', 'currency'].includes(q?.type);
+
+/** Case/whitespace-insensitive key that identifies one distinct text answer. */
+export const textCodeKey = (text) => String(text ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+// A column is only auto-coded when it looks categorical: few distinct answers,
+// and answers that repeat (a column of one-off sentences or names is free text).
+const MAX_TEXT_CATEGORIES = 20;
+
+/**
+ * Builds a numeric codebook for one column of text answers, for columns whose
+ * questions have no option list to take codes from.
+ *   - every answer a yes/no token (Oo/Hindi, Yes/No) -> 1/0, as in analysis
+ *   - otherwise, categorical answers -> 1..n in alphabetical order
+ *   - free text (too many distinct answers, or answers rarely repeat) -> null
+ * Pass the text of every response (not just the visible ones) so the codes do
+ * not change with filters. Returns a Map of textCodeKey(text) -> code, or null.
+ */
+export const buildTextCodebook = (texts) => {
+  const counts = new Map();
+  texts.forEach((text) => {
+    const key = textCodeKey(text);
+    if (key) counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  const keys = [...counts.keys()];
+  if (!keys.length) return null;
+  if (keys.every((key) => Object.prototype.hasOwnProperty.call(YES_NO_TOKENS, key))) {
+    return new Map(keys.map((key) => [key, YES_NO_TOKENS[key]]));
+  }
+  const total = [...counts.values()].reduce((sum, n) => sum + n, 0);
+  if (keys.length > MAX_TEXT_CATEGORIES || keys.length * 2 > total) return null;
+  return new Map(keys.sort().map((key, i) => [key, String(i + 1)]));
 };
 
 const buildColumnModel = (questions) => {

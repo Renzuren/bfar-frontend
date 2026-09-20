@@ -15,6 +15,8 @@ import { api } from '../lib/apiMiddleware';
 import { isReservedField, normalizeLocationCodes, normalizeQuestionCode, getQuestionLabel } from '../lib/preprocessing';
 import { getAnswerForQuestion } from '../lib/answerResolver';
 import { buildCsv } from '../lib/csv';
+import { buildTextCodebook, encodeAnswerNumeric, isTextQuestion, textCodeKey } from '../lib/combinedDataset';
+import { resolveRespondentGroup, groupCode } from '../lib/respondentGroup';
 
 const COLORS = ['#0d9488', '#d97706', '#2563eb', '#7c3aed', '#dc2626', '#0891b2'];
 const isEmpty = (value) => value === null || value === undefined || value === '' || value === '--' || (Array.isArray(value) && value.length === 0);
@@ -27,14 +29,34 @@ const responseList = (payload) => {
   return [];
 };
 
+// Same endpoint the Beneficiary / Non-Beneficiary "View Responses" pages use. There
+// is deliberately no fallback to /forms/public/:id/responses: that endpoint returns
+// only id / status / date (no answers, name or location), so falling back to it
+// silently showed a different, mostly blank copy of the data.
 const fetchResponses = async (formId) => {
   if (!formId) return [];
-  try {
-    return responseList((await api.get(`/forms/${formId}/responses`)).data);
-  } catch {
-    return responseList((await api.get(`/forms/public/${formId}/responses`)).data);
-  }
+  return responseList((await api.get(`/forms/${formId}/responses`)).data);
 };
+
+// The backend returns responses newest-first, so on its own the table and CSV would
+// start at the latest id (e.g. B-0150). Order by respondent number instead so they
+// start at B-0001; records with no number keep their submission order after that.
+const respondentNumber = (response) => {
+  const match = String(response?.respondent_id || '').match(/(\d+)\s*$/);
+  return match ? Number(match[1]) : Infinity;
+};
+const submittedSeconds = (response) => {
+  const value = response?.submitted_at;
+  if (value && typeof value === 'object') return value._seconds ?? value.seconds ?? 0;
+  const time = Date.parse(value);
+  return Number.isNaN(time) ? 0 : time / 1000;
+};
+const byRespondentNumber = (a, b) =>
+  (respondentNumber(a) - respondentNumber(b)) || (submittedSeconds(a) - submittedSeconds(b));
+
+const isBeneficiaryQuestion = (question) =>
+  String(question?.code || '').trim().toUpperCase() === 'BENE' ||
+  String(question?.title || '').toLowerCase().includes('beneficiary');
 
 const sectionsFor = (form) => {
   if (!form) return [];
@@ -131,24 +153,6 @@ const cleanHeaderPart = (value) => String(value || '')
   .replace(/[^A-Z0-9]+/g, '_')
   .replace(/^_+|_+$/g, '');
 
-const cleanText = (value) => String(value)
-  .replace(/[\r\n]+/g, ' ')
-  .replace(/\s+/g, ' ')
-  .trim();
-
-const isoDate = (value) => {
-  const text = cleanText(value);
-  const dayFirst = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (dayFirst) return `${dayFirst[3]}-${dayFirst[2].padStart(2, '0')}-${dayFirst[1].padStart(2, '0')}`;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return text;
-  return date.toISOString().slice(0, 10);
-};
-
-const isDateQuestion = (question) => /date|birth|dob|petsa|kapanganakan/i.test(`${question.type || ''} ${question.code || ''} ${question.title || ''}`);
-const choiceTypes = new Set(['multiple_choice', 'dropdown', 'checkboxes', 'radio', 'checkbox', 'single_choice', 'multi_select', 'select', 'choice', 'multiple_response', 'yes_no']);
-const isChoiceQuestion = (question) =>
-  choiceTypes.has(question?.type) || (Array.isArray(question?.options) && question.options.length > 0);
 const optionText = (option) => {
   if (option && typeof option === 'object') return option.label ?? option.value ?? option.title ?? option.text ?? option.name ?? option.choice ?? '';
   return option;
@@ -159,25 +163,6 @@ const normalizeText = (value) => String(value ?? '')
   .replace(/[\u0300-\u036f]/g, '')
   .replace(/[\s]+/g, ' ')
   .trim();
-
-const findOptionIndex = (question, stored) => {
-  const options = question?.options || [];
-  if (!options.length) return -1;
-  const target = normalizeText(stored);
-  if (!target) return -1;
-  const exact = options.findIndex((option) => normalizeText(optionText(option)) === target);
-  if (exact !== -1) return exact;
-  const candidates = [];
-  options.forEach((option, index) => {
-    const n = normalizeText(optionText(option));
-    if (!n) return;
-    const prefixHit = n.startsWith(target) || (target.startsWith(n) && n.length > 1);
-    const containsHit = target.length >= 3 && (n.includes(target) || target.includes(n));
-    if (prefixHit || containsHit) candidates.push(index);
-  });
-  if (candidates.length === 1) return candidates[0];
-  return -1;
-};
 
 const normalizeForMatch = (question) => {
   const code = normalizeQuestionCode(question);
@@ -240,69 +225,7 @@ const unwrapAnswer = (item) => {
   return item;
 };
 
-const yesNoToken = (value) => {
-  const lower = normalizeText(value);
-  if (/^(meron|yes|true|oo)$/.test(lower)) return '1';
-  if (/^(wala|no|false|hindi)$/.test(lower)) return '0';
-  return null;
-};
-
-const isYesNoQuestion = (question) => {
-  if (!question) return false;
-  if (question.type === 'yes_no') return true;
-  const opts = (question.options || []).map((o) => normalizeText(optionText(o))).filter(Boolean);
-  return opts.length > 0 && opts.every((o) => ['oo', 'yes', 'true', 'meron', 'hindi', 'no', 'false', 'wala'].includes(o));
-};
-
-const normalizeAnswer = (value, question) => {
-  if (isEmpty(value)) return '';
-  const v = unwrapAnswer(value);
-  if (isDateQuestion(question)) {
-    const text = cleanText(Array.isArray(v) ? v[0] : v);
-    return isEmpty(text) ? '' : isoDate(text);
-  }
-  const textOf = (item) => cleanText(unwrapAnswer(item));
-  if (question?.type === 'yes_no') {
-    const whole = textOf(Array.isArray(v) ? v[0] : v);
-    if (!whole) return '';
-    if (/^-?\d+(\.\d+)?$/.test(whole)) return whole;
-    return yesNoToken(whole) ?? whole;
-  }
-  if (!isChoiceQuestion(question)) {
-    return Array.isArray(v)
-      ? v.map((item) => textOf(item)).filter(Boolean).join(', ')
-      : textOf(v);
-  }
-  if (!Array.isArray(v)) {
-    const whole = textOf(v);
-    if (!whole) return '';
-    if (/^-?\d+(\.\d+)?$/.test(whole)) return whole;
-    if (isYesNoQuestion(question)) return yesNoToken(whole) ?? whole;
-    const wholeOptions = question?.options || [];
-    const wholeExact = wholeOptions.findIndex((option) => normalizeText(optionText(option)) === normalizeText(whole));
-    if (wholeExact !== -1) return String(wholeExact + 1);
-    return whole.split(/[,;|]/).map((s) => s.trim()).filter(Boolean).map((text) => convertChoiceToken(text, question)).join(',');
-  }
-  return v.map((item) => convertChoiceToken(textOf(item), question)).filter(Boolean).join(',');
-};
-
-const convertChoiceToken = (text, question) => {
-  if (!text) return '';
-  if (/^-?\d+(\.\d+)?$/.test(text)) return text;
-  if (isYesNoQuestion(question)) {
-    return yesNoToken(text) ?? text;
-  }
-  const optionIndex = findOptionIndex(question, text);
-  if (optionIndex !== -1) return String(optionIndex + 1);
-  const lower = normalizeText(text);
-  if (/^(meron|yes|true|oo)$/.test(lower)) return '1';
-  if (/^(wala|no|false|hindi)$/.test(lower)) return '0';
-  return text;
-};
-
-const exportValue = (value, question) => {
-  return normalizeAnswer(value, question);
-};
+const unwrapValue = (value) => (Array.isArray(value) ? value.map(unwrapAnswer) : unwrapAnswer(value));
 
 const exportQuestionHeader = (question, index) => {
   const code = cleanHeaderPart(question.code || normalizeQuestionCode(question));
@@ -347,8 +270,8 @@ const ResponsesTabRebuilt = () => {
         setBeforeForm(beforeFormResult.data);
         setAfterForm(afterFormResult.data);
         // Deliberately concatenate. There is no respondent-id deduplication.
-        setBeforeResponses(beforeList.map((response, index) => ({ ...response, _source: 'before', _rowKey: `before-${response.id || index}` })));
-        setAfterResponses(afterList.map((response, index) => ({ ...response, _source: 'after', _rowKey: `after-${response.id || index}` })));
+        setBeforeResponses([...beforeList].sort(byRespondentNumber).map((response, index) => ({ ...response, _source: 'before', _rowKey: `before-${response.id || index}` })));
+        setAfterResponses([...afterList].sort(byRespondentNumber).map((response, index) => ({ ...response, _source: 'after', _rowKey: `after-${response.id || index}` })));
       } catch {
         toast.error('Failed to load responses');
       } finally {
@@ -374,11 +297,6 @@ const ResponsesTabRebuilt = () => {
   ], [beforeResponses, afterResponses, beforeSections, afterSections]);
 
   const answer = (row, question) => answerFromAnyShape(row.response, question, row.sections);
-  const rowQuestionFor = (row, mergedQuestion) => {
-    const key = normalizeForMatch(mergedQuestion);
-    const candidates = row.sections.flatMap((section) => section.questions || []);
-    return candidates.find((q) => normalizeForMatch(q) === key) || mergedQuestion;
-  };
   const location = (row, field) => {
     if (!isEmpty(row.response[field])) return display(row.response[field]);
     const questions = [...(row.source === 'before' ? beforeDemo : afterDemo), ...(row.source === 'before' ? beforeQuestions : afterQuestions)];
@@ -390,50 +308,21 @@ const ResponsesTabRebuilt = () => {
   };
   const name = (row) => row.response.full_name || row.response.name || '—';
 
-  const groupOf = (row) => {
-    const response = row.response;
-    const status = response?.beneficiary_status;
-    if (typeof status === 'string') {
-      if (/^yes$|^true$|^1$|^beneficiar/i.test(status.trim())) return '1';
-      if (/^no$|^false$|^0$|^non[- ]?beneficiar|^nonbeneficiar/i.test(status.trim())) return '0';
-    }
-    if (status === true) return '1';
-    if (status === false) return '0';
-    const id = String(response?.respondent_id || response?.id || '');
-    if (/^B-?/i.test(id)) return '1';
-    if (/^NB-?/i.test(id)) return '0';
-    return '';
-  };
+  // Group code for the GROUP column / export: Beneficiary = 1, Non-Beneficiary = 0.
+  // Same rule as every other screen (see lib/respondentGroup.js).
+  const groupOf = (row) => groupCode(resolveRespondentGroup(
+    row.response,
+    row.source === 'before' ? beforeForm : afterForm,
+    () => {
+      const beneQuestion = row.sections.flatMap((section) => section.questions || []).find(isBeneficiaryQuestion);
+      return beneQuestion ? answer(row, beneQuestion) : null;
+    },
+  ));
 
-  // Derive sequential display IDs from the group:
-  //   group "1" -> B-1, B-2, B-3 ...    (Beneficiary)
-  //   group "0" -> NB-1, NB-2, NB-3 ... (Non-Beneficiary)
-  // Uses the response _rowKey so the same row always gets the same ID,
-  // even across filtering / pagination / tab switches.
-  const respondentIdMap = useMemo(() => {
-    const counters = { '1': 0, '0': 0 };
-    const map = new Map();
-    rows.forEach((row) => {
-      const key = row.response._rowKey;
-      if (!key) return;
-      const group = groupOf(row);
-      if (group === '1') {
-        counters['1'] += 1;
-        map.set(key, `B-${counters['1']}`);
-      } else if (group === '0') {
-        counters['0'] += 1;
-        map.set(key, `NB-${counters['0']}`);
-      } else {
-        // Unknown group: keep whatever the response actually has.
-        map.set(key, row.response.respondent_id || row.response.id || '—');
-      }
-    });
-    return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows]);
-
-  const respondentId = (row) =>
-    respondentIdMap.get(row.response._rowKey) || row.response.respondent_id || row.response.id || '—';
+  // The stored respondent id (e.g. "B-0001"), exactly as the Beneficiary /
+  // Non-Beneficiary "View Responses" pages show it. It used to be renumbered by
+  // row position (B-1, B-2, ...), so the same record had a different id here.
+  const respondentId = (row) => row.response.respondent_id || row.response.id || '—';
 
   const filtered = useMemo(() => rows.filter((row) => {
     if (source !== 'all' && row.source !== source) return false;
@@ -442,7 +331,7 @@ const ResponsesTabRebuilt = () => {
     const text = [respondentId(row), name(row), location(row, 'municipality'), location(row, 'barangay'), location(row, 'province')].join(' ').toLowerCase();
     return text.includes(query.trim().toLowerCase());
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [rows, source, municipality, query, respondentIdMap]);
+  }), [rows, source, municipality, query]);
 
   useEffect(() => { setPage(1); }, [source, municipality, query, tab]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -478,6 +367,35 @@ const ResponsesTabRebuilt = () => {
       return { header, question, beforeQ, afterQ };
     });
 
+    // Encode every response once, not just the filtered ones: text answers with no
+    // option to take a code from are numbered per column (below) across ALL
+    // responses, so the codes do not change with the search/filter in view.
+    const encoded = new Map(rows.map((row) => [row, columns.map(({ beforeQ, afterQ }) => {
+      // Read each answer from the row's OWN form. The two questionnaires reuse
+      // some question ids (J1-J4a) for different questions, so looking up a
+      // column the row's form never asked would pull in another question's answer.
+      const ownQuestion = row.source === 'before' ? beforeQ : afterQ;
+      if (!ownQuestion) return { code: '', text: '' };
+      // One canonical option list per column, so a label gets the same numeric
+      // code whichever group answered it.
+      const codingQuestion = { ...ownQuestion, options: unionOptions(beforeQ?.options, afterQ?.options) };
+      const value = unwrapValue(answer(row, ownQuestion));
+      const code = encodeAnswerNumeric(value, codingQuestion);
+      if (code !== '' || !isTextQuestion(codingQuestion)) return { code, text: '' };
+      return { code, text: isEmpty(value) ? '' : display(value) };
+    })]));
+
+    // A column that has any numeric answer is a numeric column: leave its stray
+    // text blank rather than give it a code that could collide with real values.
+    const codebooks = columns.map((_, c) => {
+      const cells = rows.map((row) => encoded.get(row)[c]);
+      return cells.some((cell) => cell.code !== '') ? null : buildTextCodebook(cells.map((cell) => cell.text));
+    });
+    const exportCell = ({ code, text }, c) => {
+      if (code !== '' || !text || !codebooks[c]) return code;
+      return codebooks[c].get(textCodeKey(text)) ?? '';
+    };
+
     const headers = ['RESPONSE', 'GROUP', 'Municipality', 'Barangay', 'Province', ...columns.map(({ header }) => header)];
     const csvRows = filtered.map((row) => [
       respondentId(row),
@@ -485,15 +403,7 @@ const ResponsesTabRebuilt = () => {
       location(row, 'municipality'),
       location(row, 'barangay'),
       location(row, 'province'),
-      ...columns.map(({ question, beforeQ, afterQ }) => {
-        const rowQuestion = rowQuestionFor(row, question);
-        const siblingQuestion = row.source === 'before' ? afterQ : beforeQ;
-        const unionQuestion = {
-          ...rowQuestion,
-          options: unionOptions(rowQuestion?.options, siblingQuestion?.options),
-        };
-        return exportValue(answer(row, question), unionQuestion);
-      }),
+      ...encoded.get(row).map(exportCell),
     ]);
     const csv = buildCsv([headers, ...csvRows]);
     const link = document.createElement('a');
@@ -519,8 +429,8 @@ const ResponsesTabRebuilt = () => {
       </section>
 
       {tab === 'demographics' && <section className="grid gap-4 lg:grid-cols-2"><ChartPanel title={`${labels.before} demographic distribution`} data={beforeChart} color="#0d9488" /><ChartPanel title={`${labels.after} demographic distribution`} data={afterChart} color="#d97706" /></section>}
-      {tab === 'demographics' && <ResponseTable rows={visibleRows} questions={source === 'before' ? beforeDemo.map((question) => ({ question, source: 'before' })) : source === 'after' ? afterDemo.map((question) => ({ question, source: 'after' })) : mergedDemoCols.map(({ question }) => ({ question, source: 'merged' }))} answer={answer} location={location} name={name} respondentId={respondentId} groupOf={groupOf} tabLabels={labels} />}
-      {tab === 'all' && <ResponseTable rows={visibleRows} questions={source === 'before' ? beforeQuestions.map((question) => ({ question, source: 'before' })) : source === 'after' ? afterQuestions.map((question) => ({ question, source: 'after' })) : mergedQuestionCols.map(({ question }) => ({ question, source: 'merged' }))} answer={answer} location={location} name={name} respondentId={respondentId} groupOf={groupOf} tabLabels={labels} />}
+      {tab === 'demographics' && <ResponseTable rows={visibleRows} questions={source === 'before' ? beforeDemo.map((question) => ({ question, source: 'before' })) : source === 'after' ? afterDemo.map((question) => ({ question, source: 'after' })) : mergedDemoCols.map(({ question, beforeQ, afterQ }) => ({ question, beforeQ, afterQ, source: 'merged' }))} answer={answer} location={location} name={name} respondentId={respondentId} groupOf={groupOf} tabLabels={labels} />}
+      {tab === 'all' && <ResponseTable rows={visibleRows} questions={source === 'before' ? beforeQuestions.map((question) => ({ question, source: 'before' })) : source === 'after' ? afterQuestions.map((question) => ({ question, source: 'after' })) : mergedQuestionCols.map(({ question, beforeQ, afterQ }) => ({ question, beforeQ, afterQ, source: 'merged' }))} answer={answer} location={location} name={name} respondentId={respondentId} groupOf={groupOf} tabLabels={labels} />}
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-white px-5 py-4 text-sm text-slate-500 shadow-sm"><div className="flex items-center gap-2">Rows per page <Select value={String(pageSize)} onValueChange={(value) => { setPageSize(Number(value)); setPage(1); }}><SelectTrigger className="h-8 w-16"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="10">10</SelectItem><SelectItem value="25">25</SelectItem><SelectItem value="50">50</SelectItem></SelectContent></Select></div><span>Showing {filtered.length ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}</span><div className="flex gap-1"><button disabled={page === 1} onClick={() => setPage(page - 1)} className="rounded-lg border p-2 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button><button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="rounded-lg border p-2 disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button></div></div>
       {rows.length === 0 && <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center"><Inbox className="mx-auto mb-3 h-10 w-10 text-slate-300" /><p className="font-semibold text-slate-700">No responses yet</p><Button className="mt-4" onClick={() => navigate(`/projects/${projectId}/create-questionnaire`)}>Create Questionnaire</Button></div>}
@@ -530,6 +440,17 @@ const ResponsesTabRebuilt = () => {
 
 const ChartPanel = ({ title, data, color }) => <div className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm"><div className="mb-3 flex items-center gap-2"><BarChart3 className="h-4 w-4" style={{ color }} /><h3 className="font-semibold text-slate-800">{title}</h3></div>{data.length ? <ResponsiveContainer width="100%" height={230}><BarChart data={data} margin={{ left: 0, right: 8, bottom: 24 }}><CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" /><XAxis dataKey="label" angle={-25} textAnchor="end" height={55} tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="count" fill={color} radius={[5, 5, 0, 0]} /></BarChart></ResponsiveContainer> : <div className="flex h-[230px] items-center justify-center text-sm text-slate-400">No chartable demographic answers</div>}</div>;
 
-const ResponseTable = ({ rows, questions, answer, location, name, respondentId, groupOf, tabLabels }) => <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm"><div className="overflow-x-auto"><table className="min-w-full divide-y divide-slate-200"><thead><tr className="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500"><th className="whitespace-nowrap px-5 py-3">Submitted</th><th className="px-5 py-3">Source</th><th className="px-5 py-3">GROUP</th><th className="px-5 py-3">Respondent ID</th><th className="px-5 py-3">Name</th><th className="px-5 py-3">Municipality</th><th className="px-5 py-3">Barangay</th><th className="px-5 py-3">Province</th>{questions.map(({ question, source }) => <th key={`${source}-${question.id}`} className="min-w-36 whitespace-nowrap bg-slate-100 px-5 py-3">{source === 'merged' ? getQuestionLabel(question) : `${source === 'before' ? tabLabels.before : tabLabels.after} · ${getQuestionLabel(question)}`}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{rows.map((row, index) => <tr key={row.response._rowKey || `${row.source}-${index}`} className="hover:bg-cyan-50/30"><td className="whitespace-nowrap px-5 py-4 text-sm text-slate-500">{dateText(row.response.submitted_at)}</td><td className="px-5 py-4"><Pill tone={row.source === 'before' ? 'emerald' : 'amber'}>{row.source === 'before' ? tabLabels.before : tabLabels.after}</Pill></td><td className="whitespace-nowrap px-5 py-4 text-sm font-semibold text-slate-900">{groupOf(row)}</td><td className="whitespace-nowrap px-5 py-4 text-sm font-semibold text-slate-900">{respondentId(row)}</td><td className="whitespace-nowrap px-5 py-4 text-sm font-medium text-slate-800">{name(row)}</td><td className="whitespace-nowrap px-5 py-4 text-sm text-slate-600">{location(row, 'municipality')}</td><td className="whitespace-nowrap px-5 py-4 text-sm text-slate-600">{location(row, 'barangay')}</td><td className="whitespace-nowrap px-5 py-4 text-sm text-slate-600">{location(row, 'province')}</td>{questions.map(({ question, source }) => <td key={`${source}-${question.id}`} className="max-w-48 truncate px-5 py-4 text-sm text-slate-600">{source === 'merged' ? display(answer(row, question)) : row.source === source ? display(answer(row, question)) : '—'}</td>)}</tr>)}</tbody></table></div>{!rows.length && <div className="py-14 text-center text-sm text-slate-400">No matching responses</div>}</div>;
+// The value shown in one cell. A merged column stands for one question in the Beneficiary
+// form and/or one in the Non-Beneficiary form, so each row is read with ITS OWN form's
+// question -- and left empty when its form never asked it. (The two forms reuse some
+// question ids, e.g. J1-J4a, for different questions, so reading a row with the other
+// form's question showed that question's answer in the wrong column.)
+const cellFor = (row, { question, beforeQ, afterQ, source }, answer) => {
+  if (source !== 'merged') return row.source === source ? display(answer(row, question)) : '—';
+  const own = row.source === 'before' ? beforeQ : afterQ;
+  return own ? display(answer(row, own)) : '—';
+};
+
+const ResponseTable = ({ rows, questions, answer, location, name, respondentId, groupOf, tabLabels }) => <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm"><div className="overflow-x-auto"><table className="min-w-full divide-y divide-slate-200"><thead><tr className="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500"><th className="whitespace-nowrap px-5 py-3">Submitted</th><th className="px-5 py-3">Source</th><th className="px-5 py-3">GROUP</th><th className="px-5 py-3">Respondent ID</th><th className="px-5 py-3">Name</th><th className="px-5 py-3">Municipality</th><th className="px-5 py-3">Barangay</th><th className="px-5 py-3">Province</th>{questions.map(({ question, source }) => <th key={`${source}-${question.id}`} className="min-w-36 whitespace-nowrap bg-slate-100 px-5 py-3">{source === 'merged' ? getQuestionLabel(question) : `${source === 'before' ? tabLabels.before : tabLabels.after} · ${getQuestionLabel(question)}`}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{rows.map((row, index) => <tr key={row.response._rowKey || `${row.source}-${index}`} className="hover:bg-cyan-50/30"><td className="whitespace-nowrap px-5 py-4 text-sm text-slate-500">{dateText(row.response.submitted_at)}</td><td className="px-5 py-4"><Pill tone={row.source === 'before' ? 'emerald' : 'amber'}>{row.source === 'before' ? tabLabels.before : tabLabels.after}</Pill></td><td className="whitespace-nowrap px-5 py-4 text-sm font-semibold text-slate-900">{groupOf(row)}</td><td className="whitespace-nowrap px-5 py-4 text-sm font-semibold text-slate-900">{respondentId(row)}</td><td className="whitespace-nowrap px-5 py-4 text-sm font-medium text-slate-800">{name(row)}</td><td className="whitespace-nowrap px-5 py-4 text-sm text-slate-600">{location(row, 'municipality')}</td><td className="whitespace-nowrap px-5 py-4 text-sm text-slate-600">{location(row, 'barangay')}</td><td className="whitespace-nowrap px-5 py-4 text-sm text-slate-600">{location(row, 'province')}</td>{questions.map(({ question, beforeQ, afterQ, source }) => <td key={`${source}-${question.id}`} className="max-w-48 truncate px-5 py-4 text-sm text-slate-600">{cellFor(row, { question, beforeQ, afterQ, source }, answer)}</td>)}</tr>)}</tbody></table></div>{!rows.length && <div className="py-14 text-center text-sm text-slate-400">No matching responses</div>}</div>;
 
 export default ResponsesTabRebuilt;
