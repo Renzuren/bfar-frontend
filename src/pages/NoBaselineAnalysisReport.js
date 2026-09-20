@@ -62,7 +62,7 @@ const NoBaselineAnalysisReport = () => {
   const ranRef = useRef(false);
 
   // ---------- Configuration ----------
-  const [treatmentColumn] = useState('Status');
+  const [treatmentColumn, setTreatmentColumn] = useState('Status');
   const [outcomeColumn, setOutcomeColumn] = useState('');
   const [includeFeatures, setIncludeFeatures] = useState('');
   const [caliperRatio, setCaliperRatio] = useState(0.2);
@@ -181,10 +181,13 @@ const NoBaselineAnalysisReport = () => {
       // "Beneficiary"/"Non-Beneficiary" would make it pick Non-Beneficiary.
       // Send a numeric 0/1 encoding instead (Beneficiary = treated = 1) so
       // the treated/control direction is correct for everything downstream.
-      const apiRows = dataset.rows.map((row) => ({
-        ...row,
-        Status: isBeneficiary(row.Status) ? '1' : '0',
-      }));
+      const apiRows = dataset.rows.map((row) => {
+        const encoded = { ...row };
+        if (treatmentColumn === 'Status') {
+          encoded.Status = isBeneficiary(row.Status) ? '1' : '0';
+        }
+        return encoded;
+      });
       const csvString = buildCSVString(dataset.columns, apiRows);
       const blob = new Blob([csvString], { type: 'text/csv' });
       const fileToSend = new File([blob], 'combined-responses.csv', { type: 'text/csv' });
@@ -432,7 +435,16 @@ const NoBaselineAnalysisReport = () => {
                   <Label className="mb-1.5 block text-xs font-medium text-slate-500">
                     Group / Treatment Column
                   </Label>
-                  <Input value="Status" readOnly className="h-10 text-sm bg-white" />
+                  <Select value={treatmentColumn} onValueChange={setTreatmentColumn}>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="Auto-detect" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dataset.columns.map((col) => (
+                        <SelectItem key={col} value={col} className="text-sm">{col}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label className="mb-1.5 block text-xs font-medium text-slate-500">

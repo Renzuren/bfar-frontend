@@ -31,7 +31,11 @@
 
 export const toNumLoose = (v) => {
   if (v === null || v === undefined || v === '') return null;
-  const n = Number(String(v).replace(/[₱,$\s]|php|pesos/gi, ''));
+  const cleaned = String(v)
+    .replace(/[₱$€£¥₩,%]/g, '')
+    .replace(/\s*(pesos?|php|ng|manila|months?|yrs?|years?|kg|kilos?|lbs?|g\b|units?|pcs?|pieces?|hours?|days?|items?|bags?|packs?)\b/gi, '')
+    .trim();
+  const n = Number(cleaned);
   return Number.isFinite(n) ? n : null;
 };
 

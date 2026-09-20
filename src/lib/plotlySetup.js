@@ -21,11 +21,16 @@ export const Plot = ({ data = [], layout = {}, config = {} }) => {
     const el = ref.current;
     if (!el) return undefined;
     PlotlyCore.react(el, data, { autosize: true, ...layout }, { ...BASE_CONFIG, ...config });
+    let rafId = 0;
     const ro = new ResizeObserver(() => {
-      if (el.parentNode) PlotlyCore.Plots.resize(el);
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        if (el.parentNode) PlotlyCore.Plots.resize(el);
+      });
     });
     ro.observe(el);
     return () => {
+      cancelAnimationFrame(rafId);
       ro.disconnect();
       PlotlyCore.purge(el);
     };
