@@ -45,7 +45,7 @@ const MLUpload = () => {
   // Treatment, outcome, feature filter, and caliper
   const [treatmentColumn, setTreatmentColumn] = useState('');
   const [outcomeColumn, setOutcomeColumn] = useState('');
-  const [includeFeatures, setIncludeFeatures] = useState('');
+  const [excludeFeatures, setExcludeFeatures] = useState('');
   const [caliperRatio, setCaliperRatio] = useState(0.2);   // <-- NEW
 
   const scrollPositionRef = useRef(0);
@@ -267,7 +267,7 @@ const MLUpload = () => {
       formData.append('file', fileToSend);
       if (treatmentColumn) formData.append('treatment_column', treatmentColumn);
       if (outcomeColumn) formData.append('outcome_column', outcomeColumn);
-      if (includeFeatures.trim()) formData.append('include_features', includeFeatures.trim());
+      if (excludeFeatures.trim()) formData.append('exclude_features', excludeFeatures.trim());
       formData.append('caliper_ratio', String(caliperRatio));   // <-- NEW
 
       setUploadProgress(30);
@@ -684,12 +684,12 @@ const MLUpload = () => {
                 </div>
                 <div>
                   <Label className="mb-1.5 block text-xs font-medium text-slate-500">
-                    Include Features
+                    Exclude Columns
                   </Label>
                   <Input
-                    value={includeFeatures}
-                    onChange={(e) => setIncludeFeatures(e.target.value)}
-                    placeholder="B3:AGE, B5:SEX, ..."
+                    value={excludeFeatures}
+                    onChange={(e) => setExcludeFeatures(e.target.value)}
+                    placeholder="e.g. K, L, I5"
                     className="h-10 text-sm"
                   />
                 </div>

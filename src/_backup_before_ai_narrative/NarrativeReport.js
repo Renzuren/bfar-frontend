@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import {
   Download,
   Inbox,
   ArrowUpRight,
   ArrowDownRight,
   Minus,
+  Printer,
   ArrowLeft,
   ClipboardList,
-  Sparkles,
-  Loader2,
-  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -26,10 +26,6 @@ import {
 } from 'recharts';
 import { normalizeLocationCodes, isReservedField, getQuestionLabel } from '../lib/preprocessing';
 import { api } from '../lib/apiMiddleware';
-import jsPDF from 'jspdf';
-import { buildReportPdf } from '../lib/reportPdf';
-import { normalizeForMatch } from '../lib/responsesDataset';
-import { buildNarrativeFacts, narrativeFactsFingerprint, readSavedNarrative } from '../lib/narrativeFacts';
 
 const BEFORE_COLOR = '#2563eb';
 const AFTER_COLOR = '#14b8a6';
@@ -103,11 +99,6 @@ const SubHeading = ({ num, title }) => (
   </h3>
 );
 
-// Paragraphs written by the AI narrative (plain strings, rendered as text).
-const AiParagraphs = ({ items }) => (items || []).map((text, i) => (
-  <p key={i} className="text-justify">{text}</p>
-));
-
 const NarrativeReport = () => {
   const outletCtx = useOutletContext();
   const project = outletCtx?.project;
@@ -121,27 +112,12 @@ const NarrativeReport = () => {
   const [afterResponses, setAfterResponses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  // AI (Gemini) narrative: text sections saved with the project, plus when/what
-  // it was generated from. The project's saved ML analysis feeds no-baseline reports.
-  const [aiNarrative, setAiNarrative] = useState(null);
-  const [aiMeta, setAiMeta] = useState(null);
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiError, setAiError] = useState(null);
-  const [mlAnalysis, setMlAnalysis] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!project) return;
       try {
-        const promises = [
-          // The saved AI narrative and ML analysis are only on GET /projects/:id.
-          api.get(`/projects/${project.id}`).then((r) => {
-            const saved = readSavedNarrative(r.data);
-            setAiNarrative(saved ? saved.narrative : null);
-            setAiMeta(saved ? { generatedAt: saved.generated_at, model: saved.model, fingerprint: saved.facts_fingerprint } : null);
-            setMlAnalysis(r.data?.ml_analysis || null);
-          }).catch(() => {}),
-        ];
+        const promises = [];
 
         if (project.before_form) {
           promises.push(
@@ -185,11 +161,9 @@ const NarrativeReport = () => {
   const { beforeQuestionnaire, afterQuestionnaire } = useMemo(() => {
     const pickQuestionnaire = (form, questions) => {
       if (!form) return [];
-      // Every questionnaire section (forms usually split it into Parts C, D, E...),
-      // not just the first one.
-      const questSections = (form.sections || []).filter(s => s.section_type === 'questionnaire');
+      const questSection = form.sections?.find(s => s.section_type === 'questionnaire');
       const questIds = new Set();
-      questSections.forEach(section => (section.questions || []).forEach(q => questIds.add(q.id)));
+      if (questSection) (questSection.questions || []).forEach(q => questIds.add(q.id));
       if (questIds.size === 0) {
         questions.forEach(q => {
           if (q.type !== 'profile_photo' && q.type !== 'respondent_name' && q.type !== 'location_text') {
@@ -208,11 +182,9 @@ const NarrativeReport = () => {
   const pairQuestions = (baseQuestions, baseResponses, targetQuestions, targetResponses) => {
     const paired = [];
     baseQuestions.forEach((bq) => {
-      // No-baseline Beneficiary / Non-Beneficiary forms reuse codes (e.g. J2) for
-      // different questions, so there a pair must match on code AND title.
-      const aq = isBaseline
-        ? targetQuestions.find((a) => (a.code && bq.code && a.code === bq.code) || a.title === bq.title)
-        : targetQuestions.find((a) => normalizeForMatch(a) === normalizeForMatch(bq));
+      const aq = targetQuestions.find((a) =>
+        (a.code && bq.code && a.code === bq.code) || a.title === bq.title
+      );
       if (!aq) return;
 
       if (['multiple_choice', 'checkboxes', 'dropdown', 'yes_no'].includes(bq.type)) {
@@ -293,37 +265,8 @@ const NarrativeReport = () => {
 
   const comparisonData = useMemo(
     () => pairQuestions(beforeQuestionnaire, beforeResponses, afterQuestionnaire, afterResponses),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [beforeQuestionnaire, afterQuestionnaire, beforeResponses, afterResponses, isBaseline]
+    [beforeQuestionnaire, afterQuestionnaire, beforeResponses, afterResponses]
   );
-
-  // ==================== AI (GEMINI) NARRATIVE ====================
-  const narrativeFacts = useMemo(() => buildNarrativeFacts({
-    project, isBaseline, tabLabels, beforeForm, afterForm, beforeResponses, afterResponses, comparisonData, mlAnalysis,
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [project, isBaseline, beforeForm, afterForm, beforeResponses, afterResponses, comparisonData, mlAnalysis]);
-  const factsFingerprint = useMemo(() => narrativeFactsFingerprint(narrativeFacts), [narrativeFacts]);
-  const aiStale = Boolean(aiNarrative && aiMeta && aiMeta.fingerprint && aiMeta.fingerprint !== factsFingerprint);
-  const impact = narrativeFacts.impact_analysis || null;
-
-  const generateAiNarrative = async () => {
-    setAiBusy(true);
-    setAiError(null);
-    try {
-      const { data } = await api.post(
-        `/projects/${project.id}/narrative`,
-        { facts: narrativeFacts, facts_fingerprint: factsFingerprint },
-        { timeout: 150000, retry: 0 },
-      );
-      setAiNarrative(data.narrative);
-      setAiMeta({ generatedAt: data.generated_at, model: data.model, fingerprint: data.facts_fingerprint });
-      toast.success('AI narrative generated and saved with the project');
-    } catch (error) {
-      setAiError(error?.response?.data?.error || error?.message || 'Could not generate the AI narrative.');
-    } finally {
-      setAiBusy(false);
-    }
-  };
 
   // ==================== AUTO-GENERATED NARRATIVE ====================
   const narrative = useMemo(() => {
@@ -461,22 +404,43 @@ const NarrativeReport = () => {
     );
   };
 
-  // Builds the PDF from the report's content (real text, tables, charts) and
-  // downloads it -- see lib/reportPdf.js.
   const generatePDF = async () => {
     if (!reportRef.current) return;
     setGenerating(true);
     try {
-      const pdf = await buildReportPdf(reportRef.current, { JsPdf: jsPDF });
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      let heightLeft = pdfHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pdf.internal.pageSize.getHeight();
+
+      while (heightLeft > 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pdf.internal.pageSize.getHeight();
+      }
+
       pdf.save(`${(project?.title || 'narrative-report').replace(/\s+/g, '_')}-narrative-report.pdf`);
       toast.success('Report downloaded as PDF');
     } catch (error) {
-      console.error('PDF export failed:', error);
-      toast.error(`Failed to generate PDF${error?.message ? `: ${error.message}` : ''}`);
+      toast.error('Failed to generate PDF');
     } finally {
       setGenerating(false);
     }
   };
+
+  const handlePrint = () => window.print();
 
   const generatedDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -725,48 +689,15 @@ const NarrativeReport = () => {
           Back to Project
         </button>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={generateAiNarrative} disabled={aiBusy} className="rounded-xl bg-violet-600 px-4 py-2 text-white hover:bg-violet-700">
-            {aiBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-            {aiBusy ? 'Writing narrative...' : aiNarrative ? 'Regenerate AI Narrative' : 'Generate AI Narrative'}
+          <Button onClick={handlePrint} variant="outline" className="rounded-xl px-4 py-2">
+            <Printer className="mr-2 h-4 w-4" />
+            Print to PDF
           </Button>
           <Button onClick={generatePDF} disabled={generating} className="rounded-xl bg-slate-900 px-4 py-2 text-white hover:bg-slate-800">
             <Download className="mr-2 h-4 w-4" />
-            {generating ? 'Generating PDF...' : 'Download PDF'}
+            {generating ? 'Generating...' : 'Download PDF'}
           </Button>
         </div>
-      </div>
-
-      {/* AI narrative status (never printed) */}
-      <div className="no-print space-y-2">
-        {aiNarrative && aiMeta && (
-          <p className="px-1 text-xs text-slate-500">
-            AI narrative generated {new Date(aiMeta.generatedAt).toLocaleString()}{aiMeta.model ? ` with ${aiMeta.model}` : ''} · saved with this project.
-            Review it before sharing: it is written from the statistics below, but AI text can still contain mistakes.
-          </p>
-        )}
-        {!aiNarrative && !aiBusy && (
-          <p className="px-1 text-xs text-slate-500">
-            The text below is a generic template. Click “Generate AI Narrative” to have Gemini write it from this project&apos;s results.
-          </p>
-        )}
-        {aiStale && !aiBusy && (
-          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>The responses or analysis changed since this narrative was generated. Regenerate it to update the text.</p>
-          </div>
-        )}
-        {!isBaseline && !impact && !aiBusy && (
-          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>No saved analysis yet. Run the Analysis Report first so the narrative can include the impact estimate (section 3.2).</p>
-          </div>
-        )}
-        {aiError && !aiBusy && (
-          <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>{aiError}</p>
-          </div>
-        )}
       </div>
 
       {/* ==================== THE REPORT DOCUMENT ==================== */}
@@ -779,9 +710,7 @@ const NarrativeReport = () => {
             {project.title}
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm italic leading-relaxed text-slate-600">
-            {isBaseline
-              ? `An Impact Assessment of Program Beneficiaries Using Benchmark (${tabLabels.before}) and Current (${tabLabels.after}) Survey Data`
-              : 'An Impact Assessment Comparing Program Beneficiaries and Non-Beneficiaries'}
+            An Impact Assessment of Program Beneficiaries Using Benchmark ({tabLabels.before}) and Current ({tabLabels.after}) Survey Data
           </p>
           <div className="mx-auto mt-8 h-0.5 w-28 bg-slate-800" />
           <div className="mt-8 space-y-1 text-sm text-slate-600">
@@ -794,15 +723,6 @@ const NarrativeReport = () => {
         <section>
           <SectionHeading num="" title="Executive Summary" />
           <div className="space-y-4 text-sm leading-relaxed text-slate-700">
-            {aiNarrative ? (
-              <>
-                <AiParagraphs items={aiNarrative.executive_summary} />
-                <p className="font-semibold text-slate-800">Major policy recommendations advanced by this report:</p>
-                <ol className="list-inside list-decimal space-y-1 pl-2">
-                  {aiNarrative.recommendations.slice(0, 5).map((rec, i) => <li key={i}>{rec}</li>)}
-                </ol>
-              </>
-            ) : (<>
             <p className="text-justify">
               This report evaluates the impact of {project.title} on fisherfolk-beneficiaries by comparing survey
               data collected before program implementation (benchmark) with data collected afterward (current).
@@ -828,7 +748,6 @@ const NarrativeReport = () => {
               communities, while underscoring the importance of sustained support systems and continuous monitoring
               to secure long-term, inclusive development outcomes.
             </p>
-            </>)}
           </div>
         </section>
 
@@ -838,7 +757,6 @@ const NarrativeReport = () => {
 
           <SubHeading num="1.1" title="Rationale of the Project" />
           <div className="space-y-4 text-justify text-sm leading-relaxed text-slate-700">
-            {aiNarrative ? <AiParagraphs items={aiNarrative.rationale} /> : (<>
             <p>
               Municipal fisheries remain a critical pillar of the Philippine economy and food system, sustaining the
               livelihoods of coastal households across the country. Yet fisherfolk continue to be among the most
@@ -856,17 +774,10 @@ const NarrativeReport = () => {
               by beneficiaries and generates empirical evidence to inform future program planning, targeting, and
               sustainability.
             </p>
-            </>)}
           </div>
 
           <SubHeading num="1.2" title="Objectives of the Project" />
           <div className="text-justify text-sm leading-relaxed text-slate-700">
-            {aiNarrative ? (<>
-              <p>{aiNarrative.general_objective} Specifically, it aimed to:</p>
-              <ol className="mt-3 list-inside list-decimal space-y-1.5 pl-2">
-                {aiNarrative.specific_objectives.map((item, i) => <li key={i}>{item}</li>)}
-              </ol>
-            </>) : (<>
             <p>The general objective of this assessment was to determine the impact of {project.title} on its fisherfolk-beneficiaries. Specifically, it aimed to:</p>
             <ol className="mt-3 list-inside list-decimal space-y-1.5 pl-2">
               <li>Assess the socioeconomic conditions of fisherfolk-beneficiaries at the benchmark and current phases;</li>
@@ -874,7 +785,6 @@ const NarrativeReport = () => {
               <li>Identify indicator areas that improved, declined, or remained stable between the two survey phases; and</li>
               <li>Formulate evidence-based recommendations to strengthen program implementation and sustainability.</li>
             </ol>
-            </>)}
           </div>
         </section>
 
@@ -884,7 +794,6 @@ const NarrativeReport = () => {
 
           <SubHeading num="2.1" title="Research Design" />
           <div className="space-y-4 text-justify text-sm leading-relaxed text-slate-700">
-            {aiNarrative ? <AiParagraphs items={aiNarrative.research_design} /> : (
             <p>
               The assessment employed a quantitative, descriptive-comparative design anchored on a
               benchmark-versus-current framework. Structured digital questionnaires were administered to registered
@@ -893,7 +802,6 @@ const NarrativeReport = () => {
               phases, responses were matched question-by-question, permitting direct comparison of distributions and
               mean values over time.
             </p>
-            )}
           </div>
 
           <SubHeading num="2.2" title="Survey Instruments and Respondents" />
@@ -922,7 +830,6 @@ const NarrativeReport = () => {
 
           <SubHeading num="2.3" title="Statistical Treatment" />
           <div className="space-y-4 text-justify text-sm leading-relaxed text-slate-700">
-            {aiNarrative ? <AiParagraphs items={aiNarrative.statistical_treatment} /> : (
             <p>
               Descriptive statistics were used throughout the analysis. For choice-based questions (multiple choice,
               checkboxes, dropdown), responses were summarized as frequency and percentage distributions, with
@@ -931,7 +838,6 @@ const NarrativeReport = () => {
               distribution of respondents (province, municipality, barangay) was likewise compared across phases.
               Results are presented through figures and tables, each accompanied by interpretive discussion.
             </p>
-            )}
             <p className="text-xs italic text-slate-500">
               Note: Comparisons are limited to questions present in both instruments; unmatched questions are excluded
               from paired analysis. Differences in respondent counts between phases may affect comparability and are
@@ -946,12 +852,7 @@ const NarrativeReport = () => {
 
           {comparisonData.length > 0 ? (
             <>
-              <SubHeading num="3.1" title={isBaseline ? 'Comparative Analysis: Benchmark versus Current' : 'Comparative Analysis: Beneficiaries versus Non-Beneficiaries'} />
-              {aiNarrative && (
-                <div className="mb-8 space-y-4 text-sm leading-relaxed text-slate-700">
-                  <AiParagraphs items={aiNarrative.findings_overview} />
-                </div>
-              )}
+              <SubHeading num="3.1" title="Comparative Analysis: Benchmark versus Current" />
               <div className="space-y-10">
                 {comparisonData.map((item, index) =>
                   item.type === 'rating'
@@ -965,52 +866,6 @@ const NarrativeReport = () => {
           ) : (
             <p className="text-sm italic text-slate-500">No comparable survey items were found between the two instruments.</p>
           )}
-
-          {!isBaseline && (
-            <>
-              <SubHeading num="3.2" title="Impact Estimate: Propensity Score Matching" />
-              {impact ? (
-                <div className="overflow-x-auto">
-                  {/* Exact figures from the saved analysis -- not AI-written. */}
-                  <table className="min-w-full border border-slate-300 text-sm">
-                    <tbody>
-                      {[
-                        ['Outcome', impact.outcome?.question || impact.outcome?.column || '—'],
-                        ['Respondents analysed', impact.respondents_analysed ?? '—'],
-                        ['Matched pairs', impact.balance?.matched_pairs ?? '—'],
-                        ['Covariate balance achieved', impact.balance?.achieved == null ? '—' : `${impact.balance.achieved ? 'Yes' : 'No'} (|SMD| < ${impact.balance.smd_threshold}${impact.balance.small_sample_threshold ? ', sample-size adjusted' : ''})`],
-                        ['Mean |SMD| after matching', impact.balance?.mean_abs_smd_after_matching ?? '—'],
-                        ['ATT (beneficiaries − matched non-beneficiaries)', impact.att?.att_mean ?? '—'],
-                        ['95% confidence interval', impact.att?.ci_95 ? `${impact.att.ci_95[0]} to ${impact.att.ci_95[1]}` : '—'],
-                        ['p-value (paired t-test)', impact.att?.p_value_paired_t_test ?? '—'],
-                        ['Features used by the model', impact.features?.used_by_model ?? '—'],
-                      ].map(([label, value], i) => (
-                        <tr key={label} className={i % 2 ? 'bg-slate-50/60' : 'bg-white'}>
-                          <td className="border border-slate-300 px-4 py-2.5 font-semibold text-slate-700">{label}</td>
-                          <td className="border border-slate-300 px-4 py-2.5 text-slate-600">{String(value)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-sm italic text-slate-500">The matching analysis has not been run yet. Run it from the Analysis Report tab.</p>
-              )}
-              {aiNarrative && (
-                <div className="mt-4 space-y-4 text-sm leading-relaxed text-slate-700">
-                  <AiParagraphs items={aiNarrative.impact_discussion} />
-                </div>
-              )}
-            </>
-          )}
-          {isBaseline && aiNarrative && (
-            <>
-              <SubHeading num="3.2" title="Overall Pattern of Change" />
-              <div className="space-y-4 text-sm leading-relaxed text-slate-700">
-                <AiParagraphs items={aiNarrative.impact_discussion} />
-              </div>
-            </>
-          )}
         </section>
 
         {/* ---------- 4.0 SYNTHESIS AND IMPLICATIONS ---------- */}
@@ -1023,7 +878,7 @@ const NarrativeReport = () => {
 
           <SubHeading num="4.1" title="Summary of Findings" />
           <ol className="space-y-3">
-            {(aiNarrative ? aiNarrative.summary_of_findings : narrative.findings).map((finding, i) => (
+            {narrative.findings.map((finding, i) => (
               <li key={i} className="flex gap-3 text-sm leading-relaxed text-slate-700">
                 <span className="shrink-0 font-semibold text-slate-900">{i + 1}.</span>
                 <span className="text-justify">{finding}</span>
@@ -1033,7 +888,6 @@ const NarrativeReport = () => {
 
           <SubHeading num="4.2" title="Concluding Remarks" />
           <div className="space-y-4 text-justify text-sm leading-relaxed text-slate-700">
-            {aiNarrative ? <AiParagraphs items={aiNarrative.concluding_remarks} /> : (<>
             <p>
               This assessment evaluated {project.title} through a systematic comparison of benchmark and current
               survey data from fisherfolk-beneficiaries. Across the {totalComparable} comparable indicator
@@ -1048,32 +902,17 @@ const NarrativeReport = () => {
               disciplined monitoring so that early improvements translate into durable, long-term benefits for
               fisherfolk households and their communities.
             </p>
-            </>)}
           </div>
 
           <SubHeading num="4.3" title="Recommendations" />
           <ol className="space-y-3">
-            {(aiNarrative ? aiNarrative.recommendations : narrative.recommendations).map((rec, i) => (
+            {narrative.recommendations.map((rec, i) => (
               <li key={i} className="flex gap-3 text-sm leading-relaxed text-slate-700">
                 <span className="shrink-0 font-semibold text-slate-900">{i + 1}.</span>
                 <span className="text-justify">{rec}</span>
               </li>
             ))}
           </ol>
-
-          {aiNarrative?.limitations?.length > 0 && (
-            <>
-              <SubHeading num="4.4" title="Limitations" />
-              <ol className="space-y-3">
-                {aiNarrative.limitations.map((item, i) => (
-                  <li key={i} className="flex gap-3 text-sm leading-relaxed text-slate-700">
-                    <span className="shrink-0 font-semibold text-slate-900">{i + 1}.</span>
-                    <span className="text-justify">{item}</span>
-                  </li>
-                ))}
-              </ol>
-            </>
-          )}
         </section>
 
         {/* Report footer */}

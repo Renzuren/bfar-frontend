@@ -49,15 +49,17 @@ const radiusFor = (total, minTotal, maxTotal) => {
   return 7 + t * 19;
 };
 
-const TooltipCard = ({ point }) => (
+const DEFAULT_GROUP_LABELS = { b: 'Beneficiaries', nb: 'Non-Beneficiaries' };
+
+const TooltipCard = ({ point, groupLabels = DEFAULT_GROUP_LABELS }) => (
   <div style={{ minWidth: 210, fontFamily: 'Inter, system-ui, sans-serif', fontSize: 12 }}>
     <div style={{ fontWeight: 700, fontSize: 13, color: '#1e293b', marginBottom: 2 }}>{point.name}</div>
     <div style={{ fontSize: 10.5, color: '#94a3b8', marginBottom: 8 }}>{point.province} · {point.region}</div>
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <tbody>
         {[
-          ['Beneficiaries', point.b, GROUP_COLORS.Beneficiary],
-          ['Non-Beneficiaries', point.nb, GROUP_COLORS['Non-Beneficiary']],
+          [groupLabels.b, point.b, GROUP_COLORS.Beneficiary],
+          [groupLabels.nb, point.nb, GROUP_COLORS['Non-Beneficiary']],
           ['Total Respondents', point.total, '#1e293b'],
         ].map(([label, value, color]) => (
           <tr key={label}>
@@ -78,7 +80,9 @@ const TooltipCard = ({ point }) => (
 // ------------------------------------------------------------------
 const PROVINCE_FILL_STOPS = ['#dfeef8', '#bcdcf0', '#8dc3e4', '#5fa7d6', '#3c87c2', '#2563a8'];
 
-const PhilippineMap = ({ points = [], activeType = 'All', focusKey = null, onFocusChange }) => {
+// groupLabels names the two groups in the tooltip (b / nb); the baseline Report
+// passes Before / After.
+const PhilippineMap = ({ points = [], activeType = 'All', focusKey = null, onFocusChange, groupLabels = DEFAULT_GROUP_LABELS }) => {
   const [layerType, setLayerType] = useState('province');
 
   const resolved = points
@@ -231,7 +235,7 @@ const PhilippineMap = ({ points = [], activeType = 'All', focusKey = null, onFoc
               }}
             >
               <LeafletTooltip direction="top" offset={[0, -6]} opacity={1}>
-                <TooltipCard point={p} />
+                <TooltipCard groupLabels={groupLabels} point={p} />
               </LeafletTooltip>
             </CircleMarker>
           );

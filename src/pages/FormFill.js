@@ -100,6 +100,19 @@ const computeNextRespondentId = (status, responses) => {
 
 const RESPONDENT_NAME_REQUIRED_MESSAGE =
   'Respondent Name is required before you can proceed.';
+const LINKED_BEFORE_ID_REQUIRED_MESSAGE =
+  'Previous Respondent ID (e.g. NB-0001 or B-0001) is required before you can proceed.';
+
+// Baseline projects: the number is the person, the prefix their beneficiary
+// status. A respondent ID ("NB-0001", "B-0001", "b1", "1") -> its number, or 0.
+const parseBeforeNumber = (value) => {
+  const match = String(value || '').trim().match(/^(?:N?B-?)?(\d+)$/i);
+  return match ? parseInt(match[1], 10) : 0;
+};
+const statusPrefix = (answer) => (answer === 'Yes' ? 'B' : answer === 'No' ? 'NB' : null);
+// Next person number on a baseline Before form: numbers are shared by B and NB.
+const nextPersonNumber = (responses) => 1 + (responses || []).reduce(
+  (max, r) => Math.max(max, parseBeforeNumber(r.respondent_id)), 0);
 const locationRequiredMessage = (label) =>
   `${label} is required before you can proceed.`;
 
@@ -112,6 +125,8 @@ const FormFill = () => {
   const [answers, setAnswers] = useState({});
   const [respondentName, setRespondentName] = useState('');
   const [nameAttempted, setNameAttempted] = useState(false);
+  const [linkedBeforeId, setLinkedBeforeId] = useState('');
+  const [linkedAttempted, setLinkedAttempted] = useState(false);
   const [locationAttempted, setLocationAttempted] = useState({});
   const [locationValues, setLocationValues] = useState({
     municipality: '',
@@ -163,10 +178,21 @@ const FormFill = () => {
     || (form?.questionnaire_type && !beneficiaryQuestion
       ? (form.questionnaire_type === 'before' ? 'Yes' : 'No')
       : null);
-  const nextRespondentId = computeNextRespondentId(
-    effectiveBeneficiaryAnswer,
-    existingResponses
-  );
+  // Baseline project: the prefix is today's beneficiary answer (Yes -> B,
+  // No -> NB; without the question Before = NB, After = B). Before gives a new
+  // person the next number; After keeps the number of the previous ID they
+  // enter, so NB-0001 who is now a beneficiary becomes B-0001.
+  const baselineRole = form?.baseline_role || null;
+  const linkedBeforeNumber = parseBeforeNumber(linkedBeforeId);
+  const baselinePrefix = beneficiaryQuestion
+    ? statusPrefix(beneficiaryAnswer)
+    : (baselineRole === 'before' ? 'NB' : 'B');
+  const nextRespondentId =
+    baselineRole === 'before'
+      ? (baselinePrefix ? `${baselinePrefix}-${pad4(nextPersonNumber(existingResponses))}` : null)
+      : baselineRole === 'after'
+      ? (baselinePrefix && linkedBeforeNumber ? `${baselinePrefix}-${pad4(linkedBeforeNumber)}` : null)
+      : computeNextRespondentId(effectiveBeneficiaryAnswer, existingResponses);
 
   const hasRespondentName = String(respondentName || '').trim().length > 0;
   const getLocationValue = (field) =>
@@ -193,6 +219,15 @@ const FormFill = () => {
     if (!hasRespondentName) {
       setNameAttempted(true);
       toast.error(RESPONDENT_NAME_REQUIRED_MESSAGE);
+      return false;
+    }
+    return true;
+  };
+
+  const validateLinkedBeforeId = () => {
+    if (baselineRole === 'after' && !linkedBeforeNumber) {
+      setLinkedAttempted(true);
+      toast.error(LINKED_BEFORE_ID_REQUIRED_MESSAGE);
       return false;
     }
     return true;
@@ -421,6 +456,7 @@ const FormFill = () => {
     e.preventDefault();
     e.stopPropagation();
     if (!validateRespondentName()) return;
+    if (!validateLinkedBeforeId()) return;
     if (!validateLocations()) return;
     if (!validateCurrentSection()) return;
     if (currentSectionIndex < sections.length - 1) {
@@ -441,6 +477,7 @@ const FormFill = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateRespondentName()) return;
+    if (!validateLinkedBeforeId()) return;
     if (!validateLocations()) return;
     if (!validateCurrentSection()) return;
 
@@ -473,6 +510,9 @@ const FormFill = () => {
       const response = await api.post(`/forms/public/${id}/responses`, {
         email: answers.email,
         full_name: respondentName.trim(),
+        ...(baselineRole === 'after'
+          ? { linked_before_id: linkedBeforeId.trim() }
+          : {}),
         age: answers.age,
         gender: answers.gender,
         municipality: locationValueFor('municipality'),
@@ -646,7 +686,9 @@ const FormFill = () => {
                   Respondent ID
                 </span>
                 <span className="text-base font-bold tracking-wide text-emerald-800">
-                  {computeNextRespondentId(answers[question.id], existingResponses) || '—'}
+                  {(baselineRole
+                    ? nextRespondentId
+                    : computeNextRespondentId(answers[question.id], existingResponses)) || '—'}
                 </span>
               </div>
             )}
@@ -947,6 +989,47 @@ const FormFill = () => {
                       </p>
                     )}
                   </div>
+
+                  {baselineRole === 'after' && (
+                    <div>
+                      <Label htmlFor="linked-before-id" className="text-sm font-medium text-slate-700">
+                        Previous Respondent ID
+                        <span className="ml-1 text-rose-500">*</span>
+                      </Label>
+                      <p className="mt-0.5 mb-2 text-xs text-slate-400">
+                        The ID this respondent received on the Before questionnaire (NB-XXXX or B-XXXX). They keep
+                        the same number; the B / NB part follows their beneficiary answer now.
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          id="linked-before-id"
+                          type="text"
+                          placeholder="e.g. NB-0001"
+                          value={linkedBeforeId}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setLinkedBeforeId(v);
+                            if (linkedAttempted && parseBeforeNumber(v)) setLinkedAttempted(false);
+                          }}
+                          autoComplete="off"
+                          className={`h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm uppercase text-slate-900 placeholder:normal-case placeholder:text-slate-400 transition-colors focus:border-[#646cff] focus:outline-none focus:ring-1 focus:ring-[#646cff]/30 ${
+                            linkedAttempted && !linkedBeforeNumber
+                              ? 'border-rose-300 ring-1 ring-rose-100'
+                              : ''
+                          }`}
+                        />
+                        <span className="shrink-0 text-sm font-bold tracking-wide text-emerald-700">
+                          → {nextRespondentId
+                            || (linkedBeforeNumber ? `?-${pad4(linkedBeforeNumber)}` : '—')}
+                        </span>
+                      </div>
+                      {linkedAttempted && !linkedBeforeNumber && (
+                        <p role="alert" className="mt-1.5 text-xs text-rose-500">
+                          {LINKED_BEFORE_ID_REQUIRED_MESSAGE}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="space-y-4">
                     {locationFields.map((field) => (

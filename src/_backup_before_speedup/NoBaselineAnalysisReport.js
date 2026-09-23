@@ -67,29 +67,6 @@ const pickOutcomeColumn = (cols) =>
 // Columns of the ML dataset that are identifiers/locations, not analysable answers.
 const ML_ID_COLUMNS = new Set(['RESPONSE', 'GROUP', 'Municipality', 'Barangay', 'Province']);
 
-// "Model used 30 of 147 columns -- 37 asked to one group only, ..." from a /train
-// result's feature_selection, so the column count on the page and the model's
-// 30 features visibly add up. null when the result has no feature_selection.
-const FEATURE_SELECTION_REASONS = [
-  ['excluded_as_group_specific', 'asked to one group only'],
-  ['excluded_as_wave_pair', "'after' half of a before/after pair"],
-  ['excluded_as_post_treatment', 'current/after measure'],
-  ['excluded_by_user', 'excluded by you'],
-  ['excluded_as_leakage', 'too close to the group itself'],
-  ['excluded_as_low_coverage', 'mostly unanswered'],
-  ['excluded_as_below_top_n', 'ranked below the top 30'],
-];
-const featureSelectionSummary = (result) => {
-  const fs = result?.feature_selection;
-  if (!fs || typeof fs.n_features_selected !== 'number') return null;
-  const parts = FEATURE_SELECTION_REASONS
-    .map(([key, label]) => [Array.isArray(fs[key]) ? fs[key].length : 0, label])
-    .filter(([count]) => count > 0);
-  const total = fs.n_features_selected + parts.reduce((sum, [count]) => sum + count, 0);
-  const reasons = parts.map(([count, label]) => `${count} ${label}`).join(', ');
-  return `Model used ${fs.n_features_selected} of ${total} columns${reasons ? ` — ${reasons}` : ''}.`;
-};
-
 // Identifies the exact rows an analysis ran on: row count + a hash of every
 // row's values. Any added, removed or edited response changes it, which is how
 // the page knows a saved analysis is out of date.
@@ -521,11 +498,10 @@ const NoBaselineAnalysisReport = () => {
                 </div>
                 <div className="rounded-xl border border-violet-200/80 bg-violet-50/50 p-4">
                   <div className="flex items-center gap-2 text-xs font-medium text-violet-600">
-                    <BrainCircuit className="h-4 w-4" /> Question columns
+                    <BrainCircuit className="h-4 w-4" /> Features
                   </div>
                   <p className="mt-1 text-2xl font-bold tabular-nums text-violet-700">
-                    {/* The columns the model chooses its (up to 30) features from. */}
-                    {(mlDataset ? mlDataset.columns.filter((c) => !ML_ID_COLUMNS.has(c)).length : dataset.columns.length - 1).toLocaleString()}
+                    {(dataset.columns.length - 1).toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -714,9 +690,6 @@ const NoBaselineAnalysisReport = () => {
               <p className="w-full text-center text-xs text-slate-500">
                 Last analysed {new Date(savedInfo.savedAt).toLocaleString()} · saved with this project
               </p>
-            )}
-            {analysisResults && !isAnalyzing && featureSelectionSummary(analysisResults) && (
-              <p className="w-full text-center text-xs text-slate-500">{featureSelectionSummary(analysisResults)}</p>
             )}
           </div>
         )}

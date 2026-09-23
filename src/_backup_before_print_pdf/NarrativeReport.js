@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import {
   Download,
   Inbox,
   ArrowUpRight,
   ArrowDownRight,
   Minus,
+  Printer,
   ArrowLeft,
   ClipboardList,
   Sparkles,
@@ -26,8 +29,7 @@ import {
 } from 'recharts';
 import { normalizeLocationCodes, isReservedField, getQuestionLabel } from '../lib/preprocessing';
 import { api } from '../lib/apiMiddleware';
-import jsPDF from 'jspdf';
-import { buildReportPdf } from '../lib/reportPdf';
+import { renderReportPdf } from '../lib/reportPdf';
 import { normalizeForMatch } from '../lib/responsesDataset';
 import { buildNarrativeFacts, narrativeFactsFingerprint, readSavedNarrative } from '../lib/narrativeFacts';
 
@@ -121,6 +123,7 @@ const NarrativeReport = () => {
   const [afterResponses, setAfterResponses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState(null);
   // AI (Gemini) narrative: text sections saved with the project, plus when/what
   // it was generated from. The project's saved ML analysis feeds no-baseline reports.
   const [aiNarrative, setAiNarrative] = useState(null);
@@ -461,13 +464,19 @@ const NarrativeReport = () => {
     );
   };
 
-  // Builds the PDF from the report's content (real text, tables, charts) and
-  // downloads it -- see lib/reportPdf.js.
   const generatePDF = async () => {
     if (!reportRef.current) return;
     setGenerating(true);
+    setPdfProgress(null);
     try {
-      const pdf = await buildReportPdf(reportRef.current, { JsPdf: jsPDF });
+      // Captured piece by piece (see lib/reportPdf.js): one image of the whole
+      // report is too tall for the browser once it has many figures.
+      const pdf = await renderReportPdf({
+        root: reportRef.current,
+        html2canvas,
+        JsPdf: jsPDF,
+        onProgress: (done, total) => setPdfProgress({ done, total }),
+      });
       pdf.save(`${(project?.title || 'narrative-report').replace(/\s+/g, '_')}-narrative-report.pdf`);
       toast.success('Report downloaded as PDF');
     } catch (error) {
@@ -475,8 +484,11 @@ const NarrativeReport = () => {
       toast.error(`Failed to generate PDF${error?.message ? `: ${error.message}` : ''}`);
     } finally {
       setGenerating(false);
+      setPdfProgress(null);
     }
   };
+
+  const handlePrint = () => window.print();
 
   const generatedDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -729,9 +741,13 @@ const NarrativeReport = () => {
             {aiBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
             {aiBusy ? 'Writing narrative...' : aiNarrative ? 'Regenerate AI Narrative' : 'Generate AI Narrative'}
           </Button>
+          <Button onClick={handlePrint} variant="outline" className="rounded-xl px-4 py-2">
+            <Printer className="mr-2 h-4 w-4" />
+            Print to PDF
+          </Button>
           <Button onClick={generatePDF} disabled={generating} className="rounded-xl bg-slate-900 px-4 py-2 text-white hover:bg-slate-800">
             <Download className="mr-2 h-4 w-4" />
-            {generating ? 'Generating PDF...' : 'Download PDF'}
+            {generating ? `Generating PDF${pdfProgress ? `… ${pdfProgress.done}/${pdfProgress.total}` : '...'}` : 'Download PDF'}
           </Button>
         </div>
       </div>

@@ -297,29 +297,19 @@ export const buildCombinedDataset = ({ beforeForm, beforeResponses = [], afterFo
     const ownCopy = (q) => (copiesByUid.get(uidOf(q)) || [q]).find((copy) => formQuestionIds.has(copy.id)) || null;
     responses.forEach((r) => {
       const answers = Array.isArray(r?.answers) ? r.answers : [];
-      // Index this response's answers once by id, code and title (first answer
-      // wins, as with answers.find) instead of scanning them for every column.
-      const byId = new Map();
-      const byCode = new Map();
-      const byTitle = new Map();
-      const first = (map, key, position) => { if (!map.has(key)) map.set(key, position); };
-      answers.forEach((a, position) => {
-        first(byId, a?.question_id, position);
-        first(byId, a?.qid, position);
-        first(byCode, normalizeCode({ code: a?.question_code }), position);
-        first(byCode, normalizeCode({ code: a?.qid }), position);
-        first(byTitle, normalizeLabel(a?.question_title), position);
-        first(byTitle, normalizeLabel(a?.title), position);
-      });
       const findAnswer = (columnQ) => {
         if (!columnQ) return null;
         const q = ownCopy(columnQ);
         if (!q) return null;
+        const qid = q.id;
         const co = normalizeCode(q);
         const t = normalizeLabel(q.title);
-        const positions = [byId.get(q.id), co ? byCode.get(co) : undefined, t ? byTitle.get(t) : undefined]
-          .filter((position) => position !== undefined);
-        const hit = positions.length ? answers[Math.min(...positions)] : undefined;
+        const hit = answers.find((a) =>
+          a?.question_id === qid ||
+          a?.qid === qid ||
+          (co && (normalizeCode({ code: a?.question_code }) === co || normalizeCode({ code: a?.qid }) === co)) ||
+          (t && (normalizeLabel(a?.question_title) === t || normalizeLabel(a?.title) === t))
+        );
         return hit ? hit.answer : null;
       };
       const status = resolveBeneficiaryStatus(r, form) || fallbackStatus;

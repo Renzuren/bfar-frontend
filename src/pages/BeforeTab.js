@@ -35,15 +35,15 @@ const getResponseList = (payload) => {
   return [];
 };
 
+// Owner-only endpoint: it returns the full responses (name, location, answers).
+// No fallback to the public endpoint -- that one returns only id / status /
+// date, so the table would silently show every answer as "—".
 const fetchFormResponses = async (formId) => {
-  try {
-    const response = await api.get(`/forms/${formId}/responses`);
-    return getResponseList(response.data);
-  } catch {
-    const response = await api.get(`/forms/public/${formId}/responses`);
-    return getResponseList(response.data);
-  }
+  const response = await api.get(`/forms/${formId}/responses`);
+  return getResponseList(response.data);
 };
+
+const loadErrorMessage = (error) => error?.response?.data?.error || error?.message || 'Unknown error';
 
 const BeforeTab = () => {
   const outletCtx = useOutletContext();
@@ -54,9 +54,7 @@ const BeforeTab = () => {
   const { id: projectId } = useParams();
   const { fetchProject } = useProject();
   const [form, setForm] = useState(null);
-  const [afterForm, setAfterForm] = useState(null);
   const [responses, setResponses] = useState([]);
-  const [afterResponses, setAfterResponses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -64,18 +62,14 @@ const BeforeTab = () => {
     const fetchData = async () => {
       if (!project) return;
       try {
-        const [beforeFormRes, afterFormRes, beforeList, afterList] = await Promise.all([
-          project.before_form ? api.get(`/forms/${project.before_form}`).catch(() => ({ data: null })) : Promise.resolve({ data: null }),
-          project.after_form ? api.get(`/forms/${project.after_form}`).catch(() => ({ data: null })) : Promise.resolve({ data: null }),
+        const [beforeFormRes, beforeList] = await Promise.all([
+          project.before_form ? api.get(`/forms/${project.before_form}`) : Promise.resolve({ data: null }),
           project.before_form ? fetchFormResponses(project.before_form) : Promise.resolve([]),
-          project.after_form ? fetchFormResponses(project.after_form) : Promise.resolve([]),
         ]);
         setForm(beforeFormRes.data);
-        setAfterForm(afterFormRes.data);
         setResponses(beforeList.map(r => ({ ...r, _source: 'before' })));
-        setAfterResponses(afterList.map(r => ({ ...r, _source: 'after' })));
       } catch (error) {
-        toast.error(`Failed to load ${tabLabel} questionnaire`);
+        toast.error(`Failed to load ${tabLabel} questionnaire and responses: ${loadErrorMessage(error)}`);
       } finally {
         setLoading(false);
       }
@@ -331,12 +325,10 @@ const BeforeTab = () => {
 
       {/* Responses */}
       <ResponsesTable
-        initialFilter="before"
+        scope="before"
         project={project}
         beforeForm={form}
-        afterForm={afterForm}
         beforeResponses={responses}
-        afterResponses={afterResponses}
       />
 
       {/* Delete Button */}

@@ -260,25 +260,16 @@ export const buildCombinedDataset = ({ beforeForm, beforeResponses = [], afterFo
   // into one column.
   const qByUid = new Map();
   const orderedQs = [];
-  // Every form's own copy of each column's question, keyed by column uid. The two
-  // questionnaires usually give the same question different ids, so a response
-  // must be looked up with ITS form's copy -- looking it up with the other form's
-  // id found nothing, leaving every shared column answered by one group only.
-  const copiesByUid = new Map();
-  const uidOf = (q) => {
-    const code = normalizeCode(q);
-    const title = normalizeLabel(q.title);
-    return code && title ? `${code}::${title}` : (code || title || q.id);
-  };
   [beforeQs, afterQs].forEach((qs) => {
     qs.forEach((q) => {
       if (!q || !q.id) return;
-      const uid = uidOf(q);
+      const code = normalizeCode(q);
+      const title = normalizeLabel(q.title);
+      const uid = code && title ? `${code}::${title}` : (code || title || q.id);
       if (uid && !qByUid.has(uid)) {
         qByUid.set(uid, q);
         orderedQs.push(q);
       }
-      if (uid) copiesByUid.set(uid, [...(copiesByUid.get(uid) || []), q]);
     });
   });
 
@@ -291,35 +282,19 @@ export const buildCombinedDataset = ({ beforeForm, beforeResponses = [], afterFo
 
   const ingest = (form, responses, fallbackStatus) => {
     if (!form) return;
-    const formQuestionIds = new Set(flattenQuestions(form).map((q) => q.id));
-    // null when this form never asked the column's question (e.g. the other
-    // group's J2): searching by its code would pull in this form's own, unrelated J2.
-    const ownCopy = (q) => (copiesByUid.get(uidOf(q)) || [q]).find((copy) => formQuestionIds.has(copy.id)) || null;
     responses.forEach((r) => {
       const answers = Array.isArray(r?.answers) ? r.answers : [];
-      // Index this response's answers once by id, code and title (first answer
-      // wins, as with answers.find) instead of scanning them for every column.
-      const byId = new Map();
-      const byCode = new Map();
-      const byTitle = new Map();
-      const first = (map, key, position) => { if (!map.has(key)) map.set(key, position); };
-      answers.forEach((a, position) => {
-        first(byId, a?.question_id, position);
-        first(byId, a?.qid, position);
-        first(byCode, normalizeCode({ code: a?.question_code }), position);
-        first(byCode, normalizeCode({ code: a?.qid }), position);
-        first(byTitle, normalizeLabel(a?.question_title), position);
-        first(byTitle, normalizeLabel(a?.title), position);
-      });
-      const findAnswer = (columnQ) => {
-        if (!columnQ) return null;
-        const q = ownCopy(columnQ);
+      const findAnswer = (q) => {
         if (!q) return null;
+        const qid = q.id;
         const co = normalizeCode(q);
         const t = normalizeLabel(q.title);
-        const positions = [byId.get(q.id), co ? byCode.get(co) : undefined, t ? byTitle.get(t) : undefined]
-          .filter((position) => position !== undefined);
-        const hit = positions.length ? answers[Math.min(...positions)] : undefined;
+        const hit = answers.find((a) =>
+          a?.question_id === qid ||
+          a?.qid === qid ||
+          (co && (normalizeCode({ code: a?.question_code }) === co || normalizeCode({ code: a?.qid }) === co)) ||
+          (t && (normalizeLabel(a?.question_title) === t || normalizeLabel(a?.title) === t))
+        );
         return hit ? hit.answer : null;
       };
       const status = resolveBeneficiaryStatus(r, form) || fallbackStatus;

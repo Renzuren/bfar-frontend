@@ -115,8 +115,10 @@ const getDemoSectionsForForm = (form) => {
 /**
  * Full-featured responses table (same layout as the project "Responses" tab):
  * source filter pills (All / Before / After), search bar, municipality filter,
- * sortable columns, CSV export and pagination. Used standalone in the Before
- * and After tabs and by the All Responses page.
+ * sortable columns, CSV export and pagination. With `scope` ('before' |
+ * 'after') it shows only that questionnaire -- its responses and its question
+ * columns, no source pills or Source column -- which is how the Before and
+ * After tabs use it.
  */
 const ResponsesTable = ({
   project,
@@ -125,13 +127,14 @@ const ResponsesTable = ({
   beforeResponses,
   afterResponses,
   initialFilter = 'all',
+  scope = null,
 }) => {
   const isBaseline = project?.has_baseline !== false;
   const tabLabels = isBaseline
     ? { before: 'Before', after: 'After' }
     : { before: 'Beneficiary', after: 'Non-Beneficiary' };
 
-  const [filterStatus, setFilterStatus] = useState(initialFilter); // 'all' | 'before' | 'after'
+  const [filterStatus, setFilterStatus] = useState(scope || initialFilter); // 'all' | 'before' | 'after'
   const [searchQuery, setSearchQuery] = useState('');
   const [municipalityFilter, setMunicipalityFilter] = useState('all');
   const [sortConfig, setSortConfig] = useState({ key: null, dir: 'asc' });
@@ -141,9 +144,9 @@ const ResponsesTable = ({
   const beforeSections = getSectionsForForm(beforeForm);
   const afterSections = getSectionsForForm(afterForm);
 
-  const beforeQuestionCols = normalizeLocationCodes(beforeSections.flatMap(s => s.questions))
+  const beforeQuestionCols = scope === 'after' ? [] : normalizeLocationCodes(beforeSections.flatMap(s => s.questions))
     .filter(q => !isReservedField(q) && q.type !== 'profile_photo');
-  const afterQuestionCols = normalizeLocationCodes(afterSections.flatMap(s => s.questions))
+  const afterQuestionCols = scope === 'before' ? [] : normalizeLocationCodes(afterSections.flatMap(s => s.questions))
     .filter(q => !isReservedField(q) && q.type !== 'profile_photo');
 
   const beforeDemoSections = getDemoSectionsForForm(beforeForm);
@@ -154,9 +157,9 @@ const ResponsesTable = ({
   const allFormQuestions = [...beforeQuestionCols, ...afterQuestionCols];
 
   const allResponses = useMemo(() => [
-    ...(beforeResponses || []).map(r => ({ ...r, _source: 'before' })),
-    ...(afterResponses || []).map(r => ({ ...r, _source: 'after' })),
-  ], [beforeResponses, afterResponses]);
+    ...(scope === 'after' ? [] : beforeResponses || []).map(r => ({ ...r, _source: 'before' })),
+    ...(scope === 'before' ? [] : afterResponses || []).map(r => ({ ...r, _source: 'after' })),
+  ], [beforeResponses, afterResponses, scope]);
 
   const getAnswerForQuestion = (response, question, source) =>
     resolveAnswerForQuestion(response, question, {
@@ -291,7 +294,7 @@ const ResponsesTable = ({
   const downloadCSV = () => {
     if (filteredResponses.length === 0) { toast.error('No responses to download'); return; }
     const headers = [
-      '#', 'Source', 'Submitted At', 'Respondent ID', 'Respondent Name',
+      '#', ...(scope ? [] : ['Source']), 'Submitted At', 'Respondent ID', 'Respondent Name',
       'Municipality', 'Barangay', 'Province', 'Status',
       ...allFormQuestions.map((q, idx) => getQuestionLabel(q, idx)),
     ];
@@ -301,7 +304,7 @@ const ResponsesTable = ({
       const status = getResponseStatus(response);
       return [
         rowIdx + 1,
-        response._source === 'before' ? tabLabels.before : tabLabels.after,
+        ...(scope ? [] : [response._source === 'before' ? tabLabels.before : tabLabels.after]),
         submittedAt,
         getRespondentId(response),
         response.full_name || '',
@@ -320,7 +323,8 @@ const ResponsesTable = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${(project?.title || 'project').replace(/\s+/g, '_')}-responses.csv`;
+    const scopeSuffix = scope ? `-${tabLabels[scope].toLowerCase().replace(/\s+/g, '-')}` : '';
+    a.download = `${(project?.title || 'project').replace(/\s+/g, '_')}${scopeSuffix}-responses.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success('CSV downloaded successfully');
@@ -334,6 +338,12 @@ const ResponsesTable = ({
       {/* Controls Bar */}
       <section className="rounded-2xl border border-slate-200/60 bg-white px-6 py-4 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {scope ? (
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              {tabLabels[scope]} Responses
+              <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{allResponses.length}</span>
+            </div>
+          ) : (
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -369,6 +379,7 @@ const ResponsesTable = ({
               {tabLabels.after} <span className="ml-1 text-xs opacity-70">{afterCount}</span>
             </button>
           </div>
+          )}
 
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -471,7 +482,7 @@ const ResponsesTable = ({
                 <thead>
                   <tr className="bg-slate-50/80">
                     <SortableTh label="Submitted At" colKey="submitted" sortConfig={sortConfig} onSort={toggleSort} rowSpan={2} />
-                    <SortableTh label="Source" colKey="source" sortConfig={sortConfig} onSort={toggleSort} rowSpan={2} />
+                    {!scope && <SortableTh label="Source" colKey="source" sortConfig={sortConfig} onSort={toggleSort} rowSpan={2} />}
                     <SortableTh label="Respondent ID" colKey="respondent_id" sortConfig={sortConfig} onSort={toggleSort} rowSpan={2} />
                     <SortableTh label="Name" colKey="name" sortConfig={sortConfig} onSort={toggleSort} rowSpan={2} />
                     <SortableTh label="Municipality" colKey="municipality" sortConfig={sortConfig} onSort={toggleSort} rowSpan={2} />
@@ -512,6 +523,7 @@ const ResponsesTable = ({
                     return (
                       <tr key={resp.id || `${source}-${rowIdx}`} className={`transition hover:bg-cyan-50/30 ${rowIdx % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'}`}>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{submittedAt}</td>
+                        {!scope && (
                         <td className="whitespace-nowrap px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${
                             source === 'before'
@@ -522,6 +534,7 @@ const ResponsesTable = ({
                             {source === 'before' ? tabLabels.before : tabLabels.after}
                           </span>
                         </td>
+                        )}
                         <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-900">{respondentId}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-800">{resp.full_name || '—'}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{getLocationForRow(resp, 'municipality')}</td>

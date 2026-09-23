@@ -213,5 +213,45 @@
     break-inside: avoid;
   }
 
+  /* Narrative Report "Download PDF" (lib/printReport.js): print only the copy of
+     the report placed in #report-print-portal, nothing else on the page. */
+  body.printing-report > *:not(#report-print-portal) {
+    display: none !important;
+  }
+  #report-print-portal {
+    display: block !important;
+  }
+  #report-print-portal > * {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  #report-print-portal h1,
+  #report-print-portal h2,
+  #report-print-portal h3,
+  #report-print-portal figcaption {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  #report-print-portal figure,
+  #report-print-portal tr,
+  #report-print-portal li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  #report-print-portal p {
+    orphans: 3;
+    widows: 3;
+  }
+}
+
+/* The print copy is never shown on screen. */
+@media screen {
+  #report-print-portal {
+    display: none;
+  }
 }
 

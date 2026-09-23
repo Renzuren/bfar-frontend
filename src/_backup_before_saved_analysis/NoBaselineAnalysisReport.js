@@ -1,12 +1,10 @@
 // src/pages/NoBaselineAnalysisReport.js
 // ============================================================
 // ANALYSIS REPORT TAB — No-Baseline projects
-// Mirrors the full MLUpload.js layout & pipeline: the dataset is
-// built automatically from the Beneficiary + Non-Beneficiary
-// responses (the same CSV the All Responses export downloads), the
-// user picks the settings and runs the analysis against the same
-// `/train` endpoint, and the last run is saved with the project
-// (projects/:id `ml_analysis`) so reopening the report shows it.
+// Mirrors the full MLUpload.js layout & pipeline, but fully
+// automatic: the combined dataset is built from the Beneficiary
+// + Non-Beneficiary responses and the ML analysis runs
+// automatically against the same `/train` endpoint.
 // ============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -67,63 +65,6 @@ const pickOutcomeColumn = (cols) =>
 // Columns of the ML dataset that are identifiers/locations, not analysable answers.
 const ML_ID_COLUMNS = new Set(['RESPONSE', 'GROUP', 'Municipality', 'Barangay', 'Province']);
 
-// "Model used 30 of 147 columns -- 37 asked to one group only, ..." from a /train
-// result's feature_selection, so the column count on the page and the model's
-// 30 features visibly add up. null when the result has no feature_selection.
-const FEATURE_SELECTION_REASONS = [
-  ['excluded_as_group_specific', 'asked to one group only'],
-  ['excluded_as_wave_pair', "'after' half of a before/after pair"],
-  ['excluded_as_post_treatment', 'current/after measure'],
-  ['excluded_by_user', 'excluded by you'],
-  ['excluded_as_leakage', 'too close to the group itself'],
-  ['excluded_as_low_coverage', 'mostly unanswered'],
-  ['excluded_as_below_top_n', 'ranked below the top 30'],
-];
-const featureSelectionSummary = (result) => {
-  const fs = result?.feature_selection;
-  if (!fs || typeof fs.n_features_selected !== 'number') return null;
-  const parts = FEATURE_SELECTION_REASONS
-    .map(([key, label]) => [Array.isArray(fs[key]) ? fs[key].length : 0, label])
-    .filter(([count]) => count > 0);
-  const total = fs.n_features_selected + parts.reduce((sum, [count]) => sum + count, 0);
-  const reasons = parts.map(([count, label]) => `${count} ${label}`).join(', ');
-  return `Model used ${fs.n_features_selected} of ${total} columns${reasons ? ` — ${reasons}` : ''}.`;
-};
-
-// Identifies the exact rows an analysis ran on: row count + a hash of every
-// row's values. Any added, removed or edited response changes it, which is how
-// the page knows a saved analysis is out of date.
-const datasetFingerprint = (ml) => {
-  let hash = 5381;
-  ml.rows.forEach((row) => {
-    const line = ml.columns.map((col) => row[col] ?? '').join('\u0001');
-    for (let i = 0; i < line.length; i += 1) hash = ((hash * 33) ^ line.charCodeAt(i)) >>> 0;
-  });
-  return `${ml.rows.length}:${ml.columns.length}:${hash.toString(36)}`;
-};
-
-// The project's saved analysis ({ saved_at, settings, fingerprint, result_json }),
-// or null if there is none or it can't be read.
-const readSavedAnalysis = (projectDoc) => {
-  const saved = projectDoc?.ml_analysis;
-  if (!saved || typeof saved.result_json !== 'string') return null;
-  try {
-    return { ...saved, result: JSON.parse(saved.result_json) };
-  } catch (_) {
-    return null;
-  }
-};
-
-// enrichImpact reads group membership from a Status label; derive it from the
-// treatment column the analysis used (1 = Beneficiary).
-const impactDatasetFor = (ml, treatmentCol) => ({
-  columns: ml.columns,
-  rows: ml.rows.map((row) => ({
-    ...row,
-    Status: String(row[treatmentCol]).trim() === '1' ? 'Beneficiary' : 'Non-Beneficiary',
-  })),
-});
-
 const NoBaselineAnalysisReport = () => {
   const outletCtx = useOutletContext();
   const project = outletCtx?.project;
@@ -144,9 +85,7 @@ const NoBaselineAnalysisReport = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResults, setAnalysisResults] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
-  // The saved run being shown: { savedAt, stale } -- stale when responses changed since.
-  const [savedInfo, setSavedInfo] = useState(null);
-  const [saveError, setSaveError] = useState(null);
+  const ranRef = useRef(false);
 
   // ---------- Configuration ----------
   const [treatmentColumn, setTreatmentColumn] = useState('GROUP');
@@ -195,9 +134,7 @@ const NoBaselineAnalysisReport = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const [projectDoc, beforeForm, beforeResponses, afterForm, afterResponses] = await Promise.all([
-          // The saved analysis is only returned by GET /projects/:id, not the project list.
-          api.get(`/projects/${project.id}`).catch(() => ({ data: null })),
+        const [beforeForm, beforeResponses, afterForm, afterResponses] = await Promise.all([
           project.before_form
             ? api.get(`/forms/${project.before_form}`).catch(() => ({ data: null }))
             : Promise.resolve({ data: null }),
@@ -225,29 +162,11 @@ const NoBaselineAnalysisReport = () => {
         setDataset(merged);
         setMlDataset(ml);
         setTablePage(0);
+        ranRef.current = false;
 
         const cols = ml.columns.filter((c) => !ML_ID_COLUMNS.has(c));
         setAvailableColumns(cols);
-
-        // Reopen the last saved run with its settings; otherwise start from defaults.
-        // Nothing is sent to the ML service until "Run Analysis" is clicked.
-        const saved = readSavedAnalysis(projectDoc.data);
-        const settings = saved?.settings || {};
-        if (saved && ml.columns.includes(settings.treatmentColumn) && ml.columns.includes(settings.outcomeColumn)) {
-          setTreatmentColumn(settings.treatmentColumn);
-          setOutcomeColumn(settings.outcomeColumn);
-          setExcludeFeatures(settings.excludeFeatures || '');
-          setCaliperRatio(Number(settings.caliperRatio) || 0.2);
-          const stale = saved.fingerprint !== datasetFingerprint(ml);
-          setAnalysisResults(stale
-            ? saved.result
-            : enrichImpact(saved.result, impactDatasetFor(ml, settings.treatmentColumn), settings.outcomeColumn, Number(settings.caliperRatio) || 0.2));
-          setSavedInfo({ savedAt: saved.saved_at, stale });
-        } else {
-          setAnalysisResults(null);
-          setSavedInfo(null);
-          setOutcomeColumn(pickOutcomeColumn(cols));
-        }
+        setOutcomeColumn(pickOutcomeColumn(cols));
       } catch (err) {
         if (!cancelled) setError('Failed to load questionnaire data.');
       } finally {
@@ -270,7 +189,6 @@ const NoBaselineAnalysisReport = () => {
     }
     setIsAnalyzing(true);
     setError(null);
-    setSaveError(null);
     setAnalysisResults(null);
     setShowPreview(true);
     setUploadProgress(10);
@@ -324,28 +242,18 @@ const NoBaselineAnalysisReport = () => {
       // reports zero matched pairs (empty ATT / no pair-details button / no
       // Pre-Post profile) -- enrichImpact recomputes the gap from the actual
       // responses using the service's own propensity scores.
-      setAnalysisResults(enrichImpact(result, impactDatasetFor(mlDataset, treatmentColumn), outcomeColumn, caliperRatio));
+      // enrichImpact reads group membership from a Status label; derive it from the
+      // treatment column actually sent (1 = Beneficiary).
+      const impactDataset = {
+        columns: mlDataset.columns,
+        rows: mlDataset.rows.map((row) => ({
+          ...row,
+          Status: String(row[treatmentColumn]).trim() === '1' ? 'Beneficiary' : 'Non-Beneficiary',
+        })),
+      };
+      setAnalysisResults(enrichImpact(result, impactDataset, outcomeColumn, caliperRatio));
       setUploadProgress(100);
       setTimeout(() => setUploadProgress(0), 1200);
-
-      // Save this run with the project (replacing any earlier one) so reopening the
-      // report shows it without re-running. The raw /train result is stored as a
-      // JSON string; enrichImpact is re-applied when it is loaded.
-      const savedAt = new Date().toISOString();
-      try {
-        await api.put(`/projects/${project.id}`, {
-          ml_analysis: {
-            saved_at: savedAt,
-            settings: { treatmentColumn, outcomeColumn, excludeFeatures: excludeFeatures.trim(), caliperRatio },
-            fingerprint: datasetFingerprint(mlDataset),
-            result_json: JSON.stringify(result),
-          },
-        });
-        setSavedInfo({ savedAt, stale: false });
-      } catch (saveErr) {
-        setSavedInfo(null);
-        setSaveError(saveErr?.response?.data?.error || 'The results could not be saved to the project.');
-      }
     } catch (err) {
       if (err.name === 'AbortError') {
         setError('Request timed out. Training may be taking too long.');
@@ -356,7 +264,17 @@ const NoBaselineAnalysisReport = () => {
     } finally {
       setIsAnalyzing(false);
     }
-  }, [mlDataset, outcomeColumn, excludeFeatures, caliperRatio, treatmentColumn, ML_API_URL, project?.id]);
+  }, [mlDataset, outcomeColumn, excludeFeatures, caliperRatio, treatmentColumn, ML_API_URL]);
+
+  // ---------- Auto-run the analysis once the combined dataset is ready ----------
+  useEffect(() => {
+    if (!mlDataset) return;
+    if (ranRef.current) return;
+    if (!mlDataset.columns.length || !mlDataset.rows.length) return;
+    if (!outcomeColumn) return; // wait for outcome selection
+    ranRef.current = true;
+    handleAnalyze();
+  }, [mlDataset, handleAnalyze, outcomeColumn]);
 
   const hasForms = Boolean(project?.before_form && project?.after_form);
   const hasData = Boolean(dataset && dataset.respondentCount > 0);
@@ -395,7 +313,7 @@ const NoBaselineAnalysisReport = () => {
             <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
             <div className="relative">
               <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-blue-300">How it works</p>
-              <h2 className="mb-6 text-2xl font-bold">ML Analysis Pipeline</h2>
+              <h2 className="mb-6 text-2xl font-bold">Automatic ML Analysis Pipeline</h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="flex items-start gap-3">
                   <div className="bg-white/10 p-2 rounded-xl text-blue-300">
@@ -420,7 +338,7 @@ const NoBaselineAnalysisReport = () => {
                     <BarChart3 className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-white">3. Analyze</h4>
+                    <h4 className="font-semibold text-white">3. Auto-Analyze</h4>
                     <p className="text-sm text-blue-200">PS scores, balance, SHAP & impact</p>
                   </div>
                 </div>
@@ -449,7 +367,7 @@ const NoBaselineAnalysisReport = () => {
             </div>
             <h3 className="mb-2 text-xl font-bold text-slate-900">No Questionnaires Yet</h3>
             <p className="mx-auto max-w-md text-sm text-slate-500">
-              Create both a Beneficiary and a Non-Beneficiary questionnaire to run the ML analysis.
+              Create both a Beneficiary and a Non-Beneficiary questionnaire to run the automatic ML analysis.
             </p>
           </div>
         )}
@@ -461,7 +379,7 @@ const NoBaselineAnalysisReport = () => {
             </div>
             <h3 className="mb-2 text-xl font-bold text-slate-900">No Responses Collected Yet</h3>
             <p className="mx-auto max-w-md text-sm text-slate-500">
-              Responses from both groups are required. Once both are in, choose the settings and run the analysis.
+              Responses from both groups are required. The analysis will run automatically as soon as data is available.
             </p>
           </div>
         )}
@@ -521,11 +439,10 @@ const NoBaselineAnalysisReport = () => {
                 </div>
                 <div className="rounded-xl border border-violet-200/80 bg-violet-50/50 p-4">
                   <div className="flex items-center gap-2 text-xs font-medium text-violet-600">
-                    <BrainCircuit className="h-4 w-4" /> Question columns
+                    <BrainCircuit className="h-4 w-4" /> Features
                   </div>
                   <p className="mt-1 text-2xl font-bold tabular-nums text-violet-700">
-                    {/* The columns the model chooses its (up to 30) features from. */}
-                    {(mlDataset ? mlDataset.columns.filter((c) => !ML_ID_COLUMNS.has(c)).length : dataset.columns.length - 1).toLocaleString()}
+                    {(dataset.columns.length - 1).toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -700,40 +617,20 @@ const NoBaselineAnalysisReport = () => {
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" /> Analyzing...
                 </>
-              ) : analysisResults ? (
-                <>
-                  <RefreshCw className="h-4 w-4" /> Re-run Analysis
-                </>
               ) : (
                 <>
                   <BarChart3 className="h-4 w-4" /> Run Analysis
                 </>
               )}
             </Button>
-            {savedInfo && !isAnalyzing && (
-              <p className="w-full text-center text-xs text-slate-500">
-                Last analysed {new Date(savedInfo.savedAt).toLocaleString()} · saved with this project
-              </p>
-            )}
-            {analysisResults && !isAnalyzing && featureSelectionSummary(analysisResults) && (
-              <p className="w-full text-center text-xs text-slate-500">{featureSelectionSummary(analysisResults)}</p>
-            )}
-          </div>
-        )}
-
-        {/* Saved analysis is out of date */}
-        {savedInfo?.stale && !isAnalyzing && (
-          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-            <p>Responses changed since this analysis was saved. The results below are from the saved run; re-run the analysis to update them.</p>
-          </div>
-        )}
-
-        {/* Results shown but not saved */}
-        {saveError && !isAnalyzing && (
-          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-            <p>Analysis finished but was not saved: {saveError}</p>
+            <Button
+              onClick={() => { ranRef.current = false; handleAnalyze(); }}
+              disabled={isAnalyzing || !outcomeColumn}
+              variant="outline"
+              className="gap-2 border-slate-200 text-sm"
+            >
+              <RefreshCw className={`h-4 w-4 ${isAnalyzing ? 'animate-spin' : ''}`} /> Re-run
+            </Button>
           </div>
         )}
 
@@ -745,7 +642,7 @@ const NoBaselineAnalysisReport = () => {
           </div>
         )}
 
-        {/* Analysis error */}
+        {/* Analysis error after auto-run failed */}
         {error && hasAnalysableData && (
           <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />

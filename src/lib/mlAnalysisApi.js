@@ -37,7 +37,7 @@ export const buildCSVString = (columns, rows) => {
  * @param {object[]} options.rows     Row objects keyed by column name
  * @param {string}   [options.treatmentColumn]
  * @param {string}   [options.outcomeColumn]
- * @param {string}   [options.includeFeatures]
+ * @param {string}   [options.excludeFeatures]
  * @param {number}   [options.caliperRatio]       -- NEW: caliper ratio for matching (default 0.2)
  * @param {string}   [options.mlApiUrl]
  * @param {number}   [options.timeout=120000]
@@ -48,7 +48,7 @@ export const runMLAnalysis = async ({
   rows = [],
   treatmentColumn,
   outcomeColumn,
-  includeFeatures,
+  excludeFeatures,
   caliperRatio,          // <-- NEW
   mlApiUrl,
   timeout = 120000,
@@ -66,7 +66,7 @@ export const runMLAnalysis = async ({
   formData.append('file', file);
   if (treatmentColumn) formData.append('treatment_column', treatmentColumn);
   if (outcomeColumn) formData.append('outcome_column', outcomeColumn);
-  if (includeFeatures && includeFeatures.trim()) formData.append('include_features', includeFeatures.trim());
+  if (excludeFeatures && excludeFeatures.trim()) formData.append('exclude_features', excludeFeatures.trim());
   // --- NEW: append caliper_ratio if provided ---
   if (caliperRatio !== undefined && caliperRatio !== null) {
     formData.append('caliper_ratio', String(caliperRatio));

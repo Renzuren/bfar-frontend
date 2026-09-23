@@ -26,8 +26,7 @@ import {
 } from 'recharts';
 import { normalizeLocationCodes, isReservedField, getQuestionLabel } from '../lib/preprocessing';
 import { api } from '../lib/apiMiddleware';
-import jsPDF from 'jspdf';
-import { buildReportPdf } from '../lib/reportPdf';
+import { printReport } from '../lib/printReport';
 import { normalizeForMatch } from '../lib/responsesDataset';
 import { buildNarrativeFacts, narrativeFactsFingerprint, readSavedNarrative } from '../lib/narrativeFacts';
 
@@ -461,18 +460,19 @@ const NarrativeReport = () => {
     );
   };
 
-  // Builds the PDF from the report's content (real text, tables, charts) and
-  // downloads it -- see lib/reportPdf.js.
+  // Chrome's own print engine makes the PDF (Print -> "Save as PDF"): the complete
+  // report with real text and proper page breaks. See lib/printReport.js.
   const generatePDF = async () => {
     if (!reportRef.current) return;
     setGenerating(true);
     try {
-      const pdf = await buildReportPdf(reportRef.current, { JsPdf: jsPDF });
-      pdf.save(`${(project?.title || 'narrative-report').replace(/\s+/g, '_')}-narrative-report.pdf`);
-      toast.success('Report downloaded as PDF');
+      toast.info('In the print window, choose "Save as PDF" as the destination.');
+      await printReport(reportRef.current, {
+        title: `${(project?.title || 'narrative-report').replace(/\s+/g, '_')}-narrative-report`,
+      });
     } catch (error) {
       console.error('PDF export failed:', error);
-      toast.error(`Failed to generate PDF${error?.message ? `: ${error.message}` : ''}`);
+      toast.error(`Failed to open the print window${error?.message ? `: ${error.message}` : ''}`);
     } finally {
       setGenerating(false);
     }
@@ -731,7 +731,7 @@ const NarrativeReport = () => {
           </Button>
           <Button onClick={generatePDF} disabled={generating} className="rounded-xl bg-slate-900 px-4 py-2 text-white hover:bg-slate-800">
             <Download className="mr-2 h-4 w-4" />
-            {generating ? 'Generating PDF...' : 'Download PDF'}
+            {generating ? 'Preparing PDF...' : 'Download PDF'}
           </Button>
         </div>
       </div>

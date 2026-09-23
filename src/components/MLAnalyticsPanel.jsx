@@ -588,6 +588,14 @@ export const MLAnalyticsPanel = ({
                   )}
                   <span className="text-sm font-semibold text-slate-900">{covariate_balance.balance_achieved ? 'Yes' : 'No'}</span>
                 </div>
+                {covariate_balance.balance_threshold != null && (
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    |SMD| &lt; {covariate_balance.balance_threshold}
+                    {covariate_balance.small_sample
+                      ? ` (small sample, n = ${covariate_balance.n_rows})`
+                      : ''}
+                  </p>
+                )}
               </div>
               <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
                 <p className="text-xs font-medium text-slate-500">Mean |SMD|</p>
@@ -610,6 +618,15 @@ export const MLAnalyticsPanel = ({
                 <p className="mt-0.5 text-lg font-semibold text-slate-900">{covariate_balance.overlap?.control_in_treated_range_pct?.toFixed(1)}%</p>
               </div>
             </div>
+
+            {covariate_balance.small_sample && (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                Small sample ({covariate_balance.n_rows} respondents): balance is judged at
+                |SMD| &lt; {covariate_balance.balance_threshold} instead of the standard 0.1, since chance differences alone
+                exceed 0.1 at this size. The threshold tightens toward 0.1 as more respondents are added
+                ({covariate_balance.threshold_reference}). Read the impact estimate together with its 95% confidence interval.
+              </div>
+            )}
 
             {smdData.length > 0 && (
               <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
@@ -646,7 +663,7 @@ export const MLAnalyticsPanel = ({
                           }}
                           cursor={CURSOR}
                         />
-                        <ReferenceLine x={0.1} stroke={PALETTE.danger} strokeDasharray="5 4" />
+                        <ReferenceLine x={covariate_balance.balance_threshold ?? 0.1} stroke={PALETTE.danger} strokeDasharray="5 4" />
                         <Legend
                           verticalAlign="top"
                           height={26}
