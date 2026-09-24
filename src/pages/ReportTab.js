@@ -115,7 +115,7 @@ const meanLine = (q) => {
 const QuestionCard = ({ q }) => {
   const line = meanLine(q);
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3.5">
+    <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-3.5">
       <div className="mb-2.5">
         <div className="text-[11px] font-bold text-blue-700">{q.code || '—'}</div>
         <div className="text-[12.5px] font-semibold leading-snug text-slate-800">{q.title}</div>
@@ -187,7 +187,7 @@ const MapSection = ({ points, summary, activeType, onDrillType, focusKey, onFocu
         </div>
       )}
     >
-      <div className={`grid gap-4 ${expanded ? 'lg:grid-cols-[minmax(0,1fr)_330px]' : 'lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]'}`}>
+      <div className={`grid grid-cols-1 gap-4 ${expanded ? 'lg:grid-cols-[minmax(0,1fr)_330px]' : 'lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]'}`}>
         <div className={expanded ? 'h-[calc(92vh-190px)] min-h-[420px]' : 'h-[420px] sm:h-[480px]'}>
           <PhilippineMap points={points} activeType={activeType} focusKey={focusKey} onFocusChange={onFocusChange} groupLabels={MAP_LABELS} />
         </div>
@@ -382,7 +382,7 @@ const ReportTab = () => {
         {(shareIndices.length > 0 || ratingIndices.length > 0) && (
           <>
             <SectionHeading icon={Gauge} title="Key Indicators" subtitle="Composite scores per respondent, averaged per survey · Before vs After" />
-            <div className="grid gap-5 xl:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
               {shareIndices.length > 0 && (
                 <ChartCard title="Ownership & Coverage Indices" subtitle="% of listed items a respondent has (Meron / Oo) · mean per survey" right={<PhaseLegend />}>
                   <ResponsiveContainer width="100%" height={260}>
@@ -458,8 +458,8 @@ const ReportTab = () => {
         {report.income.length > 0 && (
           <>
             <SectionHeading icon={Wallet} title="Income" subtitle="Monthly income brackets, estimated in pesos from each bracket's midpoint" />
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-              <div className="grid gap-3">
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+              <div className="grid grid-cols-1 gap-3">
                 {report.income.map((i) => {
                   const change = i.beforeMean !== null && i.afterMean !== null ? i.afterMean - i.beforeMean : null;
                   const pctChange = change !== null && i.beforeMean ? (change / i.beforeMean) * 100 : null;
@@ -516,7 +516,7 @@ const ReportTab = () => {
         {report.profile.length > 0 && (
           <>
             <SectionHeading icon={Users} title="Respondent Profile" subtitle="Demographics of the Before and After respondents · % of each survey's answers (count)" />
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {report.profile.map((p) => (
                 <ChartCard
                   key={p.key}
@@ -540,8 +540,8 @@ const ReportTab = () => {
             <div className="space-y-4">
               {report.sections.map((section) => (
                 <details key={section.id} open className="group rounded-xl border border-slate-200 bg-slate-50/60">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
-                    <span className="flex items-center gap-2">
+                  <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3">
+                    <span className="flex min-w-0 flex-wrap items-center gap-2">
                       <span className="rounded-md bg-blue-600 px-2 py-0.5 text-[11px] font-bold text-white">{section.id}</span>
                       <span className="text-sm font-bold text-slate-800">{section.title}</span>
                       <span className="text-[11px] text-slate-400">{section.questions.length} questions</span>
@@ -551,7 +551,7 @@ const ReportTab = () => {
                       <ChevronDown className="h-4 w-4 text-slate-400 transition group-open:rotate-180" />
                     </span>
                   </summary>
-                  <div className="grid gap-3 px-4 pb-4 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 px-4 pb-4 md:grid-cols-2 xl:grid-cols-3">
                     {section.questions.map((q) => <QuestionCard key={q.key} q={q} />)}
                   </div>
                 </details>

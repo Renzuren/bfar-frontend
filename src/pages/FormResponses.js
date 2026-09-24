@@ -461,8 +461,8 @@ const FormResponses = ({ embedded = false }) => {
       {/* Header (standalone mode only — the project layout provides the navbar) */}
       {!embedded && (
       <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
-        <div className="relative flex w-full items-center justify-between px-3 py-4 sm:px-5">
-          <div className="flex items-center gap-3">
+        <div className="relative flex w-full items-center justify-between gap-3 px-3 py-4 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
             <button
               onClick={() => setNavOpen(!navOpen)}
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
@@ -470,7 +470,7 @@ const FormResponses = ({ embedded = false }) => {
             >
               <Menu className="h-5 w-5" />
             </button>
-            <h1 className="max-w-xs truncate text-sm font-semibold text-slate-800">
+            <h1 className="min-w-0 max-w-xs truncate text-sm font-semibold text-slate-800">
               {form.title}
             </h1>
           </div>
@@ -491,7 +491,7 @@ const FormResponses = ({ embedded = false }) => {
               </div>
             </>
           )}
-          <div className="flex items-center gap-2.5">
+          <div className="flex shrink-0 items-center gap-2.5">
             <button
               onClick={() => navigate(`/forms/${id}/profiles`, { state: backState })}
               className="inline-flex h-9 items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 text-sm font-medium text-violet-700 transition hover:bg-violet-100"

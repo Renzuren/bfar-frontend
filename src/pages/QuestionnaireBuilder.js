@@ -1164,11 +1164,11 @@ const QuestionnaireBuilder = () => {
         </div>
       </Card>
 
-      <div className="flex items-center justify-between gap-4 pt-4 pb-10">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-4 pb-10">
         <Button variant="outline" onClick={() => setCurrentSectionIndex(currentSectionIndex - 1)} disabled={isFirst}>
           <ChevronLeft className="mr-2 h-4 w-4" /> Previous
         </Button>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
           {!isLast && (
             <Button
               variant="outline"

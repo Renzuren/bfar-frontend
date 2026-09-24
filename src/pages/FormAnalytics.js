@@ -561,18 +561,18 @@ const FormAnalytics = ({ embedded = false }) => {
       {/* Header (standalone mode only — the project layout provides the navbar) */}
       {!embedded && (
       <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
-        <div className="flex w-full items-center justify-between px-3 py-4 sm:px-5">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={goBack} className="gap-1.5 text-slate-500 hover:text-slate-900">
+        <div className="flex w-full items-center justify-between gap-3 px-3 py-4 sm:px-5">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+            <Button variant="ghost" size="sm" onClick={goBack} className="shrink-0 gap-1.5 text-slate-500 hover:text-slate-900">
               <ArrowLeft className="h-4 w-4" />
-              {backState?.project_id ? 'Back' : 'Dashboard'}
+              <span className="hidden sm:inline">{backState?.project_id ? 'Back' : 'Dashboard'}</span>
             </Button>
-            <div className="h-5 w-px bg-slate-200" />
+            <div className="h-5 w-px shrink-0 bg-slate-200" />
             <div className="min-w-0">
               <h1 className="truncate text-sm font-semibold text-slate-900">{form.title}</h1>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             {totalResponses > 0 && (
               <span className="hidden rounded-full bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-600 ring-1 ring-cyan-100 sm:inline-flex">
                 {totalResponses} {totalResponses === 1 ? 'response' : 'responses'}
