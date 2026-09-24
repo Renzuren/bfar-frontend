@@ -68,7 +68,7 @@ const AdminDashboard = () => {
   const [creatingUser, setCreatingUser] = useState(false);
 
   const [editUserOpen, setEditUserOpen] = useState(false);
-  const [editUser, setEditUser] = useState({ id: '', firstName: '', middleName: '', lastName: '', email: '', role: 'user', org_id: '', status: 'active' });
+  const [editUser, setEditUser] = useState({ id: '', firstName: '', middleName: '', lastName: '', email: '', role: 'user', org_id: '', organization: '', status: 'active' });
   const [savingUser, setSavingUser] = useState(false);
 
   const [editOrgOpen, setEditOrgOpen] = useState(false);
@@ -143,7 +143,7 @@ const AdminDashboard = () => {
     try {
       await api.delete(`/admin/organizations/${deleteOrgId}`);
       setOrganizations((prev) => prev.filter((o) => o.id !== deleteOrgId));
-      setUsers((prev) => prev.map((u) => u.org_id === deleteOrgId ? { ...u, org_id: null } : u));
+      setUsers((prev) => prev.map((u) => u.org_id === deleteOrgId ? { ...u, org_id: null, organization: null } : u));
       toast.success('Organization deleted');
     } catch (error) { toast.error(error.response?.data?.error || 'Failed to delete organization'); }
     setDeleteOrgDialog(false); setDeleteOrgId(null); setDeleteOrgName('');
@@ -177,6 +177,7 @@ const AdminDashboard = () => {
       email: u.email || '',
       role: u.role || 'user',
       org_id: u.org_id || '',
+      organization: u.organization || '',
       status: u.status || 'active',
     });
     setEditUserOpen(true);
@@ -244,11 +245,14 @@ const AdminDashboard = () => {
     return org?.name || orgId;
   };
 
+  // The assigned organization, or else the one the user wrote on their profile.
+  const getUserOrgLabel = (u) => (u.org_id ? getOrgName(u.org_id) : u.organization || 'Unassigned');
+
   const filteredUsers = users.filter((u) => {
     if (userFilter === 'active' && u.status === 'deleted') return false;
     if (userFilter === 'deleted' && u.status !== 'deleted') return false;
     const q = searchQuery.toLowerCase();
-    return u.full_name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || getOrgName(u.org_id).toLowerCase().includes(q);
+    return u.full_name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || getUserOrgLabel(u).toLowerCase().includes(q);
   });
 
   const filteredOrgs = organizations.filter((o) => {
@@ -420,7 +424,15 @@ const AdminDashboard = () => {
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <Building2 className="h-3.5 w-3.5 text-slate-400" />
-                              <span className={u.org_id ? 'text-slate-700 font-medium' : 'text-slate-400 italic'}>{getOrgName(u.org_id)}</span>
+                              <span
+                                className={u.org_id ? 'text-slate-700 font-medium' : u.organization ? 'text-slate-700' : 'text-slate-400 italic'}
+                                title={!u.org_id && u.organization ? "From the user's profile; not yet assigned to an organization" : undefined}
+                              >
+                                {getUserOrgLabel(u)}
+                              </span>
+                              {!u.org_id && u.organization && (
+                                <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200">profile</span>
+                              )}
                             </div>
                           </td>
                           <td className="px-6 py-4">
@@ -646,6 +658,11 @@ const AdminDashboard = () => {
                 <option value="">No organization</option>
                 {organizations.map((org) => (<option key={org.id} value={org.id}>{org.name}</option>))}
               </select>
+              {!editUser.org_id && editUser.organization && (
+                <p className="mt-1.5 text-xs text-slate-500">
+                  Nakasulat sa profile ng user: <span className="font-semibold text-slate-700">{editUser.organization}</span>
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
