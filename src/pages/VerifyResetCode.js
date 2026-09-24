@@ -40,7 +40,7 @@ const VerifyResetCode = () => {
       });
 
       toast.success('Code verified successfully! Set your new password now.');
-      navigate(`/reset-password?token=${encodeURIComponent(code.trim())}`);
+      navigate(`/reset-password?token=${encodeURIComponent(code.trim())}&email=${encodeURIComponent(email.trim())}`);
     } catch (error) {
       toast.error(error.response?.data?.message || error.message || 'Verification failed. Please check your code and try again.');
     } finally {

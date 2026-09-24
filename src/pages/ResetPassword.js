@@ -12,6 +12,7 @@ const ResetPassword = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get('token');
+  const email = searchParams.get('email');
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -20,7 +21,7 @@ const ResetPassword = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!token) {
+    if (!token || !email) {
       toast.error('Invalid reset link');
       return;
     }
@@ -40,6 +41,7 @@ const ResetPassword = () => {
     try {
       await api.post(`/auth/reset_password`, {
         token,
+        email,
         newPassword: password
       });
       toast.success('Password reset successfully!');
@@ -51,7 +53,7 @@ const ResetPassword = () => {
     }
   };
 
-  if (!token) {
+  if (!token || !email) {
     return (
       <AuthLayout
         subtitle={{
