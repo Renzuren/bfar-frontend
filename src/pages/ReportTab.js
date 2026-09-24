@@ -10,24 +10,19 @@
 //   3. Income                 7. Paired Before -> After (same person number)
 //   4. Geographic map
 // Data: lib/baselineReport.js and lib/pairedBaseline.js.
-// Exports the whole report to PDF as real text, tables and charts (lib/reportPdf.js,
-// the same builder as the Narrative Report).
 // ============================================================
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import jsPDF from 'jspdf';
 import {
-  AlertTriangle, Building2, ChevronDown, Download, FileBarChart2, Gauge, Globe2, Inbox,
-  ListChecks, Loader2, MapPin, Maximize2, Minimize2, RefreshCw, Users, Wallet,
+  AlertTriangle, Building2, ChevronDown, FileBarChart2, Gauge, Globe2, Inbox,
+  ListChecks, MapPin, Maximize2, Minimize2, RefreshCw, Users, Wallet,
 } from 'lucide-react';
 import {
   Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
-import { buildReportPdf } from '../lib/reportPdf';
 import PhilippineMap, { GROUP_COLORS } from '@/components/report/PhilippineMap';
 import { ChartCard, EmptyNote } from '@/components/report/ReportCharts';
 import PairedBeforeAfter from '@/components/report/PairedBeforeAfter';
@@ -66,7 +61,7 @@ const StatCard = ({ value, label, caption, gradient, icon: Icon }) => (
 );
 
 const PhaseLegend = () => (
-  <div className="pdf-legend flex items-center gap-3 text-[10.5px] font-semibold text-slate-500">
+  <div className="flex items-center gap-3 text-[10.5px] font-semibold text-slate-500">
     <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: BEFORE }} /> Before</span>
     <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: AFTER }} /> After</span>
   </div>
@@ -88,7 +83,7 @@ const SectionHeading = ({ icon: Icon, title, subtitle }) => (
 const DualBars = ({ rows }) => (
   <div className="space-y-2">
     {rows.map((row) => (
-      <div key={row.name} data-pdf-text={`${row.name}: Before ${Math.round(row.Before)}% (${row.BeforeN}) · After ${Math.round(row.After)}% (${row.AfterN})`}>
+      <div key={row.name}>
         <div className="mb-0.5 truncate text-[11.5px] font-medium text-slate-700" title={row.name}>{row.name}</div>
         {[['Before', BEFORE], ['After', AFTER]].map(([phase, color]) => (
           <div key={phase} className="flex items-center gap-2">
@@ -175,7 +170,7 @@ const MapSection = ({ points, summary, activeType, onDrillType, focusKey, onFocu
       title={<span className="inline-flex items-center gap-2"><MapPin className="h-4 w-4 text-cyan-600" /> Geographic Distribution</span>}
       subtitle="Where the Before and After respondents are · hover a bubble or list row for details"
       right={(
-        <div className="no-print flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <div className="hidden items-center gap-0.5 rounded-full bg-slate-100 p-1 ring-1 ring-slate-200 sm:flex">
             {MAP_TYPE_PILLS.map((p) => (
               <TypePill key={p.value} {...p} active={activeType === p.value} onClick={() => onDrillType(p.value)} />
@@ -193,8 +188,7 @@ const MapSection = ({ points, summary, activeType, onDrillType, focusKey, onFocu
       )}
     >
       <div className={`grid gap-4 ${expanded ? 'lg:grid-cols-[minmax(0,1fr)_330px]' : 'lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]'}`}>
-        {/* The interactive map is left out of the PDF; the counts and top locations beside it are kept. */}
-        <div className={`no-print ${expanded ? 'h-[calc(92vh-190px)] min-h-[420px]' : 'h-[420px] sm:h-[480px]'}`}>
+        <div className={expanded ? 'h-[calc(92vh-190px)] min-h-[420px]' : 'h-[420px] sm:h-[480px]'}>
           <PhilippineMap points={points} activeType={activeType} focusKey={focusKey} onFocusChange={onFocusChange} groupLabels={MAP_LABELS} />
         </div>
         <div className="flex min-w-0 flex-col gap-3">
@@ -246,8 +240,6 @@ const ReportTab = () => {
   const [mapType, setMapType] = useState('All');
   const [mapFocus, setMapFocus] = useState(null);
   const [mapExpanded, setMapExpanded] = useState(false);
-  const [generatingPdf, setGeneratingPdf] = useState(false);
-  const reportRef = useRef(null);
 
   useEffect(() => {
     if (!mapExpanded) return undefined;
@@ -293,21 +285,6 @@ const ReportTab = () => {
 
   const report = useMemo(() => (raw ? buildBaselineReport(raw) : null), [raw]);
   const paired = useMemo(() => (raw ? buildPairedComparison(raw) : null), [raw]);
-
-  const generatePDF = async () => {
-    if (!reportRef.current) return;
-    setGeneratingPdf(true);
-    try {
-      const pdf = await buildReportPdf(reportRef.current, { JsPdf: jsPDF });
-      pdf.save(`${(project?.title || 'baseline-report').replace(/[^a-z0-9]+/gi, '_').toLowerCase()}-report.pdf`);
-      toast.success('Report exported as PDF');
-    } catch (e) {
-      console.error('PDF export failed:', e);
-      toast.error(`Failed to generate PDF${e?.message ? `: ${e.message}` : ''}`);
-    } finally {
-      setGeneratingPdf(false);
-    }
-  };
 
   const retry = useCallback(() => setReloadKey((k) => k + 1), []);
 
@@ -357,7 +334,7 @@ const ReportTab = () => {
 
   return (
     <>
-      <div ref={reportRef} className="space-y-6">
+      <div className="space-y-6">
         {/* Header */}
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-700 via-blue-600 to-cyan-600 px-6 py-7 text-white shadow-lg sm:px-9">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -371,10 +348,6 @@ const ReportTab = () => {
                 </p>
               </div>
             </div>
-            <Button onClick={generatePDF} disabled={generatingPdf} className="no-print bg-white font-semibold text-blue-700 shadow-md hover:bg-blue-50">
-              {generatingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-              {generatingPdf ? 'Preparing PDF…' : 'Export to PDF'}
-            </Button>
           </div>
         </section>
 
@@ -601,7 +574,7 @@ const ReportTab = () => {
         </p>
       </div>
 
-      {/* Expanded map overlay (outside the PDF capture area) */}
+      {/* Expanded map overlay */}
       {mapExpanded && report.locations.length > 0 && (
         <div
           className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm sm:p-5"
