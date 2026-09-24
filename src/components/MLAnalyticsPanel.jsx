@@ -763,7 +763,7 @@ export const MLAnalyticsPanel = ({
 
         {/* Profiling Summary Cards */}
         {profiling_summary && (
-          <div className="grid grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
             <div className="rounded-2xl border border-green-200 bg-green-50/50 p-5 shadow-sm">
               <div className="flex items-center gap-3">
                 <TrendingUp className="h-8 w-8 text-green-600" />
