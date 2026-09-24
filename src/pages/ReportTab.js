@@ -10,12 +10,12 @@
 //   3. Income                 7. Paired Before -> After (same person number)
 //   4. Geographic map
 // Data: lib/baselineReport.js and lib/pairedBaseline.js.
-// Exports the whole report to a single PDF (html2canvas + jsPDF).
+// Exports the whole report to PDF as real text, tables and charts (lib/reportPdf.js,
+// the same builder as the Narrative Report).
 // ============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import {
   AlertTriangle, Building2, ChevronDown, Download, FileBarChart2, Gauge, Globe2, Inbox,
@@ -27,6 +27,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
+import { buildReportPdf } from '../lib/reportPdf';
 import PhilippineMap, { GROUP_COLORS } from '@/components/report/PhilippineMap';
 import { ChartCard, EmptyNote } from '@/components/report/ReportCharts';
 import PairedBeforeAfter from '@/components/report/PairedBeforeAfter';
@@ -65,7 +66,7 @@ const StatCard = ({ value, label, caption, gradient, icon: Icon }) => (
 );
 
 const PhaseLegend = () => (
-  <div className="flex items-center gap-3 text-[10.5px] font-semibold text-slate-500">
+  <div className="pdf-legend flex items-center gap-3 text-[10.5px] font-semibold text-slate-500">
     <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: BEFORE }} /> Before</span>
     <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: AFTER }} /> After</span>
   </div>
@@ -87,7 +88,7 @@ const SectionHeading = ({ icon: Icon, title, subtitle }) => (
 const DualBars = ({ rows }) => (
   <div className="space-y-2">
     {rows.map((row) => (
-      <div key={row.name}>
+      <div key={row.name} data-pdf-text={`${row.name}: Before ${Math.round(row.Before)}% (${row.BeforeN}) · After ${Math.round(row.After)}% (${row.AfterN})`}>
         <div className="mb-0.5 truncate text-[11.5px] font-medium text-slate-700" title={row.name}>{row.name}</div>
         {[['Before', BEFORE], ['After', AFTER]].map(([phase, color]) => (
           <div key={phase} className="flex items-center gap-2">
@@ -174,7 +175,7 @@ const MapSection = ({ points, summary, activeType, onDrillType, focusKey, onFocu
       title={<span className="inline-flex items-center gap-2"><MapPin className="h-4 w-4 text-cyan-600" /> Geographic Distribution</span>}
       subtitle="Where the Before and After respondents are · hover a bubble or list row for details"
       right={(
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="no-print flex shrink-0 items-center gap-1.5">
           <div className="hidden items-center gap-0.5 rounded-full bg-slate-100 p-1 ring-1 ring-slate-200 sm:flex">
             {MAP_TYPE_PILLS.map((p) => (
               <TypePill key={p.value} {...p} active={activeType === p.value} onClick={() => onDrillType(p.value)} />
@@ -192,7 +193,8 @@ const MapSection = ({ points, summary, activeType, onDrillType, focusKey, onFocu
       )}
     >
       <div className={`grid gap-4 ${expanded ? 'lg:grid-cols-[minmax(0,1fr)_330px]' : 'lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]'}`}>
-        <div className={expanded ? 'h-[calc(92vh-190px)] min-h-[420px]' : 'h-[420px] sm:h-[480px]'}>
+        {/* The interactive map is left out of the PDF; the counts and top locations beside it are kept. */}
+        <div className={`no-print ${expanded ? 'h-[calc(92vh-190px)] min-h-[420px]' : 'h-[420px] sm:h-[480px]'}`}>
           <PhilippineMap points={points} activeType={activeType} focusKey={focusKey} onFocusChange={onFocusChange} groupLabels={MAP_LABELS} />
         </div>
         <div className="flex min-w-0 flex-col gap-3">
@@ -296,25 +298,12 @@ const ReportTab = () => {
     if (!reportRef.current) return;
     setGeneratingPdf(true);
     try {
-      const canvas = await html2canvas(reportRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      let heightLeft = pdfHeight;
-      let position = 0;
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pdf.internal.pageSize.getHeight();
-      while (heightLeft > 0) {
-        position = heightLeft - pdfHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pdf.internal.pageSize.getHeight();
-      }
+      const pdf = await buildReportPdf(reportRef.current, { JsPdf: jsPDF });
       pdf.save(`${(project?.title || 'baseline-report').replace(/[^a-z0-9]+/gi, '_').toLowerCase()}-report.pdf`);
       toast.success('Report exported as PDF');
     } catch (e) {
-      toast.error('Failed to generate PDF');
+      console.error('PDF export failed:', e);
+      toast.error(`Failed to generate PDF${e?.message ? `: ${e.message}` : ''}`);
     } finally {
       setGeneratingPdf(false);
     }
@@ -382,7 +371,7 @@ const ReportTab = () => {
                 </p>
               </div>
             </div>
-            <Button onClick={generatePDF} disabled={generatingPdf} className="bg-white font-semibold text-blue-700 shadow-md hover:bg-blue-50">
+            <Button onClick={generatePDF} disabled={generatingPdf} className="no-print bg-white font-semibold text-blue-700 shadow-md hover:bg-blue-50">
               {generatingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
               {generatingPdf ? 'Preparing PDF…' : 'Export to PDF'}
             </Button>

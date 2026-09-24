@@ -13,6 +13,10 @@
 //   - tables as drawn tables whose rows continue onto the next page;
 //   - each chart <svg> converted on its own to an image (small, so no size limits);
 //   - anything else with text falls back to plain paragraphs, so nothing is lost.
+// Hooks for report pages: `no-print` skips an element, `data-pdf-text` replaces
+// an element's content with that text, `pdf-legend` marks a coloured-dot legend.
+// Small icon <svg>s are skipped; near-white text (meant for a coloured banner)
+// is written dark so it shows on the white page.
 // jsPDF's built-in Helvetica only covers Latin-1/WinAnsi, so a few symbols are
 // spelled out (see toPdfText).
 // ============================================================
@@ -51,12 +55,35 @@ const parseColor = (css) => {
   if (a === 0) return null;
   return [r, g, b];
 };
+// Text colour for the white PDF page: near-white text becomes dark slate.
+const inkColor = (css) => {
+  const c = parseColor(css) || [0, 0, 0];
+  return (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) > 215 ? [30, 41, 59] : c;
+};
+const ICON_MAX_PX = 32;
+// A `display: contents` element has no box of its own (0x0), only its children
+// do -- the dev server's visual-edits babel plugin wraps JSX output in such
+// <span>s. Measure those by their content, and look through them for list items.
+const isContents = (el) => window.getComputedStyle(el).display === 'contents';
+const rectOf = (el) => {
+  if (!isContents(el)) return el.getBoundingClientRect();
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  return range.getBoundingClientRect();
+};
+const listItemsOf = (el) => Array.from(el.children).flatMap((child) => {
+  if (child.tagName === 'LI') return [child];
+  return isContents(child) ? listItemsOf(child) : [];
+});
 const isVisible = (el) => {
   if (!(el instanceof window.Element)) return false;
   const cs = window.getComputedStyle(el);
   if (cs.display === 'none' || cs.visibility === 'hidden') return false;
-  const r = el.getBoundingClientRect();
-  return r.width > 0 && r.height > 0;
+  const r = rectOf(el);
+  if (r.width > 0 && r.height > 0) return true;
+  // A zero-size box can still show its children when it doesn't clip them
+  // (recharts' ResponsiveContainer wraps each chart in a width-0 div).
+  return cs.overflow === 'visible' && Array.from(el.children).some(isVisible);
 };
 const hasOwnText = (el) => Array.from(el.childNodes).some((n) => n.nodeType === 3 && n.textContent.trim());
 const BLOCKISH = new Set(['block', 'flex', 'grid', 'table', 'list-item', 'flow-root', 'table-row', 'table-row-group']);
@@ -84,11 +111,11 @@ export const buildReportPdf = async (root, { JsPdf }) => {
   const newPage = () => { pdf.addPage(); y = MARGIN_MM; };
   const ensure = (mm) => { if (y + mm > bottom && y > MARGIN_MM) newPage(); };
   const gapBefore = (el) => {
-    const top = el.getBoundingClientRect().top;
+    const top = rectOf(el).top;
     const gap = lastBottomPx === null ? 0 : Math.max(0, top - lastBottomPx) * mmPerPx;
     return Math.min(MAX_GAP_MM, gap);
   };
-  const markWritten = (el) => { lastBottomPx = el.getBoundingClientRect().bottom; };
+  const markWritten = (el) => { lastBottomPx = rectOf(el).bottom; };
   const fontFor = (cs) => {
     const bold = parseInt(cs.fontWeight, 10) >= 600;
     const italic = cs.fontStyle === 'italic';
@@ -104,8 +131,7 @@ export const buildReportPdf = async (root, { JsPdf }) => {
     if (!str.trim()) return;
     pdf.setFont('helvetica', fontFor(cs));
     pdf.setFontSize(size);
-    const color = parseColor(cs.color) || [0, 0, 0];
-    pdf.setTextColor(...color);
+    pdf.setTextColor(...inkColor(cs.color));
     const lineH = size * PT_TO_MM * LINE_HEIGHT;
     const lines = pdf.splitTextToSize(str, width);
     y += y > MARGIN_MM ? gapBefore(el) : 0;
@@ -169,12 +195,16 @@ export const buildReportPdf = async (root, { JsPdf }) => {
     markWritten(svg);
   };
 
-  // Chart legend (recharts renders it as HTML): "■ Beneficiary   ■ Non-Beneficiary".
+  // Chart legend: "■ Beneficiary   ■ Non-Beneficiary". Recharts renders it as
+  // <li>s with an svg swatch; a `pdf-legend` element's children carry the
+  // colour as the background of a dot.
   const writeLegend = (wrapper) => {
-    const items = Array.from(wrapper.querySelectorAll('li')).map((li) => {
+    const entries = wrapper.querySelectorAll('li').length ? wrapper.querySelectorAll('li') : wrapper.children;
+    const items = Array.from(entries).map((li) => {
       const path = li.querySelector('path, rect');
       const fill = path ? (path.getAttribute('fill') || window.getComputedStyle(path).fill) : null;
-      return { text: toPdfText(cleanText(li)), color: parseColor(fill) || parseColor(window.getComputedStyle(li).color) || [0, 0, 0] };
+      const dot = Array.from(li.querySelectorAll('*')).map((d) => parseColor(window.getComputedStyle(d).backgroundColor)).find(Boolean);
+      return { text: toPdfText(cleanText(li)), color: parseColor(fill) || dot || parseColor(window.getComputedStyle(li).color) || [0, 0, 0] };
     }).filter((item) => item.text);
     if (!items.length) return;
     pdf.setFont('helvetica', 'normal');
@@ -211,7 +241,7 @@ export const buildReportPdf = async (root, { JsPdf }) => {
         pdf.setFont('helvetica', fontFor(cs));
         pdf.setFontSize(size);
         const lines = pdf.splitTextToSize(toPdfText(cleanText(cell)), Math.max(4, cw - pad * 2));
-        const out = { x, w: cw, lines, size, font: fontFor(cs), color: parseColor(cs.color) || [0, 0, 0], bg: parseColor(cs.backgroundColor) || parseColor(window.getComputedStyle(row).backgroundColor), align: cs.textAlign };
+        const out = { x, w: cw, lines, size, font: fontFor(cs), color: inkColor(cs.color), bg: parseColor(cs.backgroundColor) || parseColor(window.getComputedStyle(row).backgroundColor), align: cs.textAlign };
         x += cw;
         return out;
       });
@@ -251,7 +281,7 @@ export const buildReportPdf = async (root, { JsPdf }) => {
   };
 
   const writeList = async (list) => {
-    const items = Array.from(list.children).filter((li) => li.tagName === 'LI' && isVisible(li));
+    const items = listItemsOf(list).filter(isVisible);
     for (let i = 0; i < items.length; i += 1) {
       const li = items[i];
       const type = window.getComputedStyle(li).listStyleType;
@@ -273,8 +303,13 @@ export const buildReportPdf = async (root, { JsPdf }) => {
   const walk = async (el) => {
     if (!isVisible(el) || el.classList.contains('no-print') || el.classList.contains('recharts-tooltip-wrapper')) return;
     const tag = el.tagName.toUpperCase();
-    if (el.classList.contains('recharts-legend-wrapper')) { writeLegend(el); return; }
-    if (tag === 'SVG') { await writeSvg(el); return; }
+    if (el.dataset?.pdfText !== undefined) { writeText(el.dataset.pdfText, el); return; }
+    if (el.classList.contains('recharts-legend-wrapper') || el.classList.contains('pdf-legend')) { writeLegend(el); return; }
+    if (tag === 'SVG') {
+      const r = el.getBoundingClientRect();
+      if (r.width > ICON_MAX_PX || r.height > ICON_MAX_PX) await writeSvg(el);
+      return;
+    }
     if (tag === 'TABLE') { writeTable(el); return; }
     if (tag === 'OL' || tag === 'UL') { await writeList(el); return; }
     if (/^H[1-6]$/.test(tag)) { writeText(cleanText(el), el, { keepWithMm: KEEP_WITH_HEADING_MM }); return; }

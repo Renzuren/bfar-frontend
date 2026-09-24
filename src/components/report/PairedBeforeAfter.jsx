@@ -171,7 +171,7 @@ const PairedBeforeAfter = ({ comparison }) => {
               </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="no-print flex flex-wrap items-center gap-2">
               <KindPill active={kindFilter === 'all'} label="All" count={withData.length} onClick={() => setKindFilter('all')} />
               {Object.entries(PAIRED_KINDS).filter(([kind]) => kindCounts[kind]).map(([kind, label]) => (
                 <KindPill key={kind} active={kindFilter === kind} label={label} count={kindCounts[kind]} onClick={() => setKindFilter(kind)} />

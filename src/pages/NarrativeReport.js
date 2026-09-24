@@ -462,13 +462,18 @@ const NarrativeReport = () => {
   };
 
   // Builds the PDF from the report's content (real text, tables, charts) and
-  // downloads it -- see lib/reportPdf.js.
+  // downloads it -- see lib/reportPdf.js. Not while a narrative is being written:
+  // the page still shows the previous text until it arrives. The file name carries
+  // the date and time so a new download is never confused with an older file.
   const generatePDF = async () => {
-    if (!reportRef.current) return;
+    if (!reportRef.current || aiBusy) return;
     setGenerating(true);
     try {
       const pdf = await buildReportPdf(reportRef.current, { JsPdf: jsPDF });
-      pdf.save(`${(project?.title || 'narrative-report').replace(/\s+/g, '_')}-narrative-report.pdf`);
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+      pdf.save(`${(project?.title || 'narrative-report').replace(/\s+/g, '_')}-narrative-report-${stamp}.pdf`);
       toast.success('Report downloaded as PDF');
     } catch (error) {
       console.error('PDF export failed:', error);
@@ -729,7 +734,7 @@ const NarrativeReport = () => {
             {aiBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
             {aiBusy ? 'Writing narrative...' : aiNarrative ? 'Regenerate AI Narrative' : 'Generate AI Narrative'}
           </Button>
-          <Button onClick={generatePDF} disabled={generating} className="rounded-xl bg-slate-900 px-4 py-2 text-white hover:bg-slate-800">
+          <Button onClick={generatePDF} disabled={generating || aiBusy} title={aiBusy ? 'Wait for the AI narrative to finish' : undefined} className="rounded-xl bg-slate-900 px-4 py-2 text-white hover:bg-slate-800">
             <Download className="mr-2 h-4 w-4" />
             {generating ? 'Generating PDF...' : 'Download PDF'}
           </Button>
