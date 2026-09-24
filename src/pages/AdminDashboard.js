@@ -265,6 +265,34 @@ const AdminDashboard = () => {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  const renderStatus = (u) => (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${u.status === 'deleted' ? 'bg-rose-50 text-rose-700 ring-rose-200' : u.status === 'active' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>
+      <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${u.status === 'deleted' ? 'bg-rose-500' : u.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500'}`} />{u.status || 'active'}
+    </span>
+  );
+
+  // `labeled` shows text next to the icons (mobile cards, where there is no
+  // hover tooltip and bigger tap targets help).
+  const renderUserActions = (u, labeled = false) => {
+    const uid = u.id || u.uid;
+    const base = labeled
+      ? 'inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition'
+      : 'rounded-lg p-2 text-slate-400 transition';
+    return u.status === 'deleted' ? (
+      <>
+        <button onClick={() => handleRestoreUser(uid)} className={`${base} hover:bg-emerald-50 hover:text-emerald-600`} title="Restore user"><RotateCcw className="h-4 w-4" />{labeled && 'Restore'}</button>
+        <button onClick={() => { setPermanentDeleteUserId(uid); setPermanentDeleteUserName(u.full_name || u.email); setPermanentDeleteDialog(true); }} className={`${base} hover:bg-red-50 hover:text-red-600`} title="Permanently delete user"><Trash2 className="h-4 w-4" />{labeled && 'Delete permanently'}</button>
+      </>
+    ) : (
+      <>
+        <button onClick={() => openEditUser(u)} className={`${base} hover:bg-violet-50 hover:text-violet-600`} title="Edit user"><Pencil className="h-4 w-4" />{labeled && 'Edit'}</button>
+        <button onClick={() => { setDeleteUserId(uid); setDeleteUserName(u.full_name || u.email); setDeleteUserDialog(true); }} className={`${base} hover:bg-rose-50 hover:text-rose-600`} title="Delete user"><Trash2 className="h-4 w-4" />{labeled && 'Delete'}</button>
+      </>
+    );
+  };
+
+  const userInitialsOf = (u) => (u.full_name || u.email || 'U').split(/[\s@._]+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('') || 'U';
+
   return (
     <AdminLayout title="Admin Dashboard" subtitle="System Administration">
       <div className="space-y-5">
@@ -316,7 +344,7 @@ const AdminDashboard = () => {
                   <Database className="mr-1.5 inline h-4 w-4" /> Data Maintenance
                 </button>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 {activeTab !== 'data-maintenance' && (
                   <div className="relative w-full sm:w-72">
                     <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -362,7 +390,32 @@ const AdminDashboard = () => {
               </div>
             ) : (
               <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-                <table className="w-full text-left text-sm">
+                {/* Phones: one card per user so every action is reachable without sideways scrolling. */}
+                <ul className="divide-y divide-slate-100 md:hidden">
+                  {paginatedUsers.map((u) => (
+                    <li key={u.id || u.uid} className="space-y-3 p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-xs font-bold text-white">{userInitialsOf(u)}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-slate-900">{u.full_name || 'Unnamed'}</p>
+                            {u.role === 'admin' && <span className="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold uppercase text-violet-600 ring-1 ring-violet-200">Admin</span>}
+                          </div>
+                          <p className="mt-0.5 flex items-center gap-1.5 break-all text-sm text-slate-600"><Mail className="h-3.5 w-3.5 shrink-0 text-slate-400" />{u.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+                        <span className="inline-flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5 text-slate-400" /><span className={u.org_id || u.organization ? 'text-slate-700' : 'italic text-slate-400'}>{getUserOrgLabel(u)}</span></span>
+                        <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-slate-400" />{formatDate(u.created_at || u.createdAt)}</span>
+                        {renderStatus(u)}
+                      </div>
+                      <div className="flex flex-wrap gap-2">{renderUserActions(u, true)}</div>
+                    </li>
+                  ))}
+                </ul>
+                {/* Tablets and up: the table, scrollable sideways if the screen is narrow. */}
+                <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[760px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50/80">
                       <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-slate-400">User</th>
@@ -376,7 +429,7 @@ const AdminDashboard = () => {
                   <tbody className="divide-y divide-slate-100">
                     {paginatedUsers.map((u) => {
                       const uid = u.id || u.uid;
-                      const userInitials = (u.full_name || u.email || 'U').split(/[\s@._]+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('') || 'U';
+                      const userInitials = userInitialsOf(u);
                       return (
                         <tr key={uid} className="transition hover:bg-slate-50/80">
                           <td className="px-6 py-4">
@@ -400,31 +453,18 @@ const AdminDashboard = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${u.status === 'deleted' ? 'bg-rose-50 text-rose-700 ring-rose-200' : u.status === 'active' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>
-                              <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${u.status === 'deleted' ? 'bg-rose-500' : u.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500'}`} />{u.status || 'active'}
-                            </span>
+                            {renderStatus(u)}
                           </td>
                           <td className="px-6 py-4"><div className="flex items-center gap-2 text-slate-500"><CalendarDays className="h-3.5 w-3.5 text-slate-400" />{formatDate(u.created_at || u.createdAt)}</div></td>
                           <td className="px-6 py-4">
-                            <div className="flex items-center justify-end gap-1">
-                              {u.status === 'deleted' ? (
-                                <>
-                                  <button onClick={() => handleRestoreUser(uid)} className="rounded-lg p-2 text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-600" title="Restore user"><RotateCcw className="h-4 w-4" /></button>
-                                  <button onClick={() => { setPermanentDeleteUserId(uid); setPermanentDeleteUserName(u.full_name || u.email); setPermanentDeleteDialog(true); }} className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600" title="Permanently delete user"><Trash2 className="h-4 w-4" /></button>
-                                </>
-                              ) : (
-                                <>
-                                  <button onClick={() => openEditUser(u)} className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-600" title="Edit user"><Pencil className="h-4 w-4" /></button>
-                                  <button onClick={() => { setDeleteUserId(uid); setDeleteUserName(u.full_name || u.email); setDeleteUserDialog(true); }} className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="Delete user"><Trash2 className="h-4 w-4" /></button>
-                                </>
-                              )}
-                            </div>
+                            <div className="flex items-center justify-end gap-1">{renderUserActions(u)}</div>
                           </td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
+                </div>
                 {totalUserPages > 1 && (
                   <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/40 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-xs text-slate-500">
