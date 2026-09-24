@@ -48,6 +48,9 @@ import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { api, getApiErrorMessage } from '../lib/apiMiddleware';
 
+// How often the admin dashboard re-fetches users and organizations.
+const ADMIN_REFRESH_INTERVAL = 30000;
+
 const AdminDashboard = () => {
   const { user } = useAuth();
 
@@ -88,8 +91,9 @@ const AdminDashboard = () => {
   const [deleteOrgId, setDeleteOrgId] = useState(null);
   const [deleteOrgName, setDeleteOrgName] = useState('');
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  // `silent` refreshes in the background without the loading state or error toasts.
+  const fetchData = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     try {
       const [usersRes, orgsRes] = await Promise.all([
         api.get('/admin/users'),
@@ -99,13 +103,30 @@ const AdminDashboard = () => {
       setOrganizations(orgsRes.data || []);
     } catch (error) {
       console.error('Admin data fetch error:', error);
-      toast.error(getApiErrorMessage(error, 'Failed to load admin data. Make sure the backend is running.'));
+      if (!silent) toast.error(getApiErrorMessage(error, 'Failed to load admin data. Make sure the backend is running.'));
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Keep users and organizations current (e.g. a user changing their
+  // organization) without a manual reload: refresh periodically and whenever
+  // the tab regains focus.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') fetchData({ silent: true });
+    };
+    const timer = setInterval(refresh, ADMIN_REFRESH_INTERVAL);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [fetchData]);
 
   // --- USER TABLE PAGINATION ---
   const [userPage, setUserPage] = useState(1);
@@ -308,7 +329,7 @@ const AdminDashboard = () => {
           {/* Stats */}
           <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {[
-              { label: 'Total Users', value: users.length, icon: Users, bg: 'bg-cyan-500', iconBg: 'bg-cyan-50', iconText: 'text-cyan-600' },
+              { label: 'Total Users', value: users.filter((u) => u.status !== 'deleted').length, icon: Users, bg: 'bg-cyan-500', iconBg: 'bg-cyan-50', iconText: 'text-cyan-600' },
               { label: 'Organizations', value: organizations.length, icon: Building2, bg: 'bg-indigo-500', iconBg: 'bg-indigo-50', iconText: 'text-indigo-600' },
               { label: 'Total Projects', value: totalProjects, icon: FolderKanban, bg: 'bg-emerald-500', iconBg: 'bg-emerald-50', iconText: 'text-emerald-600' },
               { label: 'Active Users', value: users.filter((u) => u.status === 'active').length, icon: UserPlus, bg: 'bg-amber-500', iconBg: 'bg-amber-50', iconText: 'text-amber-600' },
