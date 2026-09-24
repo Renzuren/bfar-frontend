@@ -310,7 +310,7 @@ const AdminDashboard = () => {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <button onClick={() => setActiveTab('users')} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === 'users' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}>
-                  <Users className="mr-1.5 inline h-4 w-4" /> Users ({users.length})
+                  <Users className="mr-1.5 inline h-4 w-4" /> Users ({users.filter((u) => u.status !== 'deleted').length})
                 </button>
                 <button onClick={() => setActiveTab('data-maintenance')} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === 'data-maintenance' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}>
                   <Database className="mr-1.5 inline h-4 w-4" /> Data Maintenance
