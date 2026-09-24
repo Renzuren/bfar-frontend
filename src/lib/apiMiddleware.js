@@ -92,6 +92,12 @@ class ApiClient {
     if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Identifies this device's login; the backend rejects it once the account
+    // signs in somewhere else.
+    const sessionId = getAuthItem('sessionId');
+    if (sessionId && !config.headers['X-Session-Id']) {
+      config.headers['X-Session-Id'] = sessionId;
+    }
 
     // Tune retry behavior once per logical request (kept across auto-retries).
     if (!config.__bfarRetryReady) {
@@ -205,7 +211,9 @@ class ApiClient {
     if (error.response?.status === 401 && config.headers?.Authorization) {
       clearAuthStorage();
       // Notify AuthContext so the live UI session is cleared too
-      window.dispatchEvent(new Event('bfar:unauthorized'));
+      window.dispatchEvent(
+        new CustomEvent('bfar:unauthorized', { detail: { code: error.response.data?.code } })
+      );
     }
 
     config.__bfarRetriesUsed = config.__bfarRetriesUsed || 0;

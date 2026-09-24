@@ -49,7 +49,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-const AUTH_KEYS = ['token', 'refreshToken', 'expiresIn', 'user'];
+const AUTH_KEYS = ['token', 'refreshToken', 'expiresIn', 'sessionId', 'user'];
 const STANDARD_WARNING = 'This action cannot be undone. Are you sure you want to proceed?';
 const EXPECTED_AUDIT_MSG =
   'Core business data (users, sessions, projects, forms, responses, reports, organizations) is NEVER cleaned. Only activity/log records, temp files, and unreferenced storage files are removed.';

@@ -4,7 +4,7 @@
 // Readers always check localStorage first, then sessionStorage, so an
 // existing session survives a reload regardless of how it was created.
 
-const TOKEN_KEYS = ['token', 'refreshToken', 'expiresIn', 'user'];
+const TOKEN_KEYS = ['token', 'refreshToken', 'expiresIn', 'sessionId', 'user'];
 
 export const getAuthItem = (key) => localStorage.getItem(key) || sessionStorage.getItem(key);
 

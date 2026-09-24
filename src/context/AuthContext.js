@@ -1,8 +1,12 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import { getAuthItem, setAuthItem, removeAuthItem, clearAuthStorage } from '../lib/authStorage';
 
 const AuthContext = createContext();
+
+// How often an open tab checks whether the account signed in on another device.
+const SESSION_CHECK_INTERVAL = 60000;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -29,13 +33,37 @@ export const AuthProvider = ({ children }) => {
   // When any API call returns 401, force-logout the live session so the UI
   // stops behaving as authenticated even though the token is gone.
   useEffect(() => {
-    const onUnauthorized = () => {
+    const onUnauthorized = (event) => {
       clearAuthStorage();
       setUser(null);
+      if (event.detail?.code === 'SESSION_REPLACED') {
+        toast.error('You were signed out because your account was signed in on another device.', {
+          id: 'session-replaced',
+        });
+      }
     };
     window.addEventListener('bfar:unauthorized', onUnauthorized);
     return () => window.removeEventListener('bfar:unauthorized', onUnauthorized);
   }, []);
+
+  // Notice a login on another device even while this tab sits idle: check the
+  // session periodically and whenever the tab regains focus. A replaced session
+  // gets a 401 that fires 'bfar:unauthorized' above.
+  useEffect(() => {
+    if (!user) return undefined;
+    const check = () => {
+      if (document.visibilityState !== 'visible') return;
+      api.get('/auth/session', { retry: 0 }).catch(() => {});
+    };
+    const timer = setInterval(check, SESSION_CHECK_INTERVAL);
+    window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', check);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [user]);
 
   // ✅ UPDATED LOGIN FUNCTION
   const login = async (email, password, rememberMe = false) => {
@@ -49,6 +77,7 @@ export const AuthProvider = ({ children }) => {
         access_token,
         refreshToken,
         expiresIn,
+        session_id,
         user: userData
       } = response.data || {};
 
@@ -59,6 +88,7 @@ export const AuthProvider = ({ children }) => {
       setAuthItem('token', access_token, rememberMe);
       setAuthItem('refreshToken', refreshToken ?? response.data?.refresh_token, rememberMe);
       setAuthItem('expiresIn', expiresIn, rememberMe);
+      if (session_id) setAuthItem('sessionId', session_id, rememberMe);
 
       // Store full user object including status (with defensive defaults so a
       // missing user payload can never crash the login flow).
