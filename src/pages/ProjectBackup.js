@@ -28,6 +28,7 @@ import { useProject } from '../context/ProjectContext';
 import { PageHeader, CardSection } from '../components/AppShell';
 
 const SCHEMA_VERSION = 1;
+const RESTORE_TIMEOUT = 10 * 60 * 1000;
 
 const slugify = (text) =>
   String(text || 'project')
@@ -189,6 +190,11 @@ const ProjectBackup = () => {
         project: pendingBackup.project,
         forms: pendingBackup.forms,
         include_responses: restoreResponses,
+      }, {
+        // A large backup (hundreds of responses) takes longer than the default
+        // per-request timeout, and a restore must never be sent twice.
+        timeout: RESTORE_TIMEOUT,
+        retry: 0,
       });
       toast.success(
         restoreResponses
