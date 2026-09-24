@@ -75,6 +75,7 @@ const BeforeTab = () => {
       }
     };
     fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project]);
 
   const copyFormLink = async () => {

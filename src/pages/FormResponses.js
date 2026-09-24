@@ -213,6 +213,7 @@ const FormResponses = ({ embedded = false }) => {
     } finally {
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -241,6 +242,7 @@ const FormResponses = ({ embedded = false }) => {
     });
     const pages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
     setCurrentPage((page) => Math.min(page, pages));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [responses, filterStatus, rowsPerPage, municipalityFilter, sortConfig]);
 
   const getRespondentIdForRow = (response) => {

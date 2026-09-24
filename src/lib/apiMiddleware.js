@@ -11,7 +11,7 @@ import { resolveServiceUrl } from './apiBase';
 // ============================================================
 // Reliability settings
 // ============================================================
-const DEFAULT_TIMEOUT = 30000; // ms per individual attempt
+const DEFAULT_TIMEOUT = 60000; // ms per individual attempt (a sleeping free-tier backend takes ~30-60 s to wake)
 const DEFAULT_RETRIES = 3; // automatic retries AFTER the first attempt
 const RETRY_BASE_DELAY = 500; // ms before the first retry
 const RETRY_MAX_DELAY = 4000; // backoff cap

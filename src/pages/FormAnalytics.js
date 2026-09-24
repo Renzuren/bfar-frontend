@@ -167,6 +167,7 @@ const FormAnalytics = ({ embedded = false }) => {
     };
 
     fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const renderTooltip = ({ active, payload }) => {

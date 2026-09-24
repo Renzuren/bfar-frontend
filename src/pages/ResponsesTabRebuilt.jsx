@@ -92,6 +92,7 @@ const ResponsesTabRebuilt = () => {
     };
     load();
     return () => { active = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.before_form, project?.after_form]);
 
   const beforeSections = useMemo(() => sectionsFor(beforeForm), [beforeForm]);

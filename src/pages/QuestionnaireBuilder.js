@@ -686,6 +686,7 @@ const QuestionnaireBuilder = () => {
   const sectionTitleSignature = sections.map(s => `${s.id}:${s.title}`).join('|');
   const moveTargets = useMemo(
     () => sections.map((sec, idx) => ({ id: sec.id, title: sec.title, idx })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [sectionTitleSignature]
   );
 

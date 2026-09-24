@@ -419,6 +419,7 @@ const NarrativeReport = () => {
     recommendations.push('Institutionalize periodic benchmark-versus-current data collection to enable longitudinal tracking of the program\u2019s impact on fisherfolk communities.');
 
     return { highlights, findings, recommendations };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comparisonData, beforeResponses, afterResponses]);
 
   // Auto-written interpretation for a paired choice figure
