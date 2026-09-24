@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
-  Upload, FileSpreadsheet, Database, BarChart3, ArrowLeft, Import,
+  Upload, FileSpreadsheet, Database, BarChart3, ArrowLeft,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, AlertCircle, Loader2,
   XCircle, Filter, Save
 } from 'lucide-react';
@@ -320,141 +320,6 @@ const MLUpload = () => {
     } finally {
       setIsAnalyzing(false);
     }
-  };
-
-  // ---------- Form import (unchanged) ----------
-  const handleImportForm = () => {
-    if (csvData.length === 0 || columns.length === 0) {
-      setError('No data available to import');
-      return;
-    }
-    setError(null);
-    try {
-      const isSurveyData = detectSurveyData();
-      let formFields;
-      let formTitle;
-      let formDescription;
-
-      if (isSurveyData) {
-        formFields = createSurveyFormFields();
-        formTitle = `Survey Form - ${file?.name?.replace(/\.(csv|xlsx|xls)$/, '') || 'Survey Data'}`;
-        formDescription = `Survey questionnaire created from ${file?.name} with ${columns.length} questions and ${csvData.length} responses`;
-      } else {
-        formFields = columns.map((column, index) => ({
-          id: `field_${index}`,
-          type: 'text',
-          label: column,
-          required: false,
-          placeholder: `Enter ${column}`
-        }));
-        formTitle = `Imported Form - ${file?.name?.replace(/\.(csv|xlsx|xls)$/, '') || 'Data'}`;
-        formDescription = `Form created from ${file?.name} import with ${columns.length} fields and ${csvData.length} data rows`;
-      }
-
-      const formData = {
-        title: formTitle,
-        description: formDescription,
-        fields: formFields,
-        isSurvey: isSurveyData,
-        sourceFile: file?.name,
-        importType: file?.name?.toLowerCase().endsWith('.csv') ? 'CSV' : 'XLSX',
-        importedAt: new Date().toISOString()
-      };
-
-      navigate('/forms/new', { state: { importedData: formData }, replace: true });
-    } catch (err) {
-      console.error('Form import error:', err);
-      setError(`Failed to create form: ${err.message || 'Unknown error occurred'}`);
-    }
-  };
-
-  // ---------- Survey detection functions (unchanged) ----------
-  const detectSurveyData = () => {
-    if (csvData.length === 0 || columns.length === 0) return false;
-    const surveyKeywords = [
-      'question', 'answer', 'response', 'option', 'choice', 'rating', 'score',
-      'satisfaction', 'feedback', 'comment', 'agree', 'disagree', 'strongly',
-      'scale', 'range', 'multiple', 'single', 'yes', 'no', 'true', 'false',
-      'likert', 'satisfied', 'dissatisfied', 'excellent', 'poor',
-      'recommend', 'important', 'priority', 'frequency', 'always', 'never',
-      'survey', 'poll', 'quiz', 'test', 'assessment'
-    ];
-    const columnNames = columns.map(col => col.toLowerCase());
-    const hasSurveyKeywords = columnNames.some(col =>
-      surveyKeywords.some(keyword => col.includes(keyword))
-    );
-    let surveyScore = 0;
-    let maxScore = 0;
-    const questionPatterns = columns.filter(col =>
-      /q\d+|question|ques|what|when|how|why|which|where|who/.test(col.toLowerCase())
-    );
-    if (questionPatterns.length > 0) surveyScore += 2;
-    maxScore += 2;
-    const answerPatterns = columns.filter(col =>
-      /answer|response|reply|feedback|comment|note/.test(col.toLowerCase())
-    );
-    if (answerPatterns.length > 0) surveyScore += 2;
-    maxScore += 2;
-    const limitedOptionsCount = columns.filter(col => {
-      const uniqueValues = [...new Set(csvData.map(row => row[col]))].filter(val => val);
-      return uniqueValues.length >= 2 && uniqueValues.length <= 8;
-    }).length;
-    if (limitedOptionsCount > 0) surveyScore += 1;
-    maxScore += 1;
-    const ratingScales = columns.filter(col => {
-      const values = csvData.map(row => row[col]).filter(val => val);
-      const numericValues = values.filter(val => !isNaN(val) && val !== '');
-      return numericValues.length >= 3 &&
-        Math.max(...numericValues) <= 10 &&
-        Math.min(...numericValues) >= 1;
-    }).length;
-    if (ratingScales > 0) surveyScore += 1;
-    maxScore += 1;
-    const booleanColumns = columns.filter(col => {
-      const uniqueValues = [...new Set(csvData.map(row => row[col]))].filter(val => val);
-      const booleanValues = ['yes', 'no', 'true', 'false', '1', '0', 'y', 'n'];
-      return uniqueValues.length === 2 &&
-        uniqueValues.every(val => booleanValues.includes(val.toString().toLowerCase()));
-    }).length;
-    if (booleanColumns > 0) surveyScore += 1;
-    maxScore += 1;
-    const confidence = maxScore > 0 ? (surveyScore / maxScore) : 0;
-    return confidence >= 0.3;
-  };
-
-  const createSurveyFormFields = () => {
-    return columns.map((column, index) => {
-      const columnName = column.toLowerCase();
-      const uniqueValues = [...new Set(csvData.map(row => row[column]))].filter(val => val);
-      let fieldType = 'text';
-      let options = [];
-      if (uniqueValues.length === 2 &&
-          uniqueValues.some(val => ['yes', 'no', 'true', 'false', '1', '0'].includes(val.toLowerCase()))) {
-        fieldType = 'radio';
-        options = uniqueValues;
-      }
-      else if (uniqueValues.length >= 3 && uniqueValues.length <= 10) {
-        fieldType = 'select';
-        options = uniqueValues;
-      }
-      else if (uniqueValues.some(val => !isNaN(val)) &&
-               uniqueValues.some(val => Number(val) >= 1) &&
-               uniqueValues.some(val => Number(val) <= 10)) {
-        fieldType = 'radio';
-        options = uniqueValues.filter(val => !isNaN(val)).sort((a, b) => Number(a) - Number(b));
-      }
-      else if (uniqueValues.some(val => val.length > 50)) {
-        fieldType = 'textarea';
-      }
-      return {
-        id: `field_${index}`,
-        type: fieldType,
-        label: column,
-        required: columnName.includes('required') || columnName.includes('mandatory'),
-        placeholder: `Enter ${column}`,
-        options: options.length > 0 ? options : undefined
-      };
-    });
   };
 
   const handleBackToDashboard = () => navigate('/dashboard');
@@ -822,13 +687,6 @@ const MLUpload = () => {
         {/* Action Buttons */}
         {csvData.length > 0 && (
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button
-              onClick={handleImportForm}
-              variant="outline"
-              className="gap-2 border-slate-200 text-sm"
-            >
-              <Import className="h-4 w-4" /> Create Form from CSV
-            </Button>
             <Button
               onClick={handleAnalyze}
               disabled={isAnalyzing}
