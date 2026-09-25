@@ -1,7 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Inbox, UserCheck, UserX, Search, X, Download,
-  ChevronRight, ChevronLeft, ChevronUp, ChevronDown, ChevronsUpDown,
+  Inbox,
+  Search,
+  X,
+  Download,
+  ChevronRight,
+  ChevronLeft,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';

@@ -5,12 +5,11 @@ import {
   Inbox, Users, UserCheck, UserX, Search, X, IdCard,
   LayoutDashboard, BarChart3, ChevronUp, ChevronDown, ChevronsUpDown,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
-import { generateAssessmentHeaders, mapResponseToAssessmentColumns, normalizeLocationCodes, getQuestionLabel, isReservedField } from '../lib/preprocessing';
+import { normalizeLocationCodes, getQuestionLabel, isReservedField } from '../lib/preprocessing';
 import { getAnswerForQuestion } from '../lib/answerResolver';
 import { buildCsv } from '../lib/csv';
 import { resolveRespondentGroup, groupToYesNo } from '../lib/respondentGroup';

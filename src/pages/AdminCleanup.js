@@ -2,11 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  Shield,
   Trash2,
-  FolderKanban,
-  Settings,
-  LogOut,
   Loader2,
   Brush,
   FileX2,
@@ -32,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api, getApiErrorMessage } from '../lib/apiMiddleware';
+import { AUTH_KEYS } from '../lib/authStorage';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -49,7 +46,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-const AUTH_KEYS = ['token', 'refreshToken', 'expiresIn', 'sessionId', 'user'];
 const STANDARD_WARNING = 'This action cannot be undone. Are you sure you want to proceed?';
 const EXPECTED_AUDIT_MSG =
   'Core business data (users, sessions, projects, forms, responses, reports, organizations) is NEVER cleaned. Only activity/log records, temp files, and unreferenced storage files are removed.';
@@ -211,7 +207,8 @@ export default function AdminCleanup({ embedded = false }) {
   const [logs, setLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsFilter, setLogsFilter] = useState({ user_type: '', search: '' });
-  const [retentionDays, setRetentionDays] = useState('30');
+  // Age cutoff for "Delete Logs Older Than" (not user-adjustable).
+  const retentionDays = '30';
   const [running, setRunning] = useState(null);
   const [pending, setPending] = useState(null);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
@@ -425,11 +422,6 @@ export default function AdminCleanup({ embedded = false }) {
     const freed = Math.max(0, before - after);
     toast.success(`Cleared app & browser cache (${cleared} cached item${cleared === 1 ? '' : 's'}) | Freed ${formatFreed(freed)}`);
     refreshAll();
-  };
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleLogout = () => {
-    window.dispatchEvent(new Event('bfar:unauthorized'));
   };
 
   const openConfirm = (key, title, description, confirmLabel = 'Yes, continue', onConfirm) => {

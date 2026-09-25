@@ -228,8 +228,6 @@ export const IncomeChart = ({ data, kind }) => (
 const PHASE_OPTIONS = ['All', 'Before', 'After'];
 
 export const IndicesChart = ({ data, phase, onPhaseChange }) => {
-  const [hidden, setHidden] = useHiddenSeries();
-  const toggle = (entry) => setHidden((h) => ({ ...h, [entry.dataKey]: !h[entry.dataKey] }));
   const hasData = data.some((d) => d.hasData);
   return (
     <ChartCard

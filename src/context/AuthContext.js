@@ -65,72 +65,58 @@ export const AuthProvider = ({ children }) => {
     };
   }, [user]);
 
-  // ✅ UPDATED LOGIN FUNCTION
   const login = async (email, password, rememberMe = false) => {
-    try {
-      const response = await api.post(`/auth/login`, {
-        email,
-        password
-      });
+    const response = await api.post(`/auth/login`, {
+      email,
+      password
+    });
 
-      const {
-        access_token,
-        refreshToken,
-        expiresIn,
-        session_id,
-        user: userData
-      } = response.data || {};
+    const {
+      access_token,
+      refreshToken,
+      expiresIn,
+      session_id,
+      user: userData
+    } = response.data || {};
 
-      // A non-persistent login must not leave an old persistent session behind
-      if (!rememberMe) clearAuthStorage();
+    // A non-persistent login must not leave an old persistent session behind
+    if (!rememberMe) clearAuthStorage();
 
-      // Store tokens (persist in localStorage only when "remember me" is set)
-      setAuthItem('token', access_token, rememberMe);
-      setAuthItem('refreshToken', refreshToken ?? response.data?.refresh_token, rememberMe);
-      setAuthItem('expiresIn', expiresIn, rememberMe);
-      if (session_id) setAuthItem('sessionId', session_id, rememberMe);
+    // Store tokens (persist in localStorage only when "remember me" is set)
+    setAuthItem('token', access_token, rememberMe);
+    setAuthItem('refreshToken', refreshToken ?? response.data?.refresh_token, rememberMe);
+    setAuthItem('expiresIn', expiresIn, rememberMe);
+    if (session_id) setAuthItem('sessionId', session_id, rememberMe);
 
-      // Store full user object including status (with defensive defaults so a
-      // missing user payload can never crash the login flow).
-      const userInfo = userData
-        ? {
-            email: userData.email || '',
-            status: userData.status || 'active',
-            full_name: userData.full_name || '',
-            role: userData.role || 'user',
-            org_id: userData.org_id || null,
-            organization: userData.organization || null,
-          }
-        : { email: email.toLowerCase().trim(), status: 'active', full_name: '', role: 'user', org_id: null, organization: null };
+    // Store full user object including status (with defensive defaults so a
+    // missing user payload can never crash the login flow).
+    const userInfo = userData
+      ? {
+          email: userData.email || '',
+          status: userData.status || 'active',
+          full_name: userData.full_name || '',
+          role: userData.role || 'user',
+          org_id: userData.org_id || null,
+          organization: userData.organization || null,
+        }
+      : { email: email.toLowerCase().trim(), status: 'active', full_name: '', role: 'user', org_id: null, organization: null };
 
-      setAuthItem('user', JSON.stringify(userInfo), rememberMe);
-      setUser(userInfo);
+    setAuthItem('user', JSON.stringify(userInfo), rememberMe);
+    setUser(userInfo);
 
-      return userInfo;
-
-    } catch (error) {
-      // console.error('Login error:', error.response?.data || error.message);
-      throw error;
-    }
+    return userInfo;
   };
 
   const signup = async (first_name, middle_name, last_name, email, password, extraFields = {}) => {
-    try {
-      const response = await api.post(`/auth/register`, {
-        first_name,
-        middle_name: middle_name || '',
-        last_name,
-        email,
-        password,
-        ...extraFields,
-      });
-
-      return response.data;
-
-    } catch (error) {
-      // console.error('Signup error:', error.response?.data || error.message);
-      throw error;
-    }
+    const response = await api.post(`/auth/register`, {
+      first_name,
+      middle_name: middle_name || '',
+      last_name,
+      email,
+      password,
+      ...extraFields,
+    });
+    return response.data;
   };
 
   const logout = () => {

@@ -4,9 +4,35 @@
 // failures ("Failed to fetch", timeouts, 5xx blips) are recovered without
 // the user having to refresh the page.
 import axios from 'axios';
-import { preprocessFormData, preprocessFormAnswers, sanitizeHtml } from './preprocessing';
-import { getAuthItem, clearAuthStorage } from './authStorage';
+import { preprocessFormData, sanitizeHtml } from './preprocessing';
+import { getAuthItem, clearAuthStorage, storeSessionTokens } from './authStorage';
 import { resolveServiceUrl } from './apiBase';
+
+const BACKEND_URL = resolveServiceUrl(process.env.REACT_APP_BACKEND_URL, 'http://localhost:5000');
+const API_BASE = `${BACKEND_URL}/api`;
+
+// Firebase ID tokens expire after an hour. The backend answers an expired one
+// with 401 TOKEN_EXPIRED; the stored refresh token buys a new one. Concurrent
+// requests that expire together share a single refresh.
+let refreshInFlight = null;
+const refreshAccessToken = () => {
+  if (!refreshInFlight) {
+    const refreshToken = getAuthItem('refreshToken');
+    refreshInFlight = (refreshToken
+      ? axios.post(`${API_BASE}/auth/refresh`, { refreshToken }, { timeout: DEFAULT_TIMEOUT })
+      : Promise.reject(new Error('No refresh token')))
+      .then((response) => {
+        storeSessionTokens(response.data || {});
+        return response.data.access_token;
+      })
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+};
+
+const isPlainObject = (value) => Object.prototype.toString.call(value) === '[object Object]';
 
 // ============================================================
 // Reliability settings
@@ -123,8 +149,11 @@ class ApiClient {
       return config;
     }
 
-    // Preprocess request data based on endpoint
-    if (config.data) {
+    // Preprocess request data based on endpoint. Only plain objects: on an
+    // automatic retry the body is already the serialized JSON string, which
+    // must be sent as-is (spreading it would turn it into an object of
+    // characters).
+    if (isPlainObject(config.data)) {
       config.data = this.preprocessRequestData(config.url, config.data);
     }
 
@@ -207,13 +236,30 @@ class ApiClient {
 
     // Handle authentication errors. Only treat a 401 as session expiry when the
     // failing request actually carried a token (otherwise a failed login attempt
-    // would silently log out an existing session). 401s are never auto-retried.
+    // would silently log out an existing session).
     if (error.response?.status === 401 && config.headers?.Authorization) {
-      clearAuthStorage();
-      // Notify AuthContext so the live UI session is cleared too
-      window.dispatchEvent(
-        new CustomEvent('bfar:unauthorized', { detail: { code: error.response.data?.code } })
-      );
+      const code = error.response.data?.code;
+      const signOut = () => {
+        clearAuthStorage();
+        // Notify AuthContext so the live UI session is cleared too
+        window.dispatchEvent(new CustomEvent('bfar:unauthorized', { detail: { code } }));
+      };
+      // An expired ID token is renewed once and the request repeated.
+      if (code === 'TOKEN_EXPIRED' && !config.__bfarTokenRefreshed) {
+        config.__bfarTokenRefreshed = true;
+        return refreshAccessToken().then(
+          (token) => {
+            config.headers.Authorization = `Bearer ${token}`;
+            return this.client.request(config);
+          },
+          () => {
+            signOut();
+            this.attachFriendlyError(error);
+            return Promise.reject(error);
+          }
+        );
+      }
+      signOut();
     }
 
     config.__bfarRetriesUsed = config.__bfarRetriesUsed || 0;
@@ -235,7 +281,6 @@ class ApiClient {
 
     if (error.config?.__bfarRetriesUsed) {
       try {
-        // eslint-disable-next-line no-console
         console.error(`[api] ${config.method?.toUpperCase()} ${config.url} failed after ${config.__bfarRetriesUsed} retries:`, error.message || error);
       } catch (_) { /* logging must never break the error path */ }
     }
@@ -264,9 +309,6 @@ class ApiClient {
 }
 
 // Create and export the API client instance
-const BACKEND_URL = resolveServiceUrl(process.env.REACT_APP_BACKEND_URL, 'http://localhost:5000');
-const API_BASE = `${BACKEND_URL}/api`;
-
 export const apiClient = new ApiClient(API_BASE);
 
 // Export individual methods for convenience

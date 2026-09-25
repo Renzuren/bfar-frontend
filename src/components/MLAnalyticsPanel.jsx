@@ -26,7 +26,6 @@ import {
   Download,
   Eye,
   Globe2,
-  Loader2,
   MapPin,
   Maximize2,
   Minimize2,
@@ -37,20 +36,13 @@ import {
   XCircle,
 } from 'lucide-react';
 import {
-  Area,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
-  ComposedChart,
   Legend,
-  Line,
-  Pie,
-  PieChart,
   ReferenceLine,
   ResponsiveContainer,
-  Scatter,
-  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
@@ -209,11 +201,6 @@ const GeoMessageCard = ({ title, message }) => (
 // ---------- Geo + small helpers ----------
 const normalizeHeader = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const capWords = (s) => String(s ?? '').trim().replace(/\b\w/g, (c) => c.toUpperCase());
-const toNumLoose = (v) => {
-  if (v === null || v === undefined || v === '') return null;
-  const n = parseFloat(String(v).replace(/[₱,\s]|php/gi, ''));
-  return Number.isFinite(n) ? n : null;
-};
 
 const detectGeoColumns = (cols) => {
   const found = { areaCol: null, provinceCol: null, regionCol: null, latCol: null, lngCol: null };

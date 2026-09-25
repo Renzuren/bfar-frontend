@@ -9,7 +9,6 @@
 import {
   AREA_PROVINCE,
   REGION_OF_PROVINCE,
-  normalizeKey,
   normalizeProvinceName,
   resolveRegion,
   findAreaKey,

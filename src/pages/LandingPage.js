@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, BarChart3, Share2, ShieldCheck, ArrowRight, Mail, MapPin, Phone, LineChart, Lock, Zap } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 const LandingPage = () => {
   const navigate = useNavigate();

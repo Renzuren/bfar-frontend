@@ -44,15 +44,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { useAuth } from '../context/AuthContext';
 import { api, getApiErrorMessage } from '../lib/apiMiddleware';
+import { formatDate } from '../lib/dates';
 
 // How often the admin dashboard re-fetches users and organizations.
 const ADMIN_REFRESH_INTERVAL = 30000;
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
-
   const [users, setUsers] = useState([]);
   const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -141,12 +139,16 @@ const AdminDashboard = () => {
   };
 
   const openEditUser = (u) => {
+    // Use the stored name parts: re-splitting full_name on spaces turned
+    // "Juan Carlos Dela Cruz" into first "Juan", middle "Carlos Dela", last
+    // "Cruz", and saving the dialog wrote that back.
     const parts = (u.full_name || '').split(' ');
+    const hasParts = u.first_name !== undefined || u.last_name !== undefined;
     setEditUser({
       id: u.id || u.uid,
-      firstName: parts[0] || '',
-      middleName: parts.length > 2 ? parts.slice(1, -1).join(' ') : '',
-      lastName: parts[parts.length - 1] || '',
+      firstName: hasParts ? u.first_name || '' : parts[0] || '',
+      middleName: hasParts ? u.middle_name || '' : parts.length > 2 ? parts.slice(1, -1).join(' ') : '',
+      lastName: hasParts ? u.last_name || '' : parts[parts.length - 1] || '',
       email: u.email || '',
       role: u.role || 'user',
       org_id: u.org_id || '',
@@ -255,15 +257,6 @@ const AdminDashboard = () => {
   ).size;
 
   const totalProjects = users.reduce((sum, u) => sum + (u.project_count || 0), 0);
-
-  const formatDate = (value) => {
-    if (!value) return 'N/A';
-    let date;
-    if (typeof value === 'object' && typeof value._seconds === 'number') { date = new Date(value._seconds * 1000); }
-    else { date = new Date(value); }
-    if (isNaN(date.getTime())) return 'N/A';
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-  };
 
   const renderStatus = (u) => (
     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${u.status === 'deleted' ? 'bg-rose-50 text-rose-700 ring-rose-200' : u.status === 'active' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>
@@ -406,7 +399,7 @@ const AdminDashboard = () => {
                       </div>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
                         <span className="inline-flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5 text-slate-400" /><span className={u.org_id || u.organization ? 'text-slate-700' : 'italic text-slate-400'}>{getUserOrgLabel(u)}</span></span>
-                        <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-slate-400" />{formatDate(u.created_at || u.createdAt)}</span>
+                        <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-slate-400" />{formatDate(u.created_at || u.createdAt, 'short')}</span>
                         {renderStatus(u)}
                       </div>
                       <div className="flex flex-wrap gap-2">{renderUserActions(u, true)}</div>
@@ -455,7 +448,7 @@ const AdminDashboard = () => {
                           <td className="px-6 py-4">
                             {renderStatus(u)}
                           </td>
-                          <td className="px-6 py-4"><div className="flex items-center gap-2 text-slate-500"><CalendarDays className="h-3.5 w-3.5 text-slate-400" />{formatDate(u.created_at || u.createdAt)}</div></td>
+                          <td className="px-6 py-4"><div className="flex items-center gap-2 text-slate-500"><CalendarDays className="h-3.5 w-3.5 text-slate-400" />{formatDate(u.created_at || u.createdAt, 'short')}</div></td>
                           <td className="px-6 py-4">
                             <div className="flex items-center justify-end gap-1">{renderUserActions(u)}</div>
                           </td>

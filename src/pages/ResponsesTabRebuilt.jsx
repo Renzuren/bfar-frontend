@@ -1,12 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import {
-  BarChart3, ChevronLeft, ChevronRight, Download, Eye, Inbox, Loader2,
-  Search, Users, X,
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Eye,
+  Inbox,
+  Loader2,
+  Search,
+  X,
 } from 'lucide-react';
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer,
-  Tooltip, XAxis, YAxis,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -19,7 +31,6 @@ import {
   questionColumns, sectionsFor,
 } from '../lib/responsesDataset';
 
-const COLORS = ['#0d9488', '#d97706', '#2563eb', '#7c3aed', '#dc2626', '#0891b2'];
 
 const responseList = (payload) => {
   if (Array.isArray(payload)) return payload;

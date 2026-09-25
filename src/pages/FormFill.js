@@ -7,10 +7,6 @@ import {
   ChevronRight,
   Send,
   Fingerprint,
-  Camera,
-  X,
-  User,
-  MapPin,
   Star,
   Loader2,
   CheckCircle2,
@@ -486,6 +482,9 @@ const FormFill = () => {
       let photoUrl = profilePhotoUrl;
       if (profilePhotoFile && !photoUrl) {
         photoUrl = await uploadProfilePhoto();
+        // A failed upload already showed its error. A required photo must not
+        // be dropped silently, so stop here and let the respondent retry.
+        if (!photoUrl && profilePhotoQuestion?.required) return;
       }
 
       const demoAnswers = {};
@@ -608,7 +607,6 @@ const FormFill = () => {
   const currentSectionQuestions = currentSection?.questions || [];
   const isFirst = currentSectionIndex === 0;
   const isLast = currentSectionIndex === sections.length - 1;
-  const progress = ((currentSectionIndex + 1) / sections.length) * 100;
 
   const stepLabels = sections.map((s) =>
     s.section_type === 'demographics' ? 'Demographics' : 'Questionnaire'
@@ -766,10 +764,6 @@ const FormFill = () => {
     );
   };
 
-  const sectionLabel =
-    currentSection?.section_type === 'demographics'
-      ? 'Demographics'
-      : 'Questionnaire';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">

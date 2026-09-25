@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate, useParams, useOutletContext, useSearchParams } from 'react-router-dom';
+import { useParams, useOutletContext, useSearchParams } from 'react-router-dom';
 import { Plus, Trash2, Save, ChevronLeft, ChevronRight, Layers, Pencil, GripVertical, UserPlus, Copy, User, Users, ClipboardList, Camera, QrCode } from 'lucide-react';
 import ShareQrDialog from '../components/ShareQrDialog';
 import { Button } from '@/components/ui/button';
@@ -215,7 +215,6 @@ const generateCSVHeaders = (questions) => {
 };
 
 const QuestionnaireBuilder = () => {
-  const navigate = useNavigate();
   const { id: projectId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const outletCtx = useOutletContext();

@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import { useProject } from '../context/ProjectContext';
 import { copyToClipboard } from '../lib/utils';
+import { formatDate, latestResponseTime } from '../lib/dates';
 import ResponsesTable from '../components/responses/ResponsesTable';
 
 const getResponseList = (payload) => {
@@ -145,37 +146,7 @@ const AfterTab = () => {
     return (form.questions || []).length;
   };
 
-  const formatDate = (value) => {
-    if (!value) return 'N/A';
-    let date;
-    if (typeof value === 'object' && typeof value._seconds === 'number') {
-      date = new Date(value._seconds * 1000);
-    } else {
-      date = new Date(value);
-    }
-    if (isNaN(date.getTime())) return 'N/A';
-    return date.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
-  };
-
-  const getStatus = () => {
-    if (!form) return 'Draft';
-    const qCount = getQuestionCount();
-    if (qCount === 0) return 'Draft';
-    if (responses.length === 0) return 'Active';
-    return 'Active';
-  };
-
-  const getLastResponseDate = () => {
-    if (responses.length === 0) return 'N/A';
-    const latest = responses.reduce((best, r) => {
-      const d = r.createdAt || r.submittedAt;
-      if (!d) return best;
-      const date = typeof d === 'object' && typeof d._seconds === 'number' ? d._seconds : new Date(d).getTime() / 1000;
-      if (!best || date > best.ts) return { ts: date, raw: d };
-      return best;
-    }, null);
-    return latest ? formatDate(latest.raw) : 'N/A';
-  };
+  const getStatus = () => (form && getQuestionCount() > 0 ? 'Active' : 'Draft');
 
   const handleDeleteForm = async () => {
     if (!project?.after_form) return;
@@ -336,7 +307,7 @@ const AfterTab = () => {
           </div>
           <div className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-5">
             <p className="text-left text-xs font-medium uppercase tracking-wide text-slate-400">Last Response</p>
-            <p className="mt-1.5 text-left text-lg font-bold text-slate-700">{getLastResponseDate()}</p>
+            <p className="mt-1.5 text-left text-lg font-bold text-slate-700">{formatDate(latestResponseTime(responses))}</p>
           </div>
         </div>
       </Card>

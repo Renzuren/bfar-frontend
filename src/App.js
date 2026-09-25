@@ -54,7 +54,18 @@ const ProtectedRoute = ({ children }) => {
     );
   }
 
-  return user ? children : <Navigate to="/login" />;
+  return user ? children : <Navigate to="/login" replace />;
+};
+
+// The admin API rejects other accounts anyway; this keeps them from landing on
+// an admin page that can only show errors.
+const AdminRoute = ({ children }) => {
+  const { user } = useAuth();
+  return (
+    <ProtectedRoute>
+      {user?.role === 'admin' ? children : <Navigate to="/dashboard" replace />}
+    </ProtectedRoute>
+  );
 };
 
 const ProjectRoute = () => {
@@ -135,7 +146,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             <Route path="/admin/cleanup" element={<Navigate to="/admin" replace />} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/verify-account" element={<VerifyAccount />} />
@@ -143,19 +154,20 @@ function App() {
             <Route path="/verify-reset-code" element={<VerifyResetCode />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Project routes — wrapper picks baseline vs no-baseline nav */}
+            {/* Project routes — wrapper picks baseline vs no-baseline nav; the
+                wrapper's ProtectedRoute covers every nested page */}
             <Route path="/projects/:id" element={<ProtectedRoute><ProjectRoute /></ProtectedRoute>}>
               <Route index element={<ProjectIndex />} />
               <Route path="create-questionnaire" element={<QuestionnaireBuilder />} />
               <Route path="before" element={<BeforeRoute />} />
               <Route path="after" element={<AfterRoute />} />
-              <Route path="report" element={<ProtectedRoute><ReportRoute /></ProtectedRoute>} />
-              <Route path="responses" element={<ProtectedRoute><FormResponses embedded /></ProtectedRoute>} />
-              <Route path="profiles" element={<ProtectedRoute><FormProfiles embedded /></ProtectedRoute>} />
-              <Route path="analytics" element={<ProtectedRoute><FormAnalytics embedded /></ProtectedRoute>} />
-              <Route path="all-responses" element={<ProtectedRoute><ResponsesTab /></ProtectedRoute>} />
+              <Route path="report" element={<ReportRoute />} />
+              <Route path="responses" element={<FormResponses embedded />} />
+              <Route path="profiles" element={<FormProfiles embedded />} />
+              <Route path="analytics" element={<FormAnalytics embedded />} />
+              <Route path="all-responses" element={<ResponsesTab />} />
               <Route path="narrative-report" element={<NarrativeReport />} />
-              <Route path="backup" element={<ProtectedRoute><ProjectBackup /></ProtectedRoute>} />
+              <Route path="backup" element={<ProjectBackup />} />
             </Route>
 
             {/* Legacy form routes */}

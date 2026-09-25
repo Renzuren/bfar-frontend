@@ -19,7 +19,7 @@ export const usePreprocessedInput = (initialValue = '', type = 'text', options =
       case 'text':
         return preprocessText(rawValue);
 
-      case 'date':
+      case 'date': {
         const processedDate = preprocessDate(rawValue);
         if (rawValue && !processedDate) {
           setError('Invalid date format');
@@ -27,8 +27,9 @@ export const usePreprocessedInput = (initialValue = '', type = 'text', options =
         }
         setError(null);
         return processedDate || rawValue;
+      }
 
-      case 'rating':
+      case 'rating': {
         const processedRating = preprocessRating(rawValue);
         if (rawValue && processedRating === null) {
           setError('Rating must be between 1 and 5');
@@ -36,6 +37,7 @@ export const usePreprocessedInput = (initialValue = '', type = 'text', options =
         }
         setError(null);
         return processedRating !== null ? processedRating : rawValue;
+      }
 
       default:
         return rawValue;

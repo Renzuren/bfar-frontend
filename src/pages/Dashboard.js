@@ -18,7 +18,6 @@ import {
   Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -44,6 +43,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
 import { getSavedAnalyses, renameAnalysis, moveLocalAnalysesToServer } from '../lib/analysisStore';
+import { formatDate, toMillis } from '../lib/dates';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -156,18 +156,6 @@ const Dashboard = () => {
     setRenameAnalysisTitle('');
   };
 
-  const formatDate = (value) => {
-    if (!value) return 'N/A';
-    let date;
-    if (typeof value === 'object' && typeof value._seconds === 'number') {
-      date = new Date(value._seconds * 1000);
-    } else {
-      date = new Date(value);
-    }
-    if (isNaN(date.getTime())) return 'N/A';
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
   const baselineProjects = projects.filter((p) => p.has_baseline !== false);
   const noBaselineProjects = projects.filter((p) => p.has_baseline === false);
   const visibleProjects = (activeTab === 'no-baseline' ? noBaselineProjects : baselineProjects).filter(
@@ -185,13 +173,6 @@ const Dashboard = () => {
     return Number.isFinite(n) ? `₱${n.toFixed(2)}` : '—';
   };
 
-  const toDate = (value) => {
-    if (!value) return 0;
-    if (typeof value === 'object' && value._seconds != null) return value._seconds * 1000;
-    const time = new Date(value).getTime();
-    return Number.isNaN(time) ? 0 : time;
-  };
-
   const sortList = (items, getTitle, getDate) =>
     [...items].sort((a, b) => {
       switch (sortBy) {
@@ -200,9 +181,9 @@ const Dashboard = () => {
         case 'z-a':
           return String(getTitle(b)).localeCompare(String(getTitle(a)));
         case 'date-asc':
-          return toDate(getDate(a)) - toDate(getDate(b));
+          return toMillis(getDate(a)) - toMillis(getDate(b));
         default:
-          return toDate(getDate(b)) - toDate(getDate(a));
+          return toMillis(getDate(b)) - toMillis(getDate(a));
       }
     });
 
@@ -540,7 +521,7 @@ const Dashboard = () => {
                         </span>
                         <span className="inline-flex items-center gap-1 text-xs text-slate-400">
                           <CalendarDays className="h-3.5 w-3.5" />
-                          {formatDate(analysis.createdAt)}
+                          {formatDate(analysis.createdAt, 'short')}
                         </span>
                       </div>
                       {renameAnalysisId === analysis.id ? (
@@ -746,7 +727,7 @@ const Dashboard = () => {
 
                         <div className="mt-4 flex items-center gap-3 text-xs text-slate-400">
                           <span className="inline-flex items-center gap-1">
-                            <CalendarDays className="h-3.5 w-3.5" /> {formatDate(project.created_at ?? project.createdAt)}
+                            <CalendarDays className="h-3.5 w-3.5" /> {formatDate(project.created_at ?? project.createdAt, 'short')}
                           </span>
                         </div>
                       </div>

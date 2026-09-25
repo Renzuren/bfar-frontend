@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { api, getApiErrorMessage } from '../lib/apiMiddleware';
+import { storeSessionTokens } from '../lib/authStorage';
 import { useAuth } from '../context/AuthContext';
 
 const inputClass =
@@ -141,6 +142,9 @@ const Settings = () => {
         current_password: password.current_password,
         new_password: password.new_password,
       });
+      // A password change revokes the old refresh token; keep this device
+      // signed in with the fresh tokens the server returns.
+      storeSessionTokens(res.data || {});
       toast.success(res.data?.message || 'Password changed successfully');
       setPassword({ current_password: '', new_password: '', confirm_password: '' });
     } catch (error) {
