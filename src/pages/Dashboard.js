@@ -43,7 +43,7 @@ import {
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
-import { getSavedAnalyses, renameAnalysis } from '../lib/analysisStore';
+import { getSavedAnalyses, renameAnalysis, moveLocalAnalysesToServer } from '../lib/analysisStore';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -61,6 +61,7 @@ const Dashboard = () => {
   const [creating, setCreating] = useState(false);
   const [renameAnalysisId, setRenameAnalysisId] = useState(null);
   const [renameAnalysisTitle, setRenameAnalysisTitle] = useState('');
+  const [savedAnalyses, setSavedAnalyses] = useState([]);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -69,6 +70,28 @@ const Dashboard = () => {
     }
     if (user) fetchProjects();
   }, [user, fetchProjects, navigate]);
+
+  // Saved ML analyses live on the server so every device sees them. Analyses
+  // an older version kept only in this browser are uploaded first.
+  useEffect(() => {
+    if (!user || user.role === 'admin') return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const moved = await moveLocalAnalysesToServer();
+        if (moved && !cancelled) toast.success(`${moved} saved ${moved === 1 ? 'analysis' : 'analyses'} synced to your account`);
+      } catch (_) {
+        // Left in this browser; the next visit tries again.
+      }
+      try {
+        const list = await getSavedAnalyses();
+        if (!cancelled) setSavedAnalyses(list);
+      } catch (_) {
+        if (!cancelled) toast.error('Could not load saved analyses');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
 
   const handleDeleteProject = async () => {
     if (!deleteProjectId) return;
@@ -113,17 +136,19 @@ const Dashboard = () => {
     setRenameAnalysisTitle(analysis.title || '');
   };
 
-  const commitRenameAnalysis = () => {
+  const commitRenameAnalysis = async () => {
     const trimmed = renameAnalysisTitle.trim();
-    if (!trimmed) {
-      setRenameAnalysisId(null);
-      setRenameAnalysisTitle('');
-      return;
-    }
-    renameAnalysis(renameAnalysisId, trimmed);
-    toast.success('Analysis renamed');
+    const id = renameAnalysisId;
     setRenameAnalysisId(null);
     setRenameAnalysisTitle('');
+    if (!trimmed) return;
+    try {
+      const updated = await renameAnalysis(id, trimmed);
+      setSavedAnalyses((list) => list.map((a) => (a.id === id ? { ...a, title: updated?.title || trimmed } : a)));
+      toast.success('Analysis renamed');
+    } catch (_) {
+      toast.error('Could not rename the analysis');
+    }
   };
 
   const cancelRenameAnalysis = () => {
@@ -155,7 +180,6 @@ const Dashboard = () => {
     }
   );
 
-  const savedAnalyses = getSavedAnalyses();
   const formatMoney = (value) => {
     const n = Number(value);
     return Number.isFinite(n) ? `₱${n.toFixed(2)}` : '—';

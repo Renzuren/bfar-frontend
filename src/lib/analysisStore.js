@@ -1,93 +1,122 @@
 // src/lib/analysisStore.js
 // ============================================================
-// Browser-local persistence for ML analysis results. The ML /train
-// service returns JSON; this store keeps a copy of each run (with a
-// trimmed copy of the source rows) so results survive page reloads
-// and can be listed on the dashboard.
+// Saved ML analysis results, stored on the server per user (/api/analyses)
+// so they appear on every device the user signs in from. Earlier versions
+// kept them in this browser's localStorage only; moveLocalAnalysesToServer
+// uploads any such leftovers once.
 // ============================================================
 
-const STORAGE_KEY = 'bfar.savedAnalyses.v1';
-const MAX_ROWS_KEPT = 1000;
+import { api } from './apiMiddleware';
 
-const clone = (value) => {
+const MAX_ROWS_KEPT = 1000;
+// Where older versions of the app stored analyses in the browser.
+const LOCAL_KEY = 'bfar.savedAnalyses.v1';
+const LEGACY_PANEL_KEY = 'savedAnalyses';
+// Saving uploads the result rows, which can take a while on slow connections.
+const SAVE_TIMEOUT = 5 * 60 * 1000;
+
+/** Summaries of the user's saved analyses, newest first. */
+export const getSavedAnalyses = async () => (await api.get('/analyses')).data || [];
+
+/** The full saved analysis (results, columns, rows), or null if missing. */
+export const getSavedAnalysis = async (id) => {
   try {
-    return JSON.parse(JSON.stringify(value));
-  } catch (_) {
-    return value;
+    return (await api.get(`/analyses/${encodeURIComponent(id)}`)).data;
+  } catch (error) {
+    if (error.response?.status === 404) return null;
+    throw error;
   }
 };
 
-const readList = () => {
+/**
+ * Saves an analysis run and returns its summary (with the server id), or
+ * null if it could not be saved.
+ */
+export const saveAnalysis = async (record) => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const list = raw ? JSON.parse(raw) : [];
+    const res = await api.post('/analyses', {
+      clientId: record.clientId,
+      title: (record.title || 'Analysis').trim() || 'Analysis',
+      fileName: record.fileName || '',
+      createdAt: record.createdAt,
+      analysisResults: record.analysisResults,
+      columns: Array.isArray(record.columns) ? record.columns : [],
+      rows: Array.isArray(record.rows) ? record.rows.slice(0, MAX_ROWS_KEPT) : [],
+      treatmentColumn: record.treatmentColumn || '',
+      outcomeColumn: record.outcomeColumn || '',
+      caliperRatio: record.caliperRatio ?? 0.2,
+      truncated: Boolean(record.truncated),
+    }, { timeout: SAVE_TIMEOUT, retry: 0 });
+    return res.data;
+  } catch (_) {
+    return null;
+  }
+};
+
+export const deleteAnalysis = async (id) => {
+  await api.delete(`/analyses/${encodeURIComponent(id)}`);
+  return true;
+};
+
+export const renameAnalysis = async (id, title) =>
+  (await api.put(`/analyses/${encodeURIComponent(id)}`, { title: (title || '').trim() || 'Analysis' })).data;
+
+const readLocal = (key) => {
+  try {
+    const list = JSON.parse(localStorage.getItem(key) || '[]');
     return Array.isArray(list) ? list : [];
   } catch (_) {
     return [];
   }
 };
 
-const writeList = (list) => {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify(list, (key, value) => (value === undefined ? null : value))
-  );
+const writeLocal = (key, list) => {
+  try {
+    if (list.length) localStorage.setItem(key, JSON.stringify(list));
+    else localStorage.removeItem(key);
+  } catch (_) {
+    // Storage unavailable (private mode); nothing to clean up.
+  }
 };
-
-export const getSavedAnalyses = () => readList();
-
-export const getSavedAnalysis = (id) =>
-  readList().find((analysis) => analysis.id === id) || null;
 
 /**
- * Persists an analysis run. Returns the saved record (with its id), or
- * null if even the results-only payload could not be stored.
- *
- * To respect the localStorage quota the source rows are capped, and if
- * the payload is still too large it is retried without the rows/columns
- * and flagged with `truncated: true` so the detail page can warn the user.
+ * Uploads analyses that older versions saved only in this browser, removing
+ * each local copy once the server has it. Safe to call repeatedly: the
+ * server ignores an analysis it already imported (same clientId).
+ * Returns how many were moved.
  */
-export const saveAnalysis = (record) => {
-  const list = readList();
-  const entry = {
-    id: record.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    title: (record.title || 'Analysis').trim() || 'Analysis',
-    fileName: record.fileName || '',
-    createdAt: record.createdAt || new Date().toISOString(),
-    analysisResults: clone(record.analysisResults),
-    treatmentColumn: record.treatmentColumn || '',
-    outcomeColumn: record.outcomeColumn || '',
-    caliperRatio: record.caliperRatio ?? 0.2,
-    truncated: false,
-  };
+export const moveLocalAnalysesToServer = async () => {
+  let moved = 0;
 
-  const rest = list.filter((analysis) => analysis.id !== entry.id);
-  const rows = Array.isArray(record.rows) ? record.rows.slice(0, MAX_ROWS_KEPT) : [];
-  const columns = Array.isArray(record.columns) ? record.columns : [];
-
-  try {
-    writeList([entry, ...rest].map((a) => ({ ...a, columns: a.id === entry.id ? columns : a.columns, rows: a.id === entry.id ? rows : a.rows })));
-  } catch (_) {
-    // Quota exceeded — retry storing results only.
-    try {
-      writeList([{ ...entry, truncated: true, columns: [], rows: [] }, ...rest]);
-    } catch (_) {
-      return null;
-    }
+  const local = readLocal(LOCAL_KEY);
+  const keep = [];
+  for (const entry of local) {
+    const saved = entry && entry.analysisResults
+      ? await saveAnalysis({ ...entry, clientId: `local:${entry.id}` })
+      : null;
+    if (saved) moved += 1;
+    else if (entry && entry.analysisResults) keep.push(entry);
   }
-  return getSavedAnalysis(entry.id);
-};
+  writeLocal(LOCAL_KEY, keep);
 
-export const deleteAnalysis = (id) => {
-  writeList(readList().filter((analysis) => analysis.id !== id));
-  return true;
-};
+  // The results panel's own Save button used to write here, where the
+  // dashboard never looked.
+  const legacy = readLocal(LEGACY_PANEL_KEY);
+  const keepLegacy = [];
+  for (const entry of legacy) {
+    const saved = entry && entry.results
+      ? await saveAnalysis({
+        clientId: `panel:${entry.id}`,
+        title: entry.name,
+        createdAt: entry.date,
+        analysisResults: entry.results,
+        treatmentColumn: entry.results.treatment_column,
+      })
+      : null;
+    if (saved) moved += 1;
+    else if (entry && entry.results) keepLegacy.push(entry);
+  }
+  writeLocal(LEGACY_PANEL_KEY, keepLegacy);
 
-export const renameAnalysis = (id, title) => {
-  const list = readList();
-  const next = list.map((analysis) =>
-    analysis.id === id ? { ...analysis, title: (title || '').trim() || 'Analysis' } : analysis
-  );
-  writeList(next);
-  return getSavedAnalysis(id);
+  return moved;
 };

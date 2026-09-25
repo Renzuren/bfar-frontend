@@ -344,7 +344,7 @@ const MLUpload = () => {
         setSavedAnalysisId(saved.id);
         setSaveMessage('Analysis saved to your dashboard.');
       } else {
-        setSaveMessage('Could not save — the results are too large for browser storage.');
+        setSaveMessage('Could not save the analysis. Check your connection and try again.');
       }
     } finally {
       setSavingAnalysis(false);

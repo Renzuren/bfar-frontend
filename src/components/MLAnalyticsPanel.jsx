@@ -69,6 +69,7 @@ import {
   CURSOR,
 } from '@/lib/chartTheme';
 import { toast } from 'sonner';
+import { saveAnalysis } from '@/lib/analysisStore';
 
 // ---------- Geo Map (identical structure to ReportTab / MLUpload) ----------
 const MAP_TYPE_PILLS = [
@@ -285,6 +286,7 @@ export const MLAnalyticsPanel = ({
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [saveDescription, setSaveDescription] = useState('');
+  const [savingResults, setSavingResults] = useState(false);
 
   const groupCol = analysisResults?.treatment_column || treatmentColumn || '';
 
@@ -940,21 +942,27 @@ export const MLAnalyticsPanel = ({
     );
   };
 
-  const handleSaveResults = () => {
-    const saved = JSON.parse(localStorage.getItem('savedAnalyses') || '[]');
-    const entry = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
-      name: saveName || `Analysis ${new Date().toLocaleString()}`,
-      description: saveDescription || '',
-      date: new Date().toISOString(),
-      results: analysisResults,
-    };
-    saved.push(entry);
-    localStorage.setItem('savedAnalyses', JSON.stringify(saved));
+  // Saves to the user's account (shown under ML Analysis Result on the
+  // dashboard, on every device).
+  const handleSaveResults = async () => {
+    setSavingResults(true);
+    const saved = await saveAnalysis({
+      title: saveName || `Analysis ${new Date().toLocaleString()}`,
+      analysisResults,
+      columns,
+      rows,
+      treatmentColumn: groupCol,
+      outcomeColumn: analysisResults?.outcome_column || '',
+    });
+    setSavingResults(false);
+    if (!saved) {
+      toast.error('Could not save the results. Check your connection and try again.');
+      return;
+    }
     setShowSaveModal(false);
     setSaveName('');
     setSaveDescription('');
-    alert('Results saved successfully!');
+    toast.success('Results saved to your dashboard');
   };
 
   const handleDownloadJSON = () => {
@@ -1085,8 +1093,8 @@ export const MLAnalyticsPanel = ({
               <Button variant="outline" onClick={() => setShowSaveModal(false)} className="flex-1">
                 Cancel
               </Button>
-              <Button onClick={handleSaveResults} disabled={!saveName.trim()} className="flex-1 bg-blue-600 hover:bg-blue-700">
-                <Save className="mr-1.5 h-4 w-4" /> Save
+              <Button onClick={handleSaveResults} disabled={!saveName.trim() || savingResults} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                <Save className="mr-1.5 h-4 w-4" /> {savingResults ? 'Saving…' : 'Save'}
               </Button>
             </div>
           </div>

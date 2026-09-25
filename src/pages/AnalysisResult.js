@@ -23,15 +23,29 @@ const AnalysisResult = () => {
   const [missing, setMissing] = useState(false);
 
   useEffect(() => {
-    const result = getSavedAnalysis(id);
-    if (result) setRecord(result);
-    else setMissing(true);
+    let cancelled = false;
+    setRecord(null);
+    setMissing(false);
+    getSavedAnalysis(id)
+      .then((result) => {
+        if (cancelled) return;
+        if (result) setRecord(result);
+        else setMissing(true);
+      })
+      .catch(() => {
+        if (!cancelled) setMissing(true);
+      });
+    return () => { cancelled = true; };
   }, [id]);
 
-  const handleDelete = () => {
-    deleteAnalysis(record.id);
-    toast.success('Analysis deleted');
-    navigate('/dashboard');
+  const handleDelete = async () => {
+    try {
+      await deleteAnalysis(record.id);
+      toast.success('Analysis deleted');
+      navigate('/dashboard');
+    } catch (_) {
+      toast.error('Could not delete the analysis');
+    }
   };
 
   if (missing) {
@@ -53,7 +67,8 @@ const AnalysisResult = () => {
 
   if (!record) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50">
+        <p className="text-sm text-slate-500">Loading analysis…</p>
         <Button variant="outline" onClick={() => navigate('/dashboard')}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
         </Button>
