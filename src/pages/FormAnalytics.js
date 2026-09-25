@@ -378,8 +378,11 @@ const FormAnalytics = ({ embedded = false }) => {
     return questionnaireQuestions.some(qq => qq.id === qDef.id || qq.id === q.question_id);
   });
 
-  const totalBeneficiaries = responses.filter(r => r.is_beneficiary === true || r.is_beneficiary === 'true').length;
-  const totalNonBeneficiaries = totalResponses - totalBeneficiaries;
+  // Submissions store the status as beneficiary_status "Yes"/"No" (no
+  // is_beneficiary field exists), so the old check counted nobody as a
+  // beneficiary. Responses without a status are counted in neither group.
+  const totalBeneficiaries = responses.filter(r => r.beneficiary_status === 'Yes').length;
+  const totalNonBeneficiaries = responses.filter(r => r.beneficiary_status === 'No').length;
 
   const ChartFooter = ({ chartData }) => (
     <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
