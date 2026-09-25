@@ -357,8 +357,16 @@ const AutoChartsReport = ({ columns = [], rows = [], treatmentColumn = '' }) => 
       : [Number(value).toLocaleString(), name];
   };
 
+  // Explicit payload: Recharts sorts legend items by name, which would list
+  // "Comparison" before the "Treated" bars it sits beside.
   const legend = grouping ? (
-    <Legend verticalAlign="top" height={24} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, fontFamily: 'inherit' }} />
+    <Legend
+      verticalAlign="top"
+      height={24}
+      iconSize={8}
+      wrapperStyle={{ fontSize: 11, fontFamily: 'inherit' }}
+      payload={grouping.names.map((name, i) => ({ value: name, id: name, type: 'circle', color: grouping.colors[i] }))}
+    />
   ) : null;
 
   const tooltip = (
