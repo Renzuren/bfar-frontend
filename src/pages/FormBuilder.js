@@ -86,14 +86,14 @@ const FormQuestionCard = React.memo(function FormQuestionCard({
             {q.required && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-600 ring-1 ring-rose-100">Required</span>}
           </div>
           {isSys ? (
-            <div className="grid gap-3 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
               <div><Label>Field</Label><Input value={q.title} disabled className="bg-slate-50 text-slate-600" /></div>
               <div><Label>Type</Label><Input value={q.type} disabled className="bg-slate-50 text-slate-600" /></div>
               <div><Label>Code</Label><Input value={q.code || ''} disabled className="bg-slate-50 text-slate-600" /></div>
             </div>
           ) : (
             <>
-              <div className="grid gap-3 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <div className="lg:col-span-2"><Label>Question text</Label><Input value={q.title} onChange={e => onUpdate(q.id, 'title', e.target.value)} placeholder="Enter your question" /></div>
                 <div><Label>Type</Label><Select value={q.type} onValueChange={v => onTypeChange(q.id, v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{QUESTION_TYPES.some(t => t.value === q.type) ? null : <SelectItem value={q.type} disabled>Text (legacy)</SelectItem>}{QUESTION_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
                 <div><Label>Question code</Label><Input value={q.code || ''} onChange={e => onUpdate(q.id, 'code', e.target.value)} placeholder="e.g., A1" /></div>

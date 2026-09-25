@@ -121,7 +121,7 @@ const QuestionCard = React.memo(function QuestionCard({
                   <p className="text-xs text-purple-500">Respondents will upload a JPG, JPEG, or PNG image (max 5MB)</p>
                 </div>
               </div>
-              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <div><Label>Field label</Label><Input value={q.title} onChange={e => onUpdate(q.id, 'title', e.target.value)} placeholder="e.g. Profile Photo" /></div>
                 <div><Label>Question code</Label><Input value={q.code || ''} onChange={e => onUpdate(q.id, 'code', e.target.value)} placeholder="e.g. PHOTO" /></div>
                 <div className="lg:col-span-2"><Label>Description (optional)</Label><Input value={q.description || ''} onChange={e => onUpdate(q.id, 'description', e.target.value)} placeholder="Add helper text" /></div>
@@ -129,7 +129,7 @@ const QuestionCard = React.memo(function QuestionCard({
             </div>
           ) : (
             <>
-              <div className="grid gap-3 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <div className="lg:col-span-2"><Label>Question text</Label><Input value={q.title} onChange={e => onUpdate(q.id, 'title', e.target.value)} placeholder="Enter your question" /></div>
                 <div><Label>Type</Label><Select value={q.type} onValueChange={v => onTypeChange(q.id, v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{availableTypes.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
                 <div><Label>Question code</Label><Input value={q.code || ''} onChange={e => onUpdate(q.id, 'code', e.target.value)} placeholder="e.g., A1" /></div>

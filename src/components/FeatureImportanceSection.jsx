@@ -98,7 +98,7 @@ const FeatureImportanceSection = ({ featureImportance = [] }) => {
           Feature importance measures how strongly each column separates the Beneficiary (B) group from the Non-Beneficiary (NB) group.
           A larger bar means the feature matters more for the treatment/outcome split.
         </p>
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <div className="rounded-[8px] border border-[#e2e8f0] bg-white p-4">
             <div className="text-[13px] font-[700] text-[#1e293b]">Feature Importance</div>
             <div className="mb-3 mt-[2px] text-[11px] font-[400] text-[#94a3b8]">Top {safe.length} features ranked by mean impact</div>

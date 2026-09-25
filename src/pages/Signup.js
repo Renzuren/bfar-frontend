@@ -93,7 +93,7 @@ const Signup = () => {
       <p className="mt-1.5 text-sm text-slate-500">Get started with your free account</p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5" data-testid="signup-form">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="firstName" className="text-sm font-medium text-slate-700">First Name</Label>
             <div className="relative mt-1.5">
@@ -129,7 +129,7 @@ const Signup = () => {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="lastName" className="text-sm font-medium text-slate-700">Last Name</Label>
             <div className="relative mt-1.5">
@@ -183,7 +183,7 @@ const Signup = () => {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="password" className="text-sm font-medium text-slate-700">Password</Label>
             <div className="relative mt-1.5">

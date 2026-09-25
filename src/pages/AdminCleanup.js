@@ -587,7 +587,7 @@ export default function AdminCleanup({ embedded = false }) {
             </Card>
 
             {/* Breakdowns */}
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <Card className="rounded-2xl border-slate-200 shadow-sm">
                 <CardHeader className="px-4 py-3">
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -673,7 +673,7 @@ export default function AdminCleanup({ embedded = false }) {
               {/* Category selection */}
               <div className="space-y-2">
                 <p className="text-sm font-semibold text-slate-700">Categories to clean</p>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {CATEGORY_OPTIONS.map((cat) => {
                     const checked = selectedCategories.includes(cat.key);
                     return (

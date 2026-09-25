@@ -257,7 +257,7 @@ const NoBaselineOverview = ({ project }) => {
         </div>
       </section>
 
-      <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 text-left">
+      <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 text-left">
         {overviewCards.map((card) => {
           const Icon = card.icon;
           return (

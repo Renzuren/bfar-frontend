@@ -493,7 +493,7 @@ const Dashboard = () => {
                 )}
               </div>
             ) : (
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {filteredAnalyses.map((analysis) => {
                   const att = analysis.analysisResults?.att_result || {};
                   return (
@@ -606,7 +606,7 @@ const Dashboard = () => {
           {activeTab !== 'ml' && (
           <section>
             {loading ? (
-              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {[0, 1, 2].map((i) => (
                   <div key={i} className="h-64 animate-pulse rounded-2xl border border-slate-200/80 bg-white shadow-sm">
                     <div className="h-full w-full rounded-2xl bg-slate-100/80" />
@@ -642,7 +642,7 @@ const Dashboard = () => {
                 )}
               </div>
             ) : (
-              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {sortedProjects.map((project) => {
                   const hasBefore = !!project.before_form;
                   const hasAfter = !!project.after_form;

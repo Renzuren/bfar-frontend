@@ -1100,11 +1100,11 @@ export const MLAnalyticsPanel = ({
 export const MLAnalysisSkeleton = () => (
   <div className="space-y-5">
     <div className="h-24 w-full animate-pulse rounded-2xl bg-slate-100" />
-    <div className="grid gap-4 md:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
       {[1, 2, 3, 4].map((i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-slate-100" />)}
     </div>
     <div className="h-[420px] w-full animate-pulse rounded-xl bg-slate-100" />
-    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
       {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="h-72 animate-pulse rounded-lg bg-slate-100" />)}
     </div>
   </div>

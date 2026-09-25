@@ -334,7 +334,7 @@ const LikertCard = ({ cat, rows }) => {
 };
 
 export const LikertSection = ({ likertData }) => (
-  <div className="grid gap-5 md:col-span-2 md:grid-cols-2 xl:col-span-3 xl:grid-cols-3">
+  <div className="grid grid-cols-1 gap-5 md:col-span-2 md:grid-cols-2 xl:col-span-3 xl:grid-cols-3">
     {Object.keys(LIKERT_TITLES).map((cat) => (
       <LikertCard key={cat} cat={cat} rows={likertData[cat] || []} />
     ))}

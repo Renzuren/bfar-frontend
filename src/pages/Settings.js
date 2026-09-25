@@ -263,7 +263,7 @@ const Settings = () => {
               <p className="mt-0.5 text-sm text-slate-500">Update your account details</p>
             </div>
             <form onSubmit={saveProfile} className="space-y-5 p-6">
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <Label className="text-sm font-medium text-slate-700">First Name</Label>
                   <Input
@@ -355,7 +355,7 @@ const Settings = () => {
                   </button>
                 </div>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <Label className="text-sm font-medium text-slate-700">New Password</Label>
                   <div className="relative mt-1.5">

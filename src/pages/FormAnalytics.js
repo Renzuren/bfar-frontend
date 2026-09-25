@@ -384,7 +384,7 @@ const FormAnalytics = ({ embedded = false }) => {
   const ChartFooter = ({ chartData }) => (
     <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
       <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Answer Distribution</p>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {chartData.map((item, idx) => (
           <div key={idx} className="flex items-center gap-3 rounded-lg bg-white p-3 ring-1 ring-slate-100">
             <span className="h-3 w-3 shrink-0 rounded-full ring-2 ring-white" style={{ backgroundColor: getChartColors(chartData.length)[idx] }} />
@@ -543,7 +543,7 @@ const FormAnalytics = ({ embedded = false }) => {
         <div className="p-6">
           <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Responses</p>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {(questionData.responses || []).map((response, idx) => (
                 <div key={idx} className="rounded-lg bg-white p-3 ring-1 ring-slate-100">
                   <p className="text-sm text-slate-700">{response}</p>

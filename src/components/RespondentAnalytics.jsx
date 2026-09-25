@@ -438,7 +438,7 @@ const RespondentAnalytics = ({ columns, rows, analysis = null }) => {
 
         {/* ---------- Summary cards ---------- */}
         <div className="px-6 py-6">
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-[8px] p-[18px_20px] text-white shadow-[0_2px_10px_rgba(0,0,0,0.13)] min-h-[96px]" style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' }}>
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -502,7 +502,7 @@ const RespondentAnalytics = ({ columns, rows, analysis = null }) => {
 
       {/* ---------- Matching & Impact headline metrics (PSM) ---------- */}
       {analysis ? (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard value={Number(analysis.attValue ?? 0).toFixed(4)} label="ATT — Avg Treatment Effect" caption={`Beneficiary (B): ${analysis.beneficiaryCount} · Non-Beneficiary (NB): ${analysis.nonBeneficiaryCount}`} tone="orange" icon="📈" />
           <MetricCard value={String(analysis.improved ?? 0)} label="SES Improved (B > A)" caption={`${Number(analysis.sesImprovementPct ?? 0).toFixed(1)}% of all respondents`} tone="green" icon="📈" />
           <MetricCard value={Number(analysis.meanSesAfterBeneficiary ?? analysis.meanSesAfter ?? 0).toFixed(2)} label="Mean SES After (Beneficiary)" caption={`Before: ${Number(analysis.meanSesBeforeBeneficiary ?? analysis.meanSesBefore ?? 0).toFixed(2)} · Δ ${Number(analysis.delta ?? 0).toFixed(2)}`} tone="blue" icon="📊" />
@@ -511,7 +511,7 @@ const RespondentAnalytics = ({ columns, rows, analysis = null }) => {
       ) : null}
 
       {/* ---------- Combined chart dashboard (all charts in one grid) ---------- */}
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {/* Model interpretation */}
         {safeFeatures.length ? (
           <ChartCard title="Feature Importance" subtitle={`Top ${safeFeatures.length} features ranked by mean impact`}>

@@ -378,7 +378,7 @@ const AdminDashboard = () => {
           {activeTab === 'data-maintenance' ? (
             <AdminCleanup embedded />
           ) : loading ? (
-            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {[0, 1, 2].map((i) => (<div key={i} className="h-40 animate-pulse rounded-2xl border border-slate-200/80 bg-white shadow-sm"><div className="h-full w-full rounded-2xl bg-slate-100/80" /></div>))}
             </div>
           ) : activeTab === 'users' ? (
@@ -537,7 +537,7 @@ const AdminDashboard = () => {
         <DialogContent className="rounded-2xl sm:max-w-md">
           <DialogHeader><DialogTitle className="text-xl">Add New User</DialogTitle><DialogDescription>Create a user account. The organization you enter appears in the Users table.</DialogDescription></DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div><Label className="text-sm font-medium text-slate-700">First Name *</Label><Input value={newUser.firstName} onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })} placeholder="Juan" className="mt-1.5" /></div>
               <div><Label className="text-sm font-medium text-slate-700">Middle Name</Label><Input value={newUser.middleName} onChange={(e) => setNewUser({ ...newUser, middleName: e.target.value })} placeholder="Dela Cruz" className="mt-1.5" /></div>
             </div>
@@ -560,13 +560,13 @@ const AdminDashboard = () => {
         <DialogContent className="rounded-2xl sm:max-w-md">
           <DialogHeader><DialogTitle className="text-xl">Edit User</DialogTitle><DialogDescription>Update user details, role, and status.</DialogDescription></DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div><Label className="text-sm font-medium text-slate-700">First Name *</Label><Input value={editUser.firstName} onChange={(e) => setEditUser({ ...editUser, firstName: e.target.value })} className="mt-1.5" /></div>
               <div><Label className="text-sm font-medium text-slate-700">Middle Name</Label><Input value={editUser.middleName} onChange={(e) => setEditUser({ ...editUser, middleName: e.target.value })} className="mt-1.5" /></div>
             </div>
             <div><Label className="text-sm font-medium text-slate-700">Last Name *</Label><Input value={editUser.lastName} onChange={(e) => setEditUser({ ...editUser, lastName: e.target.value })} className="mt-1.5" /></div>
             <div><Label className="text-sm font-medium text-slate-700">Email *</Label><Input type="email" value={editUser.email} onChange={(e) => setEditUser({ ...editUser, email: e.target.value })} className="mt-1.5" /></div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label className="text-sm font-medium text-slate-700">Role</Label>
                 <select value={editUser.role} onChange={(e) => setEditUser({ ...editUser, role: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10">

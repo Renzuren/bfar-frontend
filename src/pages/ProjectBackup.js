@@ -249,7 +249,7 @@ const ProjectBackup = () => {
         </div>
 
         {/* What to include */}
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button
             type="button"
             onClick={() => setIncludeResponses(true)}
@@ -368,7 +368,7 @@ const ProjectBackup = () => {
               {/* What to include when restoring */}
               <div className="mt-4">
                 <p className="mb-2 text-sm font-semibold text-slate-800">I-restore:</p>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <button
                     type="button"
                     onClick={() => setRestoreResponses(true)}
