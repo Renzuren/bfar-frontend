@@ -159,7 +159,7 @@ const AnalysisResult = () => {
           />
 
           {(record.rows || []).length > 0 && (
-            <AutoChartsReport columns={record.columns || []} rows={record.rows || []} />
+            <AutoChartsReport columns={record.columns || []} rows={record.rows || []} treatmentColumn={treat} />
           )}
         </main>
       </div>

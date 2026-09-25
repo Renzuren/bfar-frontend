@@ -774,7 +774,7 @@ const MLUpload = () => {
 
         {/* Auto charts (computed live from the data preview) */}
         {csvData.length > 0 && (
-          <AutoChartsReport columns={columns} rows={csvData} />
+          <AutoChartsReport columns={columns} rows={csvData} treatmentColumn={analysisResults?.treatment_column || treatmentColumn} />
         )}
       </div>
     </div>

@@ -769,7 +769,7 @@ const NoBaselineAnalysisReport = () => {
 
         {/* Auto charts (computed live from the combined dataset) */}
         {dataset && dataset.rows.length > 0 && (
-          <AutoChartsReport columns={dataset.columns} rows={dataset.rows} />
+          <AutoChartsReport columns={dataset.columns} rows={dataset.rows} treatmentColumn={treatmentColumn} />
         )}
       </div>
     </div>
