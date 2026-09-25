@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useOutletContext, useSearchParams } from 'react-router-dom';
-import { Plus, Trash2, Save, ChevronLeft, ChevronRight, Layers, Pencil, GripVertical, UserPlus, Copy, User, Users, ClipboardList, Camera } from 'lucide-react';
+import { Plus, Trash2, Save, ChevronLeft, ChevronRight, Layers, Pencil, GripVertical, UserPlus, Copy, User, Users, ClipboardList, Camera, QrCode } from 'lucide-react';
+import ShareQrDialog from '../components/ShareQrDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -256,6 +257,7 @@ const QuestionnaireBuilder = () => {
   const [dragItem, setDragItem] = useState(null);
   const [dragOver, setDragOver] = useState(null);
   const [savedFormId, setSavedFormId] = useState(null);
+  const [qrOpen, setQrOpen] = useState(false);
   const [showNewSectionModal, setShowNewSectionModal] = useState(false);
   const [newSectionTitle, setNewSectionTitle] = useState('');
   const [newSectionType, setNewSectionType] = useState('questionnaire');
@@ -1001,6 +1003,14 @@ const QuestionnaireBuilder = () => {
             <Button onClick={copyFormLink} variant="outline" size="sm" className="border-emerald-300 text-emerald-700 hover:bg-emerald-50">
               <Copy className="mr-1.5 h-4 w-4" /> Copy Link
             </Button>
+          )}
+          {savedFormId && (
+            <Button onClick={() => setQrOpen(true)} variant="outline" size="sm" className="border-sky-300 text-sky-700 hover:bg-sky-50">
+              <QrCode className="mr-1.5 h-4 w-4" /> QR Code
+            </Button>
+          )}
+          {savedFormId && (
+            <ShareQrDialog open={qrOpen} onOpenChange={setQrOpen} url={`${window.location.origin}/f/${savedFormId}`} />
           )}
         </div>
       </div>

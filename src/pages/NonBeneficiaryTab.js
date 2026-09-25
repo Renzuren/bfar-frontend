@@ -12,7 +12,9 @@ import {
   Copy,
   Loader2,
   IdCard,
+  QrCode,
 } from 'lucide-react';
+import ShareQrDialog from '../components/ShareQrDialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -40,6 +42,7 @@ const NonBeneficiaryTab = () => {
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const [copying, setCopying] = useState(false);
 
   useEffect(() => {
@@ -389,6 +392,28 @@ const NonBeneficiaryTab = () => {
             <p className="text-xs text-slate-500">Share questionnaire URL</p>
           </div>
         </button>
+
+        <button
+          onClick={() => setQrOpen(true)}
+          disabled={!project?.after_form}
+          className="group flex items-center gap-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-sm hover:border-sky-200 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 transition-colors group-hover:bg-sky-100">
+            <QrCode className="h-5 w-5" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-slate-900">QR Code</p>
+            <p className="text-xs text-slate-500">Scan or download to share</p>
+          </div>
+        </button>
+        {project?.after_form && (
+          <ShareQrDialog
+            open={qrOpen}
+            onOpenChange={setQrOpen}
+            url={`${window.location.origin}/f/${project.after_form}`}
+            title={form?.title}
+          />
+        )}
         </section>
       </Card>
 
