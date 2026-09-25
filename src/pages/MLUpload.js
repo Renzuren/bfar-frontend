@@ -342,7 +342,9 @@ const MLUpload = () => {
       });
       if (saved) {
         setSavedAnalysisId(saved.id);
-        setSaveMessage('Analysis saved to your dashboard.');
+        setSaveMessage(saved.alreadySaved
+          ? `Naka-save na ang analysis na ito sa dashboard mo${saved.title ? ` ("${saved.title}")` : ''}.`
+          : 'Analysis saved to your dashboard.');
       } else {
         setSaveMessage('Could not save the analysis. Check your connection and try again.');
       }
@@ -738,9 +740,10 @@ const MLUpload = () => {
                     View saved analysis →
                   </button>
                 )}
+                {/* One run is saved once; a new run resets this. */}
                 <Button
                   onClick={handleSaveAnalysis}
-                  disabled={savingAnalysis}
+                  disabled={savingAnalysis || Boolean(savedAnalysisId)}
                   className="gap-2 bg-slate-900 text-sm shadow-sm hover:bg-slate-800"
                 >
                   {savingAnalysis ? (
@@ -748,7 +751,7 @@ const MLUpload = () => {
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  {savedAnalysisId ? 'Save Again' : 'Save to Dashboard'}
+                  {savedAnalysisId ? 'Saved ✓' : 'Save to Dashboard'}
                 </Button>
               </div>
             </div>

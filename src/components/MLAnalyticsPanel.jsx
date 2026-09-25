@@ -962,7 +962,8 @@ export const MLAnalyticsPanel = ({
     setShowSaveModal(false);
     setSaveName('');
     setSaveDescription('');
-    toast.success('Results saved to your dashboard');
+    if (saved.alreadySaved) toast.info(`Naka-save na ito sa dashboard mo${saved.title ? ` ("${saved.title}")` : ''}.`);
+    else toast.success('Results saved to your dashboard');
   };
 
   const handleDownloadJSON = () => {
