@@ -45,6 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import PageLoader from '../components/common/PageLoader';
 
 const STANDARD_WARNING = 'This action cannot be undone. Are you sure you want to proceed?';
 const EXPECTED_AUDIT_MSG =
@@ -437,13 +438,7 @@ export default function AdminCleanup({ embedded = false }) {
     [stats.activity_breakdown]
   );
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F8FDFF]">
-        <p className="text-slate-600">Loading...</p>
-      </div>
-    );
-  }
+  if (loading) return <PageLoader fullScreen />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== 'admin') return <Navigate to="/dashboard" replace />;
 

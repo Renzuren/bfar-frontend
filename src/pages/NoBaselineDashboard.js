@@ -5,66 +5,12 @@ import {
   BarChart3,
   ListChecks,
   Layers,
-  FileBarChart2,
-  DatabaseBackup,
-  ClipboardList,
   Pencil,
   Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProject } from '../context/ProjectContext';
 import { api } from '../lib/apiMiddleware';
-
-export const NO_BASELINE_SIDEBAR_ITEMS = [
-  {
-    label: 'Create Questionnaire',
-    path: 'create-questionnaire',
-    icon: FileText,
-  },
-  {
-    label: 'Beneficiary',
-    path: 'before',
-    icon: Layers,
-  },
-  {
-    label: 'Non-Beneficiary',
-    path: 'after',
-    icon: ListChecks,
-  },
-  {
-    label: 'Responses',
-    path: 'all-responses',
-    icon: ClipboardList,
-  },
-  {
-    label: 'Analysis Report',
-    path: 'report',
-    icon: FileBarChart2,
-  },
-  {
-    label: 'Narrative Report',
-    path: 'narrative-report',
-    icon: BarChart3,
-  },
-  {
-    label: 'Data Backup & Import',
-    path: 'backup',
-    icon: DatabaseBackup,
-  },
-];
-
-export const NO_BASELINE_BREADCRUMB_LABELS = {
-  'create-questionnaire': 'Edit Questionnaire',
-  'before': 'Beneficiary',
-  'after': 'Non-Beneficiary',
-  'report': 'Analysis Report',
-  'all-responses': 'All Responses',
-  'responses': 'View Responses',
-  'profiles': 'View Profiles',
-  'analytics': 'View Analytics',
-  'narrative-report': 'Narrative Report',
-  'backup': 'Data Backup & Import',
-};
 
 const NoBaselineDashboard = () => {
   const { currentProject } = useProject();

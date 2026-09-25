@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { api, getApiErrorMessage } from '../lib/apiMiddleware';
 import { storeSessionTokens } from '../lib/authStorage';
 import { useAuth } from '../context/AuthContext';
+import PageLoader from '../components/common/PageLoader';
 
 const inputClass =
   'h-11 rounded-xl border-slate-200 bg-white text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10';
@@ -192,13 +193,7 @@ const Settings = () => {
     .map((w) => w.charAt(0).toUpperCase())
     .join('');
 
-  if (loadingUser) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50/80">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-      </div>
-    );
-  }
+  if (loadingUser) return <PageLoader fullScreen />;
 
   return (
     <div className="min-h-screen bg-slate-50/80">

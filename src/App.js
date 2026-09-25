@@ -1,97 +1,64 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useParams, useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
 import { Toaster } from '@/components/ui/sonner';
 import UpdateNotifier from './components/UpdateNotifier';
-import LandingPage from './pages/LandingPage';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import Dashboard from './pages/Dashboard';
-import AdminDashboard from './pages/AdminDashboard';
-import Settings from './pages/Settings';
-import FormBuilder from './pages/FormBuilder';
-import FormFill from './pages/FormFill';
-import FormResponses from './pages/FormResponses';
-import FormProfiles from './pages/FormProfiles';
-import FormAnalytics from './pages/FormAnalytics';
-import MLUpload from './pages/MLUpload';
-import AnalysisResult from './pages/AnalysisResult';
-import ProjectDashboard, {
-  PROJECT_SIDEBAR_ITEMS,
-  PROJECT_BREADCRUMB_LABELS,
-} from './pages/ProjectDashboard';
-import NoBaselineDashboard, {
-  NO_BASELINE_SIDEBAR_ITEMS,
-  NO_BASELINE_BREADCRUMB_LABELS,
-} from './pages/NoBaselineDashboard';
+import PageLoader from './components/common/PageLoader';
 import ProjectLayout from './components/layout/ProjectLayout';
-import QuestionnaireBuilder from './pages/QuestionnaireBuilder';
-import BeforeTab from './pages/BeforeTab';
-import AfterTab from './pages/AfterTab';
-import BeneficiaryTab from './pages/BeneficiaryTab';
-import NonBeneficiaryTab from './pages/NonBeneficiaryTab';
-import ReportTab from './pages/ReportTab';
-import NoBaselineAnalysisReport from './pages/NoBaselineAnalysisReport';
-import NarrativeReport from './pages/NarrativeReport';
-import ProjectBackup from './pages/ProjectBackup';
-import ResponsesTab from './pages/ResponsesTabRebuilt';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
 import { ProjectProvider, useProject } from './context/ProjectContext';
-import VerifyAccount from './pages/VerifyAccount';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import VerifyResetCode from './pages/VerifyResetCode';
+import { ProtectedRoute, AdminRoute } from './routes/guards';
+import { getProjectNavigation } from './config/projectNavigation';
+import lazyWithRetry from './lib/lazyWithRetry';
 import './App.css';
 
-const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F8FDFF] flex items-center justify-center">
-        <p className="text-slate-600">Loading...</p>
-      </div>
-    );
-  }
-
-  return user ? children : <Navigate to="/login" replace />;
-};
-
-// The admin API rejects other accounts anyway; this keeps them from landing on
-// an admin page that can only show errors.
-const AdminRoute = ({ children }) => {
-  const { user } = useAuth();
-  return (
-    <ProtectedRoute>
-      {user?.role === 'admin' ? children : <Navigate to="/dashboard" replace />}
-    </ProtectedRoute>
-  );
-};
+// Every page is its own chunk, downloaded when first visited. Respondents
+// opening a questionnaire link no longer download the report, PDF, Excel and
+// map libraries the admin pages use.
+const LandingPage = lazyWithRetry(() => import('./pages/LandingPage'));
+const Login = lazyWithRetry(() => import('./pages/Login'));
+const Signup = lazyWithRetry(() => import('./pages/Signup'));
+const VerifyAccount = lazyWithRetry(() => import('./pages/VerifyAccount'));
+const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
+const VerifyResetCode = lazyWithRetry(() => import('./pages/VerifyResetCode'));
+const ResetPassword = lazyWithRetry(() => import('./pages/ResetPassword'));
+const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'));
+const AdminDashboard = lazyWithRetry(() => import('./pages/AdminDashboard'));
+const Settings = lazyWithRetry(() => import('./pages/Settings'));
+const FormFill = lazyWithRetry(() => import('./pages/FormFill'));
+const FormBuilder = lazyWithRetry(() => import('./pages/FormBuilder'));
+const FormResponses = lazyWithRetry(() => import('./pages/FormResponses'));
+const FormProfiles = lazyWithRetry(() => import('./pages/FormProfiles'));
+const FormAnalytics = lazyWithRetry(() => import('./pages/FormAnalytics'));
+const MLUpload = lazyWithRetry(() => import('./pages/MLUpload'));
+const AnalysisResult = lazyWithRetry(() => import('./pages/AnalysisResult'));
+const ProjectDashboard = lazyWithRetry(() => import('./pages/ProjectDashboard'));
+const NoBaselineDashboard = lazyWithRetry(() => import('./pages/NoBaselineDashboard'));
+const QuestionnaireBuilder = lazyWithRetry(() => import('./pages/QuestionnaireBuilder'));
+const QuestionnaireTab = lazyWithRetry(() => import('./pages/QuestionnaireTab'));
+const ReportTab = lazyWithRetry(() => import('./pages/ReportTab'));
+const NoBaselineAnalysisReport = lazyWithRetry(() => import('./pages/NoBaselineAnalysisReport'));
+const NarrativeReport = lazyWithRetry(() => import('./pages/NarrativeReport'));
+const ProjectBackup = lazyWithRetry(() => import('./pages/ProjectBackup'));
+const ResponsesTab = lazyWithRetry(() => import('./pages/ResponsesTabRebuilt'));
+const NotFound = lazyWithRetry(() => import('./pages/NotFound'));
 
 const ProjectRoute = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { fetchProject, currentProject } = useProject();
-  const [loading, setLoading] = useState(
-    !currentProject || currentProject.id !== id
-  );
+  const [loading, setLoading] = useState(!currentProject || currentProject.id !== id);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) return undefined;
     let active = true;
     // If we already have this project cached, show it instantly and refresh
     // in the background instead of flashing a loader. Otherwise show a loader
     // only in the content area — the sidebar shell never disappears.
-    const haveCache = currentProject?.id === id;
-    if (!haveCache) setLoading(true);
+    if (currentProject?.id !== id) setLoading(true);
     fetchProject(id).then((data) => {
       if (!active) return;
-      if (!data) {
-        setLoading(false);
-        navigate('/dashboard');
-        return;
-      }
       setLoading(false);
+      if (!data) navigate('/dashboard');
     });
     return () => {
       active = false;
@@ -99,87 +66,78 @@ const ProjectRoute = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const hasBaseline = currentProject?.has_baseline !== false;
-  const sidebarItems = hasBaseline ? PROJECT_SIDEBAR_ITEMS : NO_BASELINE_SIDEBAR_ITEMS;
-  const breadcrumbLabels = hasBaseline ? PROJECT_BREADCRUMB_LABELS : NO_BASELINE_BREADCRUMB_LABELS;
+  const { sidebarItems, breadcrumbLabels } = getProjectNavigation(currentProject?.has_baseline !== false);
 
   return (
     <ProjectLayout sidebarItems={sidebarItems} breadcrumbLabels={breadcrumbLabels}>
       {loading || !currentProject ? (
-        <div className="flex min-h-[60vh] items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-        </div>
+        <PageLoader />
       ) : (
-        <Outlet context={{ project: currentProject }} />
+        <Suspense fallback={<PageLoader />}>
+          <Outlet context={{ project: currentProject }} />
+        </Suspense>
       )}
     </ProjectLayout>
   );
 };
 
-const ProjectIndex = () => {
+// Baseline and No Baseline projects share URLs but not every page.
+const ByProjectDesign = ({ baseline, noBaseline }) => {
   const { currentProject } = useProject();
-  return currentProject?.has_baseline === false ? <NoBaselineDashboard /> : <ProjectDashboard />;
+  return currentProject?.has_baseline === false ? noBaseline : baseline;
 };
 
-const BeforeRoute = () => {
-  const { currentProject } = useProject();
-  return currentProject?.has_baseline === false ? <BeneficiaryTab /> : <BeforeTab />;
-};
-
-const AfterRoute = () => {
-  const { currentProject } = useProject();
-  return currentProject?.has_baseline === false ? <NonBeneficiaryTab /> : <AfterTab />;
-};
-
-const ReportRoute = () => {
-  const { currentProject } = useProject();
-  return currentProject?.has_baseline === false ? <NoBaselineAnalysisReport /> : <ReportTab />;
-};
+const protectedPage = (page) => <ProtectedRoute>{page}</ProtectedRoute>;
 
 function App() {
   return (
     <AuthProvider>
       <ProjectProvider>
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-            <Route path="/admin/cleanup" element={<Navigate to="/admin" replace />} />
-            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-            <Route path="/verify-account" element={<VerifyAccount />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/verify-reset-code" element={<VerifyResetCode />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+          <Suspense fallback={<PageLoader fullScreen />}>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/verify-account" element={<VerifyAccount />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/verify-reset-code" element={<VerifyResetCode />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/f/:id" element={<FormFill />} />
 
-            {/* Project routes — wrapper picks baseline vs no-baseline nav; the
-                wrapper's ProtectedRoute covers every nested page */}
-            <Route path="/projects/:id" element={<ProtectedRoute><ProjectRoute /></ProtectedRoute>}>
-              <Route index element={<ProjectIndex />} />
-              <Route path="create-questionnaire" element={<QuestionnaireBuilder />} />
-              <Route path="before" element={<BeforeRoute />} />
-              <Route path="after" element={<AfterRoute />} />
-              <Route path="report" element={<ReportRoute />} />
-              <Route path="responses" element={<FormResponses embedded />} />
-              <Route path="profiles" element={<FormProfiles embedded />} />
-              <Route path="analytics" element={<FormAnalytics embedded />} />
-              <Route path="all-responses" element={<ResponsesTab />} />
-              <Route path="narrative-report" element={<NarrativeReport />} />
-              <Route path="backup" element={<ProjectBackup />} />
-            </Route>
+              <Route path="/dashboard" element={protectedPage(<Dashboard />)} />
+              <Route path="/settings" element={protectedPage(<Settings />)} />
+              <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+              <Route path="/admin/cleanup" element={<Navigate to="/admin" replace />} />
 
-            {/* Legacy form routes */}
-            <Route path="/forms/new" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
-            <Route path="/forms/:id/edit" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
-            <Route path="/forms/:id/responses" element={<ProtectedRoute><FormResponses /></ProtectedRoute>} />
-            <Route path="/forms/:id/profiles" element={<ProtectedRoute><FormProfiles /></ProtectedRoute>} />
-            <Route path="/forms/:id/analytics" element={<ProtectedRoute><FormAnalytics /></ProtectedRoute>} />
-            <Route path="/ml-upload" element={<ProtectedRoute><MLUpload /></ProtectedRoute>} />
-            <Route path="/ml-analysis/:id" element={<ProtectedRoute><AnalysisResult /></ProtectedRoute>} />
-            <Route path="/f/:id" element={<FormFill />} />
-          </Routes>
+              {/* The wrapper's ProtectedRoute covers every nested project page. */}
+              <Route path="/projects/:id" element={protectedPage(<ProjectRoute />)}>
+                <Route index element={<ByProjectDesign baseline={<ProjectDashboard />} noBaseline={<NoBaselineDashboard />} />} />
+                <Route path="create-questionnaire" element={<QuestionnaireBuilder />} />
+                {/* key: a fresh page when switching between the two slots */}
+                <Route path="before" element={<QuestionnaireTab key="before" slot="before" />} />
+                <Route path="after" element={<QuestionnaireTab key="after" slot="after" />} />
+                <Route path="report" element={<ByProjectDesign baseline={<ReportTab />} noBaseline={<NoBaselineAnalysisReport />} />} />
+                <Route path="responses" element={<FormResponses embedded />} />
+                <Route path="profiles" element={<FormProfiles embedded />} />
+                <Route path="analytics" element={<FormAnalytics embedded />} />
+                <Route path="all-responses" element={<ResponsesTab />} />
+                <Route path="narrative-report" element={<NarrativeReport />} />
+                <Route path="backup" element={<ProjectBackup />} />
+              </Route>
+
+              {/* Legacy form routes */}
+              <Route path="/forms/new" element={protectedPage(<FormBuilder />)} />
+              <Route path="/forms/:id/edit" element={protectedPage(<FormBuilder />)} />
+              <Route path="/forms/:id/responses" element={protectedPage(<FormResponses />)} />
+              <Route path="/forms/:id/profiles" element={protectedPage(<FormProfiles />)} />
+              <Route path="/forms/:id/analytics" element={protectedPage(<FormAnalytics />)} />
+              <Route path="/ml-upload" element={protectedPage(<MLUpload />)} />
+              <Route path="/ml-analysis/:id" element={protectedPage(<AnalysisResult />)} />
+
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
           <Toaster />
           <UpdateNotifier />
         </BrowserRouter>

@@ -13,6 +13,7 @@ import { normalizeLocationCodes, getQuestionLabel, isReservedField } from '../li
 import { getAnswerForQuestion } from '../lib/answerResolver';
 import { buildCsv } from '../lib/csv';
 import { resolveRespondentGroup, groupToYesNo } from '../lib/respondentGroup';
+import PageLoader from '../components/common/PageLoader';
 
 // ==================== UTILITY FUNCTIONS ====================
 const isNoAnswer = (val) => !val || val === '' || val === '--' || (Array.isArray(val) && val.length === 0);
@@ -305,13 +306,7 @@ const FormResponses = ({ embedded = false }) => {
     toast.success('CSV downloaded successfully');
   };
 
-  if (loading) {
-    return embedded ? (
-      <div className="flex items-center justify-center py-20 text-slate-500">Loading responses...</div>
-    ) : (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">Loading responses...</div>
-    );
-  }
+  if (loading) return <PageLoader label="Loading responses..." fullScreen={!embedded} />;
   if (!form) return null;
 
   const allQuestionCols = normalizeLocationCodes(sections.flatMap(s => s.questions));
@@ -447,14 +442,6 @@ const FormResponses = ({ embedded = false }) => {
   const showingFrom = filteredResponses.length === 0 ? 0 : start + 1;
   const showingTo = Math.min(start + rowsPerPage, filteredResponses.length);
 
-  // ==================== LOADING STATE ====================
-  if (loading) {
-    return embedded ? (
-      <div className="flex items-center justify-center py-20 text-slate-500">Loading responses...</div>
-    ) : (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">Loading responses...</div>
-    );
-  }
   return (
     <div className={embedded ? '' : 'min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100'}>
       {/* Header (standalone mode only — the project layout provides the navbar) */}

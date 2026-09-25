@@ -5,66 +5,11 @@ import {
   BarChart3,
   ListChecks,
   Layers,
-  FileBarChart2,
-  DatabaseBackup,
-  ClipboardList,
   Pencil,
   Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProject } from '../context/ProjectContext';
-
-export const PROJECT_SIDEBAR_ITEMS = [
-  {
-    label: 'Create Questionnaire',
-    path: 'create-questionnaire',
-    icon: FileText,
-  },
-  {
-    label: 'Before',
-    path: 'before',
-    icon: Layers,
-  },
-  {
-    label: 'After',
-    path: 'after',
-    icon: ListChecks,
-  },
-  {
-    label: 'Analysis Report',
-    path: 'report',
-    icon: FileBarChart2,
-  },
-  {
-    label: 'Narrative Report',
-    path: 'narrative-report',
-    icon: BarChart3,
-  },
-  {
-    label: 'Responses',
-    path: 'all-responses',
-    icon: ClipboardList,
-  },
-  {
-    label: 'Data Backup & Import',
-    path: 'backup',
-    icon: DatabaseBackup,
-  },
-];
-
-// Navbar breadcrumb labels for nested route segments
-export const PROJECT_BREADCRUMB_LABELS = {
-  'create-questionnaire': 'Edit Questionnaire',
-  'before': 'Before',
-  'after': 'After',
-  'report': 'Analysis Report',
-  'all-responses': 'All Responses',
-  'responses': 'View Responses',
-  'profiles': 'View Profiles',
-  'analytics': 'View Analytics',
-  'narrative-report': 'Narrative Report',
-  'backup': 'Data Backup & Import',
-};
 
 const ProjectDashboard = () => {
   const { currentProject } = useProject();

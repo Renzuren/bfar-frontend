@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import { normalizeLocationCodes, isReservedField, getQuestionLabel } from '../lib/preprocessing';
 import { resolveRespondentGroup, groupToYesNo } from '../lib/respondentGroup';
+import PageLoader from '../components/common/PageLoader';
 
 // ==================== UTILITY FUNCTIONS ====================
 const isNoAnswer = (val) => !val || val === '' || val === '--' || (Array.isArray(val) && val.length === 0);
@@ -326,13 +327,7 @@ const FormProfiles = ({ embedded = false }) => {
   const showingFrom = filteredProfiles.length === 0 ? 0 : start + 1;
   const showingTo = Math.min(start + cardsPerPage, filteredProfiles.length);
 
-  if (loading) {
-    return embedded ? (
-      <div className="flex items-center justify-center py-20 text-slate-500">Loading profiles...</div>
-    ) : (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">Loading profiles...</div>
-    );
-  }
+  if (loading) return <PageLoader label="Loading profiles..." fullScreen={!embedded} />;
   if (!form) return null;
 
   // ==================== RENDER ====================
