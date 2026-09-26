@@ -20,6 +20,7 @@ import {
 import { preprocessAnalyticsData, getQuestionLabel, normalizeLocationCodes, isReservedField } from '../lib/preprocessing';
 import { api } from '../lib/apiMiddleware';
 import { buildCsv } from '../lib/csv';
+import { flattenFormQuestions } from '../lib/formQuestions';
 
 const CHART_COLORS = ['#0ea5e9', '#2563eb', '#14b8a6', '#22c55e', '#f97316', '#ef4444', '#8b5cf6', '#ec4899', '#ddb02b', '#94a3b8'];
 
@@ -151,9 +152,7 @@ const FormAnalytics = ({ embedded = false }) => {
           console.warn('Analytics endpoint fetch failed, using local fallback analytics', analyticsError);
           toast.error('Analytics endpoint unavailable. Using local fallback analytics.');
           const fetchedForm = formRes.data;
-          const allQuestions = Array.isArray(fetchedForm.questions) && fetchedForm.questions.length > 0
-            ? fetchedForm.questions
-            : (Array.isArray(fetchedForm.sections) ? fetchedForm.sections.flatMap(s => s.questions || []) : []);
+          const allQuestions = flattenFormQuestions(fetchedForm);
           analyticsPayload = computeFallbackAnalytics(responsesRes.data || [], allQuestions);
         }
 

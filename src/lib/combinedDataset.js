@@ -12,17 +12,8 @@
 // ============================================================
 
 import { normalizeLocationCodes, getQuestionLabel } from './preprocessing';
+import { flattenFormQuestions as flattenQuestions } from './formQuestions';
 
-const flattenQuestions = (form) => {
-  if (!form) return [];
-  if (Array.isArray(form.questions) && form.questions.length) {
-    return form.questions.map((q) => ({ ...q, _section: '' }));
-  }
-  if (Array.isArray(form.sections)) {
-    return form.sections.flatMap((s) => (s.questions || []).map((q) => ({ ...q, _section: s.title || '' })));
-  }
-  return [];
-};
 
 const normalizeCode = (q) =>
   String(q?.code || '')

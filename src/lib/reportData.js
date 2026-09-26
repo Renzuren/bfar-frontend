@@ -9,6 +9,7 @@
 
 import { resolveRegion } from './geoData';
 import { normalizeGroupStatus } from './respondentAnalytics';
+import { flattenFormQuestions } from './formQuestions';
 
 export const LIKERT_LEVELS = ['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree'];
 export const LIKERT_COLORS = ['#dc2626', '#f87171', '#fbbf24', '#86efac', '#16a34a'];
@@ -36,16 +37,7 @@ export const toNum = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
-export const flattenQuestions = (form) => {
-  if (!form) return [];
-  if (Array.isArray(form.questions) && form.questions.length) {
-    return form.questions.map((q) => ({ ...q, _section: '' }));
-  }
-  if (Array.isArray(form.sections)) {
-    return form.sections.flatMap((s) => (s.questions || []).map((q) => ({ ...q, _section: s.title || '' })));
-  }
-  return [];
-};
+export const flattenQuestions = flattenFormQuestions;
 
 const classifyLikert = (q) => {
   const t = `${norm(q._section)} ${norm(q.code)} ${norm(q.title)}`;
