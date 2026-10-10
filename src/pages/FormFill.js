@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import PrivacyConsentDialog from '@/components/PrivacyConsentDialog';
 import { api } from '../lib/apiMiddleware';
 import {
   isReservedField,
@@ -118,6 +119,9 @@ const FormFill = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  // Asked on every visit, not remembered: one device is often used to
+  // interview many respondents. 'pending' | 'agreed' | 'declined'
+  const [consent, setConsent] = useState('pending');
   const [answers, setAnswers] = useState({});
   const [respondentName, setRespondentName] = useState('');
   const [nameAttempted, setNameAttempted] = useState(false);
@@ -568,6 +572,37 @@ const FormFill = () => {
       </div>
     );
 
+  if (consent === 'declined')
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 px-4">
+        <div className="w-full max-w-md rounded-3xl border border-slate-200/60 bg-white px-8 py-10 text-center shadow-lg shadow-slate-200/50">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+            <AlertCircle className="h-8 w-8 text-slate-500" />
+          </div>
+          <p className="text-lg font-semibold text-slate-700">
+            You did not agree to the terms
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            No information was collected. You need to agree to the data privacy
+            terms to answer this questionnaire. You can close this page now.
+          </p>
+          <p className="mt-3 text-sm text-slate-500">
+            Walang impormasyong nakolekta. Kailangan mong sumang-ayon sa mga
+            tuntunin sa data privacy para masagutan ang questionnaire na ito.
+            Maaari mo nang isara ang page na ito.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setConsent('pending')}
+            className="mt-6 rounded-lg border-slate-300 text-sm font-medium text-slate-600"
+          >
+            Review the terms again / Basahin muli
+          </Button>
+        </div>
+      </div>
+    );
+
   if (submitted)
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-emerald-50/30 to-slate-50 px-4">
@@ -767,6 +802,11 @@ const FormFill = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">
+      <PrivacyConsentDialog
+        open={consent === 'pending'}
+        onAgree={() => setConsent('agreed')}
+        onDecline={() => setConsent('declined')}
+      />
       <div className="mx-auto max-w-2xl px-4 py-8 pb-24 sm:px-6">
         {/* Form Header Card */}
         <div className="overflow-hidden rounded-t-3xl border border-slate-200/60 bg-white shadow-lg shadow-slate-200/50">
