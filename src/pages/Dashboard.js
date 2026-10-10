@@ -260,7 +260,7 @@ const Dashboard = () => {
               <FolderKanban className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">General Assessment</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Livelihood Impact Assessment System</p>
               <h1 className="text-lg font-bold text-slate-900">Projects</h1>
             </div>
           </div>

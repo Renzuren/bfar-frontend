@@ -113,7 +113,7 @@ const LandingPage = () => {
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/30">
                 <FileText className="h-6 w-6" />
               </div>
-              <h1 className="text-xl font-bold text-white">General Assessment e-Forms</h1>
+              <h1 className="text-xl font-bold text-white">Livelihood Impact Assessment System</h1>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -140,7 +140,7 @@ const LandingPage = () => {
             Digital Assessment Forms Platform
           </p>
           <h2 className="mx-auto mb-6 max-w-4xl text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
-            Streamline General Assessment
+            Streamline Livelihood Impact Assessment
             <br />
             <span className="bg-gradient-to-r from-cyan-300 to-blue-400 bg-clip-text text-transparent">
               Processes with a Digital eForms Platform
@@ -239,7 +239,7 @@ const LandingPage = () => {
                 Ready to Transform Your Data Collection?
               </h2>
               <p className="mb-8 text-lg text-slate-300">
-                Join assessment professionals using General Assessment e-Forms to streamline their data collection and analysis processes.
+                Join assessment professionals using the Livelihood Impact Assessment System to streamline their data collection and analysis processes.
               </p>
               <button
                 onClick={() => navigate('/signup')}
@@ -263,7 +263,7 @@ const LandingPage = () => {
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
                   <FileText className="h-5 w-5" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">General Assessment e-Forms</h3>
+                <h3 className="text-lg font-bold text-slate-900">Livelihood Impact Assessment System</h3>
               </div>
               <p className="text-sm leading-relaxed text-slate-500">
                 Empowering assessment professionals with modern, secure, and real-time data collection tools.
@@ -302,7 +302,7 @@ const LandingPage = () => {
                 <div className="flex items-start gap-3">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-cyan-600" />
                   <p className="text-sm text-slate-500">
-                    General Assessment e-Forms Team
+                    Livelihood Impact Assessment System Team
                     <br />
                     Quezon City, Philippines
                   </p>
@@ -325,7 +325,7 @@ const LandingPage = () => {
 
           <div className="mt-10 border-t border-slate-100 pt-8 text-center">
             <p className="text-sm text-slate-400">
-              © {new Date().getFullYear()} General Assessment e-Forms. All rights reserved.
+              © {new Date().getFullYear()} Livelihood Impact Assessment System. All rights reserved.
             </p>
           </div>
         </div>

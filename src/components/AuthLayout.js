@@ -15,11 +15,11 @@ const AuthLayout = ({ children, subtitle }) => {
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm ring-1 ring-white/20">
               <FileText className="h-6 w-6 text-cyan-300" />
             </div>
-            <span className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300/80">General Assessment</span>
+            <span className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300/80">Livelihood Impact Assessment System</span>
           </Link>
 
           <h2 className="mb-4 text-4xl font-bold leading-tight text-white">
-            {subtitle?.title || 'Welcome to General Assessment'}
+            {subtitle?.title || 'Welcome to the Livelihood Impact Assessment System'}
           </h2>
           <p className="mb-10 text-base text-slate-300/90">
             {subtitle?.description || 'Your modern assessment platform.'}
@@ -51,7 +51,7 @@ const AuthLayout = ({ children, subtitle }) => {
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
                 <FileText className="h-5 w-5" />
               </div>
-              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">General Assessment</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Livelihood Impact Assessment System</span>
             </Link>
           </div>
 
