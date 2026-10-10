@@ -265,7 +265,6 @@ const ProjectBackup = () => {
               <MessageSquareText className={`h-4 w-4 ${includeResponses ? 'text-teal-600' : 'text-slate-400'}`} />
               Questionnaires + Responses
             </span>
-            <span className="text-xs text-slate-500">Kasama ang lahat ng sagot at profile ng respondents.</span>
           </button>
           <button
             type="button"
@@ -278,9 +277,8 @@ const ProjectBackup = () => {
           >
             <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
               <FileJson className={`h-4 w-4 ${!includeResponses ? 'text-teal-600' : 'text-slate-400'}`} />
-              Questionnaires lang
+              Questionnaires only
             </span>
-            <span className="text-xs text-slate-500">Mga tanong lang. Hindi kasama ang mga sagot ng respondents at ang detalye ng project.</span>
           </button>
         </div>
       </CardSection>
@@ -386,11 +384,6 @@ const ProjectBackup = () => {
                       <MessageSquareText className={`h-4 w-4 ${restoreResponses ? 'text-teal-600' : 'text-slate-400'}`} />
                       Questionnaires + Responses
                     </span>
-                    <span className="text-xs text-slate-500">
-                      {fileHasResponses
-                        ? 'Papalitan din ang mga kasalukuyang sagot ng nasa file.'
-                        : 'Hindi mapipili: questionnaires lang ang laman ng backup file na ito. Para maibalik ang mga sagot, gumamit ng backup na na-download bilang "Questionnaires + Responses".'}
-                    </span>
                   </button>
                   <button
                     type="button"
@@ -403,9 +396,8 @@ const ProjectBackup = () => {
                   >
                     <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                       <FileJson className={`h-4 w-4 ${!restoreResponses ? 'text-teal-600' : 'text-slate-400'}`} />
-                      Questionnaires lang
+                      Questionnaires only
                     </span>
-                    <span className="text-xs text-slate-500">Hindi babaguhin ang kasalukuyang mga sagot ng respondents.</span>
                   </button>
                 </div>
               </div>
