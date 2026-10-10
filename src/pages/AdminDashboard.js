@@ -19,12 +19,14 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Database,
+  DatabaseBackup,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AdminLayout from '../components/layout/AdminLayout';
 import AdminCleanup from './AdminCleanup';
+import AdminBackup from './AdminBackup';
 import {
   Dialog,
   DialogContent,
@@ -329,16 +331,19 @@ const AdminDashboard = () => {
           {/* Tabs + Search + Actions */}
           <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button onClick={() => setActiveTab('users')} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === 'users' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}>
                   <Users className="mr-1.5 inline h-4 w-4" /> Users ({users.filter((u) => u.status !== 'deleted').length})
                 </button>
                 <button onClick={() => setActiveTab('data-maintenance')} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === 'data-maintenance' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}>
                   <Database className="mr-1.5 inline h-4 w-4" /> Data Maintenance
                 </button>
+                <button onClick={() => setActiveTab('backup')} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === 'backup' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}>
+                  <DatabaseBackup className="mr-1.5 inline h-4 w-4" /> System Backup
+                </button>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                {activeTab !== 'data-maintenance' && (
+                {activeTab === 'users' && (
                   <div className="relative w-full sm:w-72">
                     <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search users or organizations..." className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100" />
@@ -370,6 +375,8 @@ const AdminDashboard = () => {
           {/* Content */}
           {activeTab === 'data-maintenance' ? (
             <AdminCleanup embedded />
+          ) : activeTab === 'backup' ? (
+            <AdminBackup onRestored={fetchData} />
           ) : loading ? (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {[0, 1, 2].map((i) => (<div key={i} className="h-40 animate-pulse rounded-2xl border border-slate-200/80 bg-white shadow-sm"><div className="h-full w-full rounded-2xl bg-slate-100/80" /></div>))}
