@@ -238,7 +238,9 @@ const ProjectBackup = () => {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-900">Current project data</p>
               <p className="mt-0.5 text-sm text-slate-500">
-                Metadata, questionnaires, and {includeResponses ? 'respondent profiles and all answers' : 'no responses — questionnaires and project info only'}.
+                {includeResponses
+                  ? 'Project details, questionnaires, respondent profiles and all answers.'
+                  : 'Questionnaires only — no responses and no project details (title, description, status).'}
               </p>
             </div>
           </div>
@@ -278,7 +280,7 @@ const ProjectBackup = () => {
               <FileJson className={`h-4 w-4 ${!includeResponses ? 'text-teal-600' : 'text-slate-400'}`} />
               Questionnaires lang
             </span>
-            <span className="text-xs text-slate-500">Mga tanong lang, hindi kasama ang mga sagot ng respondents.</span>
+            <span className="text-xs text-slate-500">Mga tanong lang. Hindi kasama ang mga sagot ng respondents at ang detalye ng project.</span>
           </button>
         </div>
       </CardSection>
@@ -303,7 +305,7 @@ const ProjectBackup = () => {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-900">Restore from a backup file</p>
-              <p className="mt-0.5 text-sm text-slate-500">Choose a `.bfar` backup (.json) exported with this tool.</p>
+              <p className="mt-0.5 text-sm text-slate-500">Choose a project backup file (.json) downloaded from this page.</p>
             </div>
           </div>
           <Button
@@ -348,9 +350,10 @@ const ProjectBackup = () => {
                 <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-sm text-amber-800">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                   <p>
-                    This backup was exported from a different project. Only its questionnaires will be imported into{' '}
-                    <span className="font-semibold">{currentProject?.title || 'this project'}</span> — its title, type, and
-                    settings will be kept.
+                    This backup was exported from a different project. Its questionnaires
+                    {restoreResponses ? ' and responses' : ''} will be imported into{' '}
+                    <span className="font-semibold">{currentProject?.title || 'this project'}</span>; this project keeps
+                    its own title, description and status.
                   </p>
                 </div>
               )}
@@ -386,7 +389,7 @@ const ProjectBackup = () => {
                     <span className="text-xs text-slate-500">
                       {fileHasResponses
                         ? 'Papalitan din ang mga kasalukuyang sagot ng nasa file.'
-                        : 'Walang responses sa file — questionnaires lang ang maaaring i-restore.'}
+                        : 'Hindi mapipili: questionnaires lang ang laman ng backup file na ito. Para maibalik ang mga sagot, gumamit ng backup na na-download bilang "Questionnaires + Responses".'}
                     </span>
                   </button>
                   <button
@@ -410,8 +413,11 @@ const ProjectBackup = () => {
               <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-700">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <p>
-                  Restoring <span className="font-semibold">replaces</span> the current project's questionnaires and
-                  responses. This action cannot be undone — export a backup first if you need to keep the current data.
+                  Restoring <span className="font-semibold">replaces</span> the current project's questionnaires
+                  {restoreResponses ? ' and responses' : ''}
+                  {restoreResponses && !isForeignBackup ? ', and its title, description and status' : ''}
+                  {restoreResponses ? '.' : '; the current responses are kept.'} This action cannot be undone — export a
+                  backup first if you need to keep the current data.
                 </p>
               </div>
             </div>
