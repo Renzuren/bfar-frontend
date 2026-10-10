@@ -21,7 +21,7 @@ const DEMOGRAPHICS_QUESTION_TYPES = [
   { value: 'multiple_choice', label: 'Multiple Choice' },
   { value: 'checkboxes', label: 'Checkboxes' },
   { value: 'dropdown', label: 'Dropdown' },
-  { value: 'yes_no', label: 'Yes/No' },
+  { value: 'yes_no', label: 'Yes/No (Oo/Hindi)' },
   { value: 'date', label: 'Date' },
   { value: 'rating', label: 'Rating Scale (1-5)' },
   { value: 'profile_photo', label: 'Profile Photo / Image Upload' },
@@ -51,7 +51,7 @@ const migrateQuestionnaireQuestion = (q) => {
     return {
       ...q,
       type: 'multiple_choice',
-      options: q.options && q.options.length ? [...q.options] : ['Yes', 'No']
+      options: q.options && q.options.length ? [...q.options] : ['Oo', 'Hindi']
     };
   }
   return q;
@@ -168,7 +168,7 @@ const QuestionCard = React.memo(function QuestionCard({
                       </div>
                     ))}
                   </div>
-                  <p className="mt-2 text-xs text-slate-400">Yes = 1, No = 0 when exported.</p>
+                  <p className="mt-2 text-xs text-slate-400">Oo / Yes = 1, Hindi / No = 0 sa pag-export.</p>
                 </div>
               )}
 
@@ -529,7 +529,7 @@ const QuestionnaireBuilder = () => {
         if (q.id !== questionId) return q;
         const next = { ...q, type: newType };
         if (newType === 'yes_no') {
-          next.options = ['Yes', 'No'];
+          next.options = ['Oo', 'Hindi'];
         } else if (['multiple_choice', 'checkboxes', 'dropdown'].includes(newType)) {
           next.options = q.options?.length ? [...q.options] : ['Option 1', 'Option 2'];
         } else {
