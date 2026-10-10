@@ -48,7 +48,7 @@ export default function ShareQrDialog({ open, onOpenChange, url, title }) {
         <DialogHeader>
           <DialogTitle className="text-lg">QR Code</DialogTitle>
           <DialogDescription>
-            I-scan para buksan ang questionnaire{title ? ` "${title}"` : ''}. I-download para i-print o ipadala.
+            Scan to open the questionnaire{title ? ` "${title}"` : ''}. Download it to print or send.
           </DialogDescription>
         </DialogHeader>
 

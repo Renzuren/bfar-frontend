@@ -342,7 +342,7 @@ const MLUpload = () => {
       if (saved) {
         setSavedAnalysisId(saved.id);
         setSaveMessage(saved.alreadySaved
-          ? `Naka-save na ang analysis na ito sa dashboard mo${saved.title ? ` ("${saved.title}")` : ''}.`
+          ? `This analysis is already saved to your dashboard${saved.title ? ` ("${saved.title}")` : ''}.`
           : 'Analysis saved to your dashboard.');
       } else {
         setSaveMessage('Could not save the analysis. Check your connection and try again.');

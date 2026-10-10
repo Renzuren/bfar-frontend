@@ -585,9 +585,9 @@ const AdminDashboard = () => {
             <div>
               <Label className="text-sm font-medium text-slate-700">Organization</Label>
               <p className="mt-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
-                {editUser.organization || <span className="italic text-slate-400">Wala pang organization</span>}
+                {editUser.organization || <span className="italic text-slate-400">No organization yet</span>}
               </p>
-              <p className="mt-1 text-xs text-slate-400">Galing sa profile ng user; siya ang nagpapalit nito sa Settings.</p>
+              <p className="mt-1 text-xs text-slate-400">Taken from the user's profile; the user changes it in Settings.</p>
             </div>
           </div>
           <DialogFooter>

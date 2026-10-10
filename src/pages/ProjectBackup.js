@@ -368,7 +368,7 @@ const ProjectBackup = () => {
 
               {/* What to include when restoring */}
               <div className="mt-4">
-                <p className="mb-2 text-sm font-semibold text-slate-800">I-restore:</p>
+                <p className="mb-2 text-sm font-semibold text-slate-800">Restore:</p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <button
                     type="button"

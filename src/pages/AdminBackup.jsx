@@ -181,7 +181,7 @@ export default function AdminBackup({ onRestored }) {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-900">Whole system</p>
               <p className="mt-0.5 text-sm text-slate-500">
-                Itago ang file sa ligtas na lugar. May laman itong personal na impormasyon ng mga user at respondent.
+                Keep the file somewhere safe. It contains personal information of users and respondents.
               </p>
             </div>
           </div>
@@ -191,7 +191,7 @@ export default function AdminBackup({ onRestored }) {
           </Button>
         </div>
         <p className="mt-4 text-xs text-slate-400">
-          Hindi kasama: mga password (mananatili sa sign-in service) at mga na-upload na larawan ng respondents.
+          Not included: passwords (they stay in the sign-in service) and photos uploaded by respondents.
         </p>
       </CardSection>
 
@@ -214,7 +214,7 @@ export default function AdminBackup({ onRestored }) {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-900">Restore from a backup file</p>
-              <p className="mt-0.5 text-sm text-slate-500">Piliin ang system backup (.json) na na-download dito.</p>
+              <p className="mt-0.5 text-sm text-slate-500">Choose a system backup (.json) downloaded from this page.</p>
             </div>
           </div>
           <Button
@@ -249,10 +249,6 @@ export default function AdminBackup({ onRestored }) {
                     Restoring <span className="font-semibold">replaces everything</span> in the system with the contents of
                     this file. Accounts, projects and responses added after the backup was downloaded will be deleted. This
                     cannot be undone — download a backup of the current system first if you may need it.
-                  </p>
-                  <p>
-                    Papalitan ng file na ito ang <span className="font-semibold">lahat</span> ng data ng system. Mabubura ang
-                    anumang naidagdag pagkatapos ma-download ang backup.
                   </p>
                 </div>
               </div>
@@ -291,7 +287,7 @@ export default function AdminBackup({ onRestored }) {
                 </Button>
               </div>
               {restoring && (
-                <p className="mt-2 text-xs text-slate-500">Huwag isara ang page habang nagre-restore.</p>
+                <p className="mt-2 text-xs text-slate-500">Do not close this page while the restore is running.</p>
               )}
             </div>
           </div>
@@ -306,7 +302,7 @@ export default function AdminBackup({ onRestored }) {
             <SummaryGrid counts={lastResult.counts} />
             <ul className="mt-4 space-y-1 text-sm text-slate-600">
               {lastResult.kept_own_account && (
-                <li>Wala sa backup ang admin account mo, kaya pinanatili ito para hindi ka ma-lock out.</li>
+                <li>Your admin account was not in the backup, so it was kept to avoid locking you out.</li>
               )}
               {lastResult.auth?.recreated > 0 && (
                 <li>

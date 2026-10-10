@@ -30,9 +30,9 @@ export default function UpdateNotifier() {
         const latest = (html.match(BUNDLE_PATTERN) || [])[0];
         if (!latest || latest === current) return;
         notified = true;
-        toast('May bagong update ang app', {
+        toast('A new version of the app is available', {
           id: 'app-update',
-          description: 'I-reload para makuha ang pinakabagong bersyon.',
+          description: 'Reload to get the latest version.',
           duration: Infinity,
           action: { label: 'Reload', onClick: () => window.location.reload() },
         });
