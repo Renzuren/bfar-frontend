@@ -45,6 +45,7 @@ import { fetchWithRetry } from '../lib/fetchRetry';
 import { enrichImpact } from '../lib/localImpact';
 import MLAnalyticsPanel, { MLAnalysisSkeleton } from '../components/MLAnalyticsPanel';
 import AutoChartsReport from '../components/AutoChartsReport';
+import BarangayGroupChart from '../components/report/BarangayGroupChart';
 
 // The API returns either a bare array or { responses | data: [...] }.
 const responseList = (payload) => {
@@ -766,6 +767,9 @@ const NoBaselineAnalysisReport = () => {
             defaultTab="impact"
           />
         )}
+
+        {/* Beneficiary / Non-Beneficiary respondents per barangay */}
+        {mlDataset && mlDataset.rows.length > 0 && <BarangayGroupChart rows={mlDataset.rows} />}
 
         {/* Auto charts (computed live from the combined dataset) */}
         {dataset && dataset.rows.length > 0 && (
