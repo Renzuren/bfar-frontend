@@ -10,7 +10,7 @@
 // ============================================================
 
 import React, { useMemo, useState } from 'react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList } from 'recharts';
 import { MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GROUP, TICK, TOOLTIP_STYLE, TOOLTIP_LABEL, TOOLTIP_ITEM, CURSOR } from '../../lib/chartTheme';
@@ -19,6 +19,7 @@ const BENE = 'Beneficiary';
 const NON = 'Non-Beneficiary';
 const TOP_N = 15;
 const UNSPECIFIED = 'Not specified';
+const VALUE_LABEL = { ...TICK, fontSize: 10, fontWeight: 600, fill: '#334155' };
 
 const clean = (v) => {
   const text = String(v ?? '').replace(/\s+/g, ' ').trim();
@@ -100,7 +101,7 @@ const BarangayGroupChart = ({ rows = [] }) => {
       </div>
       <div className="p-4">
         <ResponsiveContainer width="100%" height={Math.max(220, 60 + shown.length * 34)}>
-          <BarChart data={shown} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }} barGap={2}>
+          <BarChart data={shown} layout="vertical" margin={{ top: 4, right: 36, left: 4, bottom: 4 }} barGap={2}>
             <CartesianGrid stroke="#eef2f7" horizontal={false} vertical />
             <XAxis type="number" allowDecimals={false} axisLine={false} tickLine={false} tick={{ ...TICK, fontSize: 10 }} />
             <YAxis type="category" dataKey="name" width={labelWidth} interval={0} tick={{ ...TICK, fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -112,8 +113,12 @@ const BarangayGroupChart = ({ rows = [] }) => {
               cursor={CURSOR}
             />
             <Legend verticalAlign="top" height={24} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, fontFamily: 'inherit' }} />
-            <Bar dataKey={BENE} name={BENE} fill={GROUP[BENE]} radius={[0, 4, 4, 0]} maxBarSize={14} />
-            <Bar dataKey={NON} name={NON} fill={GROUP[NON]} radius={[0, 4, 4, 0]} maxBarSize={14} />
+            {[BENE, NON].map((group) => (
+              <Bar key={group} dataKey={group} name={group} fill={GROUP[group]} radius={[0, 4, 4, 0]} maxBarSize={14}>
+                {/* The count at the end of every bar, so it reads without hovering. */}
+                <LabelList dataKey={group} position="right" offset={6} formatter={(v) => Number(v).toLocaleString()} style={VALUE_LABEL} />
+              </Bar>
+            ))}
           </BarChart>
         </ResponsiveContainer>
       </div>
