@@ -27,6 +27,7 @@ import {
   PieChart,
   Pie,
   Cell,
+  LabelList,
 } from 'recharts';
 import { Activity, BarChart3, Hash, PieChart as PieIcon } from 'lucide-react';
 import { parseNumericValue } from '../lib/respondentAnalytics';
@@ -52,6 +53,7 @@ const MAX_CHARTS = 8;
 // Solid hairline grid (dashed rules read as thresholds).
 const GRID_LINE = { stroke: '#eef2f7' };
 const SMALL_TICK = { ...TICK, fontSize: 10 };
+const VALUE_LABEL = { ...TICK, fontSize: 9, fontWeight: 600, fill: '#334155' };
 
 const SKIP_HEADER =
   /submit|timestamp|created|updated|_id$|\bid$|profile|photo|image|signature|sequence|seq\b|rowid|uuid/;
@@ -369,6 +371,14 @@ const AutoChartsReport = ({ columns = [], rows = [], treatmentColumn = '' }) => 
     />
   ) : null;
 
+  // Respondent count printed on every bar so it reads without hovering (when
+  // comparing, the bar length is the % of group and the count is in __n).
+  // Zero bars get no label.
+  const countLabel = (v) => (Number(v) ? Number(v).toLocaleString() : '');
+  const valueLabels = (s, position) => (
+    <LabelList dataKey={`${s}__n`} position={position} offset={4} formatter={countLabel} style={VALUE_LABEL} />
+  );
+
   const tooltip = (
     <Tooltip formatter={tooltipFormatter} contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL} itemStyle={TOOLTIP_ITEM} cursor={CURSOR} />
   );
@@ -425,7 +435,7 @@ const AutoChartsReport = ({ columns = [], rows = [], treatmentColumn = '' }) => 
 
               {ch.kind === 'rows' && (
                 <ResponsiveContainer width="100%" height={Math.max(220, 60 + ch.data.length * (grouping ? 30 : 22))}>
-                  <BarChart data={ch.data} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 4 }} barGap={2}>
+                  <BarChart data={ch.data} layout="vertical" margin={{ top: 4, right: 32, left: 4, bottom: 4 }} barGap={2}>
                     <CartesianGrid {...GRID_LINE} horizontal={false} vertical />
                     <XAxis
                       type="number"
@@ -440,7 +450,9 @@ const AutoChartsReport = ({ columns = [], rows = [], treatmentColumn = '' }) => 
                     {tooltip}
                     {legend}
                     {ch.series.map((s, i) => (
-                      <Bar key={s} dataKey={s} name={s} fill={colorOf(s, i)} radius={[0, 4, 4, 0]} maxBarSize={14} />
+                      <Bar key={s} dataKey={s} name={s} fill={colorOf(s, i)} radius={[0, 4, 4, 0]} maxBarSize={14}>
+                        {valueLabels(s, 'right')}
+                      </Bar>
                     ))}
                   </BarChart>
                 </ResponsiveContainer>
@@ -448,7 +460,7 @@ const AutoChartsReport = ({ columns = [], rows = [], treatmentColumn = '' }) => 
 
               {ch.kind === 'columns' && (
                 <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={ch.data} margin={{ top: 8, right: 4, left: -6, bottom: 4 }} barGap={2}>
+                  <BarChart data={ch.data} margin={{ top: 18, right: 4, left: -6, bottom: 4 }} barGap={2}>
                     <CartesianGrid {...GRID_LINE} vertical={false} />
                     <XAxis
                       dataKey="name"
@@ -464,7 +476,9 @@ const AutoChartsReport = ({ columns = [], rows = [], treatmentColumn = '' }) => 
                     {tooltip}
                     {legend}
                     {ch.series.map((s, i) => (
-                      <Bar key={s} dataKey={s} name={s} fill={colorOf(s, i)} radius={[4, 4, 0, 0]} maxBarSize={grouping ? 16 : 28} />
+                      <Bar key={s} dataKey={s} name={s} fill={colorOf(s, i)} radius={[4, 4, 0, 0]} maxBarSize={grouping ? 16 : 28}>
+                        {valueLabels(s, 'top')}
+                      </Bar>
                     ))}
                   </BarChart>
                 </ResponsiveContainer>
