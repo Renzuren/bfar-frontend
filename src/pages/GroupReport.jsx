@@ -13,12 +13,13 @@ import {
   groupFactsFingerprint,
   readSavedGroupReport,
 } from '../lib/groupReportFacts';
+import { LocationFigure, QuestionFigure, hasFigure } from '../components/report/GroupReportFigures';
 
 // Group Report: a narrative report on ONE of the project's questionnaires --
 // Beneficiary or Non-Beneficiary (Before or After in baseline projects) --
 // built from the same results as its View Analytics page. Gemini writes the
-// text (saved with the project); until then a template text is shown. Tables
-// come straight from the responses. Downloads as a PDF.
+// text (saved with the project); until then a template text is shown. The
+// charts come straight from the responses. Downloads as a PDF.
 
 const GROUP_DESCRIPTIONS = {
   noBaseline: {
@@ -51,77 +52,23 @@ const Paragraphs = ({ items }) => (items || []).map((text, i) => (
 
 const pctText = (n) => `${Number(n).toFixed(1)}%`;
 
-// One question's results as a table (choice and rating) or a single line.
-const QuestionTable = ({ summary }) => {
-  if (summary.kind === 'text' || summary.kind === 'number') {
-    return (
-      <div className="mb-5">
-        <p className="mb-1 text-sm font-semibold text-slate-800">{summary.label}</p>
-        <p className="text-sm text-slate-600">
-          {summary.kind === 'number' && summary.mean !== null
-            ? `Mean ${summary.mean} (lowest ${summary.min}, highest ${summary.max}) from ${summary.answered} answers.`
-            : `${summary.answered} written answer${summary.answered === 1 ? '' : 's'}.`}
-          {summary.unanswered > 0 && ` ${summary.unanswered} left unanswered.`}
-        </p>
-      </div>
-    );
-  }
-  return (
-    <div className="mb-6">
-      <p className="mb-2 text-sm font-semibold text-slate-800">
-        {summary.label}
-        {summary.kind === 'rating' && summary.mean !== null && (
-          <span className="ml-2 font-normal text-slate-500">· mean rating {summary.mean} of 5</span>
-        )}
-      </p>
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr className="bg-slate-100 text-left text-slate-700">
-            <th className="border border-slate-300 px-3 py-1.5 font-semibold">{summary.kind === 'rating' ? 'Rating' : 'Answer'}</th>
-            <th className="w-24 border border-slate-300 px-3 py-1.5 text-right font-semibold">Count</th>
-            <th className="w-24 border border-slate-300 px-3 py-1.5 text-right font-semibold">Percent</th>
-          </tr>
-        </thead>
-        <tbody>
-          {summary.options.map((o) => (
-            <tr key={o.option} className="text-slate-700">
-              <td className="border border-slate-300 px-3 py-1.5">{o.option}</td>
-              <td className="border border-slate-300 px-3 py-1.5 text-right tabular-nums">{o.count}</td>
-              <td className="border border-slate-300 px-3 py-1.5 text-right tabular-nums">{pctText(o.pct)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="mt-1 text-xs text-slate-500">
-        n = {summary.answered} answered{summary.unanswered > 0 ? `, ${summary.unanswered} unanswered` : ''}
-        {summary.multi ? '; respondents could choose more than one answer' : ''}.
-      </p>
-    </div>
-  );
-};
+// Text and number questions have nothing to chart: one line each.
+const AnswerLine = ({ summary }) => (
+  <div className="mb-4">
+    <p className="mb-0.5 text-sm font-semibold text-slate-800">{summary.label}</p>
+    <p className="text-sm text-slate-600">
+      {summary.kind === 'number' && summary.mean !== null
+        ? `Mean ${summary.mean} (lowest ${summary.min}, highest ${summary.max}) from ${summary.answered} answers.`
+        : `${summary.answered} written answer${summary.answered === 1 ? '' : 's'}.`}
+      {summary.unanswered > 0 && ` ${summary.unanswered} left unanswered.`}
+    </p>
+  </div>
+);
 
-const LocationTable = ({ title, rows, respondents }) => (
-  <div className="mb-6">
-    <p className="mb-2 text-sm font-semibold text-slate-800">{title}</p>
-    <table className="w-full border-collapse text-sm">
-      <thead>
-        <tr className="bg-slate-100 text-left text-slate-700">
-          <th className="border border-slate-300 px-3 py-1.5 font-semibold">Name</th>
-          <th className="w-24 border border-slate-300 px-3 py-1.5 text-right font-semibold">Respondents</th>
-          <th className="w-24 border border-slate-300 px-3 py-1.5 text-right font-semibold">Percent</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.name} className="text-slate-700">
-            <td className="border border-slate-300 px-3 py-1.5">{r.name}</td>
-            <td className="border border-slate-300 px-3 py-1.5 text-right tabular-nums">{r.count}</td>
-            <td className="border border-slate-300 px-3 py-1.5 text-right tabular-nums">{pctText(r.pct)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-    <p className="mt-1 text-xs text-slate-500">Share of all {respondents} respondents.</p>
+const StatTile = ({ label, value }) => (
+  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center">
+    <p className="text-2xl font-bold text-slate-900">{value}</p>
+    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
   </div>
 );
 
@@ -142,6 +89,7 @@ export default function GroupReport() {
   const groupLabel = slot === 'after' ? (isBaseline ? 'After' : 'Non-Beneficiary') : (isBaseline ? 'Before' : 'Beneficiary');
   const groupDescription = GROUP_DESCRIPTIONS[isBaseline ? 'baseline' : 'noBaseline'][slot];
   const formId = slot === 'after' ? project?.after_form : project?.before_form;
+  const color = slot === 'after' ? '#f97316' : '#2563eb';
   const reportRef = useRef(null);
 
   const [form, setForm] = useState(null);
@@ -258,6 +206,12 @@ export default function GroupReport() {
   const generatedDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const n = data.respondents;
   const findings = ai ? ai.key_findings : templateFindings(data.results);
+  // Figures are numbered in reading order.
+  let figureCount = 0;
+  const nextFigure = () => { figureCount += 1; return figureCount; };
+  const renderQuestion = (s) => (hasFigure(s)
+    ? <QuestionFigure key={s.id} num={nextFigure()} summary={s} color={color} />
+    : <AnswerLine key={s.id} summary={s} />);
 
   return (
     <div className="space-y-4 pb-16 pt-4">
@@ -289,7 +243,7 @@ export default function GroupReport() {
         {ai && saved?.generated_at && (
           <p className="px-1 text-xs text-slate-500">
             AI report generated {new Date(saved.generated_at).toLocaleString()}{saved.model ? ` with ${saved.model}` : ''} · saved with this project.
-            Review it before sharing: it is written from the tables below, but AI text can still contain mistakes.
+            Review it before sharing: it is written from the results below, but AI text can still contain mistakes.
           </p>
         )}
         {!ai && !aiBusy && (
@@ -328,6 +282,13 @@ export default function GroupReport() {
           </div>
         </header>
 
+        <div className="mb-12 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatTile label="Respondents" value={n} />
+          <StatTile label="Municipalities" value={data.municipalities.length} />
+          <StatTile label="Barangays" value={data.barangays.length} />
+          <StatTile label="Survey questions" value={data.results.length} />
+        </div>
+
         <section>
           <SectionHeading num="" title="Executive Summary" />
           <div className="space-y-4 text-sm leading-relaxed text-slate-700">
@@ -364,18 +325,18 @@ export default function GroupReport() {
               <p className="text-justify">
                 The {n} respondents came from {data.municipalities.length} municipalit
                 {data.municipalities.length === 1 ? 'y' : 'ies'} and {data.barangays.length} barangay
-                {data.barangays.length === 1 ? '' : 's'}. Their profile is summarised in the tables below.
+                {data.barangays.length === 1 ? '' : 's'}. Their profile is summarised in the figures below.
               </p>
             )}
           </div>
           <div className="mt-6">
             {data.municipalities.length > 0 && (
-              <LocationTable title="Respondents by municipality" rows={data.municipalities.slice(0, 15)} respondents={n} />
+              <LocationFigure num={nextFigure()} title="Respondents by municipality" rows={data.municipalities.slice(0, 15)} total={n} color={color} />
             )}
             {data.barangays.length > 0 && (
-              <LocationTable title="Respondents by barangay" rows={data.barangays.slice(0, 15)} respondents={n} />
+              <LocationFigure num={nextFigure()} title="Respondents by barangay" rows={data.barangays.slice(0, 15)} total={n} color={color} />
             )}
-            {data.demographics.map((s) => <QuestionTable key={s.id} summary={s} />)}
+            {data.demographics.map(renderQuestion)}
           </div>
         </section>
 
@@ -398,7 +359,7 @@ export default function GroupReport() {
 
           <SubHeading num="3.2" title="Results by Question" />
           {data.results.length > 0
-            ? data.results.map((s) => <QuestionTable key={s.id} summary={s} />)
+            ? data.results.map(renderQuestion)
             : <p className="text-sm text-slate-500">This questionnaire has no survey questions.</p>}
         </section>
 
