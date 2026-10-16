@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 import { api } from '../lib/apiMiddleware';
 import { useProject } from '../context/ProjectContext';
 import { PageHeader, CardSection } from '../components/AppShell';
+import { canManageMembers } from '../lib/projectRoles';
 
 const SCHEMA_VERSION = 1;
 const RESTORE_TIMEOUT = 10 * 60 * 1000;
@@ -283,7 +284,14 @@ const ProjectBackup = () => {
         </div>
       </CardSection>
 
-      {/* Import */}
+      {/* Import: overwrites the project, so only its owner and admins see it. */}
+      {!canManageMembers(currentProject) ? (
+        <CardSection title="Import & Restore">
+          <p className="text-sm text-slate-500">
+            Only the project owner or an admin can restore a backup into this project. You can still download a backup above.
+          </p>
+        </CardSection>
+      ) : (
       <CardSection
         title="Import & Restore"
         subtitle="Upload a previously saved backup file and bring its data back into this project. Pick what to restore — questionnaires only, or questionnaires plus the responses stored in the file."
@@ -433,6 +441,7 @@ const ProjectBackup = () => {
           </div>
         )}
       </CardSection>
+      )}
 
       <p className="px-1 text-xs text-slate-400">
         Backup schema version {SCHEMA_VERSION}

@@ -6,6 +6,7 @@ import {
   FileBarChart2,
   DatabaseBackup,
   ClipboardList,
+  Users,
 } from 'lucide-react';
 
 // Sidebar and breadcrumb labels for a project's pages. Baseline projects
@@ -23,6 +24,7 @@ const BASELINE = {
     item('Narrative Report', 'narrative-report', BarChart3),
     item('Responses', 'all-responses', ClipboardList),
     item('Data Backup & Import', 'backup', DatabaseBackup),
+    item('Members & Sharing', 'members', Users),
   ],
   slotLabels: { before: 'Before', after: 'After' },
 };
@@ -36,6 +38,7 @@ const NO_BASELINE = {
     item('Analysis Report', 'report', FileBarChart2),
     item('Narrative Report', 'narrative-report', BarChart3),
     item('Data Backup & Import', 'backup', DatabaseBackup),
+    item('Members & Sharing', 'members', Users),
   ],
   slotLabels: { before: 'Beneficiary', after: 'Non-Beneficiary' },
 };
@@ -51,6 +54,7 @@ const breadcrumbLabels = (slotLabels) => ({
   analytics: 'View Analytics',
   'narrative-report': 'Narrative Report',
   backup: 'Data Backup & Import',
+  members: 'Members & Sharing',
 });
 
 const NAVIGATION = {
@@ -58,5 +62,11 @@ const NAVIGATION = {
   noBaseline: { sidebarItems: NO_BASELINE.sidebarItems, breadcrumbLabels: breadcrumbLabels(NO_BASELINE.slotLabels) },
 };
 
+// Pages that only change the project; hidden from view-only members.
+const EDIT_ONLY = new Set(['create-questionnaire']);
+
 /** { sidebarItems, breadcrumbLabels } for a project page. */
-export const getProjectNavigation = (hasBaseline) => (hasBaseline ? NAVIGATION.baseline : NAVIGATION.noBaseline);
+export const getProjectNavigation = (hasBaseline, { viewOnly = false } = {}) => {
+  const nav = hasBaseline ? NAVIGATION.baseline : NAVIGATION.noBaseline;
+  return viewOnly ? { ...nav, sidebarItems: nav.sidebarItems.filter((i) => !EDIT_ONLY.has(i.path)) } : nav;
+};

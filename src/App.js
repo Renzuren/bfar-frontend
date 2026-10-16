@@ -8,6 +8,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ProjectProvider, useProject } from './context/ProjectContext';
 import { ProtectedRoute, AdminRoute } from './routes/guards';
 import { getProjectNavigation } from './config/projectNavigation';
+import { isViewOnly } from './lib/projectRoles';
 import lazyWithRetry from './lib/lazyWithRetry';
 import './App.css';
 
@@ -39,6 +40,7 @@ const ReportTab = lazyWithRetry(() => import('./pages/ReportTab'));
 const NoBaselineAnalysisReport = lazyWithRetry(() => import('./pages/NoBaselineAnalysisReport'));
 const NarrativeReport = lazyWithRetry(() => import('./pages/NarrativeReport'));
 const ProjectBackup = lazyWithRetry(() => import('./pages/ProjectBackup'));
+const ProjectMembers = lazyWithRetry(() => import('./pages/ProjectMembers'));
 const ResponsesTab = lazyWithRetry(() => import('./pages/ResponsesTabRebuilt'));
 const NotFound = lazyWithRetry(() => import('./pages/NotFound'));
 
@@ -66,7 +68,9 @@ const ProjectRoute = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const { sidebarItems, breadcrumbLabels } = getProjectNavigation(currentProject?.has_baseline !== false);
+  const { sidebarItems, breadcrumbLabels } = getProjectNavigation(currentProject?.has_baseline !== false, {
+    viewOnly: isViewOnly(currentProject),
+  });
 
   return (
     <ProjectLayout sidebarItems={sidebarItems} breadcrumbLabels={breadcrumbLabels}>
@@ -85,6 +89,12 @@ const ProjectRoute = () => {
 const ByProjectDesign = ({ baseline, noBaseline }) => {
   const { currentProject } = useProject();
   return currentProject?.has_baseline === false ? noBaseline : baseline;
+};
+
+// Pages that only change the project: view-only members go back to its dashboard.
+const RequireEdit = ({ children }) => {
+  const { currentProject } = useProject();
+  return isViewOnly(currentProject) ? <Navigate to={`/projects/${currentProject.id}`} replace /> : children;
 };
 
 const protectedPage = (page) => <ProtectedRoute>{page}</ProtectedRoute>;
@@ -113,7 +123,7 @@ function App() {
               {/* The wrapper's ProtectedRoute covers every nested project page. */}
               <Route path="/projects/:id" element={protectedPage(<ProjectRoute />)}>
                 <Route index element={<ByProjectDesign baseline={<ProjectDashboard />} noBaseline={<NoBaselineDashboard />} />} />
-                <Route path="create-questionnaire" element={<QuestionnaireBuilder />} />
+                <Route path="create-questionnaire" element={<RequireEdit><QuestionnaireBuilder /></RequireEdit>} />
                 {/* key: a fresh page when switching between the two slots */}
                 <Route path="before" element={<QuestionnaireTab key="before" slot="before" />} />
                 <Route path="after" element={<QuestionnaireTab key="after" slot="after" />} />
@@ -124,6 +134,7 @@ function App() {
                 <Route path="all-responses" element={<ResponsesTab />} />
                 <Route path="narrative-report" element={<NarrativeReport />} />
                 <Route path="backup" element={<ProjectBackup />} />
+                <Route path="members" element={<ProjectMembers />} />
               </Route>
 
               {/* Legacy form routes */}

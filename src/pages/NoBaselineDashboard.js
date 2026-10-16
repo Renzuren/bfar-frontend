@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProject } from '../context/ProjectContext';
+import { canEdit } from '../lib/projectRoles';
 import { api } from '../lib/apiMiddleware';
 
 const NoBaselineDashboard = () => {
@@ -180,6 +181,7 @@ const NoBaselineOverview = ({ project }) => {
                 <h2 className="text-3xl font-bold leading-tight sm:text-4xl">
                   {project.title}
                 </h2>
+                {canEdit(project) && (
                 <button
                   type="button"
                   onClick={startEditTitle}
@@ -188,6 +190,7 @@ const NoBaselineOverview = ({ project }) => {
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
+                )}
               </>
             )}
             <span className="inline-flex items-center rounded-full bg-violet-500/20 px-3 py-1 text-xs font-semibold text-violet-200 ring-1 ring-violet-400/30 backdrop-blur">
@@ -204,7 +207,7 @@ const NoBaselineOverview = ({ project }) => {
       </section>
 
       <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 text-left">
-        {overviewCards.map((card) => {
+        {overviewCards.filter((card) => canEdit(project) || card.label !== 'Create Questionnaire').map((card) => {
           const Icon = card.icon;
           return (
             <button

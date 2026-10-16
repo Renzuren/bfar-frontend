@@ -16,6 +16,7 @@ import {
   Eye,
 } from 'lucide-react';
 import ShareQrDialog from '../components/ShareQrDialog';
+import { canEdit } from '../lib/projectRoles';
 import QuickAction from '../components/common/QuickAction';
 import PageLoader from '../components/common/PageLoader';
 import ResponsesTable from '../components/responses/ResponsesTable';
@@ -261,7 +262,8 @@ const QuestionnaireTab = ({ slot }) => {
 
   if (loading) return <PageLoader label={`Loading ${label} questionnaire...`} />;
 
-  const canCopy = slot === 'after' && Boolean(project?.before_form);
+  const editable = canEdit(project);
+  const canCopy = editable && slot === 'after' && Boolean(project?.before_form);
   const copyIcon = copying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />;
   const copyText = copying ? 'Copying...' : `Copy from ${sourceLabel}`;
 
@@ -276,7 +278,7 @@ const QuestionnaireTab = ({ slot }) => {
             <h2 className="mb-3 text-3xl font-bold leading-tight sm:text-4xl">{config.heading[mode]}</h2>
             <p className={`max-w-2xl text-base ${theme.body}`}>{config.intro[mode]}</p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              {slot === 'after' ? (
+              {!editable ? null : slot === 'after' ? (
                 <>
                   {canCopy && (
                     <Button onClick={copyFromBefore} disabled={copying} className={`gap-2 ${theme.heroButton}`}>
@@ -305,7 +307,9 @@ const QuestionnaireTab = ({ slot }) => {
           </div>
           <h3 className="mb-2 text-xl font-bold text-slate-900">No {label} Questionnaire Yet</h3>
           <p className="mb-6 max-w-md text-sm text-slate-500">
-            {canCopy
+            {!editable
+              ? 'Someone who can edit this project has not created it yet.'
+              : canCopy
               ? `Copy your ${sourceLabel} questionnaire to ensure matching structures for accurate Narrative Report comparisons, or create a blank one.`
               : config.emptyText[mode]}
           </p>
@@ -316,7 +320,7 @@ const QuestionnaireTab = ({ slot }) => {
                 {copyText}
               </Button>
             )}
-            {slot === 'after' ? (
+            {!editable ? null : slot === 'after' ? (
               <Button onClick={goToBuilder} variant="outline" className="gap-2 text-slate-700">
                 <Plus className="h-4 w-4" />
                 Create Blank
@@ -394,7 +398,9 @@ const QuestionnaireTab = ({ slot }) => {
           iconClassName={theme.actionsIcon}
         />
         <section className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3">
-          <QuickAction icon={Pencil} accent="blue" title="Edit" description="Modify questions and settings" onClick={goToBuilder} />
+          {editable && (
+            <QuickAction icon={Pencil} accent="blue" title="Edit" description="Modify questions and settings" onClick={goToBuilder} />
+          )}
           {/* No Baseline projects list responses on their own page instead of
               a table below. */}
           {!isBaseline && (
@@ -418,6 +424,7 @@ const QuestionnaireTab = ({ slot }) => {
         />
       )}
 
+      {editable && (
       <div className="flex justify-start">
         <button
           type="button"
@@ -428,6 +435,7 @@ const QuestionnaireTab = ({ slot }) => {
           Delete Questionnaire
         </button>
       </div>
+      )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

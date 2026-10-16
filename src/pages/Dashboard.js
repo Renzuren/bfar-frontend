@@ -44,6 +44,8 @@ import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
 import { getSavedAnalyses, renameAnalysis, moveLocalAnalysesToServer } from '../lib/analysisStore';
 import { formatDate, toMillis } from '../lib/dates';
+import { ROLE_BADGE, ROLE_LABELS, isOwner, roleOf } from '../lib/projectRoles';
+import InvitationsPanel from '../components/sharing/InvitationsPanel';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -340,6 +342,8 @@ const Dashboard = () => {
               </div>
             </div>
           </section>
+
+          <InvitationsPanel onAccepted={fetchProjects} />
 
           <section className="grid grid-cols-2 gap-5 sm:grid-cols-3 xl:grid-cols-5">
             {statColors.map((color, idx) => {
@@ -679,14 +683,24 @@ const Dashboard = () => {
                         }`}>
                           {projectIsBaseline ? 'Baseline' : 'No Baseline'}
                         </span>
-                        <Button
-                          onClick={() => openDeleteDialog(project)}
-                          size="sm"
-                          variant="ghost"
-                          className="text-slate-300 opacity-0 transition-all group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-600"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {/* Only the owner deletes a project; shared ones show the user's role. */}
+                        {isOwner(project) ? (
+                          <Button
+                            onClick={() => openDeleteDialog(project)}
+                            size="sm"
+                            variant="ghost"
+                            className="text-slate-300 opacity-0 transition-all group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : (
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${ROLE_BADGE[roleOf(project)]}`}
+                            title="Shared with you"
+                          >
+                            Shared · {ROLE_LABELS[roleOf(project)]}
+                          </span>
+                        )}
                       </div>
 
                       <div className="p-6">

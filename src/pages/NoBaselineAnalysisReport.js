@@ -46,6 +46,7 @@ import { enrichImpact } from '../lib/localImpact';
 import MLAnalyticsPanel, { MLAnalysisSkeleton } from '../components/MLAnalyticsPanel';
 import AutoChartsReport from '../components/AutoChartsReport';
 import BarangayGroupChart from '../components/report/BarangayGroupChart';
+import { canEdit } from '../lib/projectRoles';
 
 // The API returns either a bare array or { responses | data: [...] }.
 const responseList = (payload) => {
@@ -692,6 +693,14 @@ const NoBaselineAnalysisReport = () => {
         {/* Action Buttons */}
         {hasAnalysableData && (
           <div className="flex flex-wrap items-center justify-center gap-3">
+            {/* Running saves the result with the project, so view-only members only see the saved run. */}
+            {!canEdit(project) ? (
+              !analysisResults && (
+                <p className="w-full text-center text-sm text-slate-500">
+                  No analysis has been run yet. Someone who can edit this project needs to run it.
+                </p>
+              )
+            ) : (
             <Button
               onClick={handleAnalyze}
               disabled={isAnalyzing || !outcomeColumn}
@@ -711,6 +720,7 @@ const NoBaselineAnalysisReport = () => {
                 </>
               )}
             </Button>
+            )}
             {savedInfo && !isAnalyzing && (
               <p className="w-full text-center text-xs text-slate-500">
                 Last analysed {new Date(savedInfo.savedAt).toLocaleString()} · saved with this project

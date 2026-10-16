@@ -30,6 +30,7 @@ import jsPDF from 'jspdf';
 import { buildReportPdf } from '../lib/reportPdf';
 import { normalizeForMatch } from '../lib/responsesDataset';
 import { buildNarrativeFacts, narrativeFactsFingerprint, readSavedNarrative } from '../lib/narrativeFacts';
+import { canEdit } from '../lib/projectRoles';
 
 const BEFORE_COLOR = '#2563eb';
 const AFTER_COLOR = '#14b8a6';
@@ -733,10 +734,13 @@ const NarrativeReport = () => {
           Back to Project
         </button>
         <div className="flex flex-wrap gap-2">
+          {/* Generating saves the text with the project: not for view-only members. */}
+          {canEdit(project) && (
           <Button onClick={generateAiNarrative} disabled={aiBusy} className="rounded-xl bg-violet-600 px-4 py-2 text-white hover:bg-violet-700">
             {aiBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
             {aiBusy ? 'Writing narrative...' : aiNarrative ? 'Regenerate AI Narrative' : 'Generate AI Narrative'}
           </Button>
+          )}
           <Button onClick={generatePDF} disabled={generating || aiBusy} title={aiBusy ? 'Wait for the AI narrative to finish' : undefined} className="rounded-xl bg-slate-900 px-4 py-2 text-white hover:bg-slate-800">
             <Download className="mr-2 h-4 w-4" />
             {generating ? 'Generating PDF...' : 'Download PDF'}
@@ -754,7 +758,9 @@ const NarrativeReport = () => {
         )}
         {!aiNarrative && !aiBusy && (
           <p className="px-1 text-xs text-slate-500">
-            The text below is a generic template. Click “Generate AI Narrative” to have Gemini write it from this project&apos;s results.
+            {canEdit(project)
+              ? <>The text below is a generic template. Click “Generate AI Narrative” to have Gemini write it from this project&apos;s results.</>
+              : 'The text below is a generic template. No AI narrative has been generated for this project yet.'}
           </p>
         )}
         {aiStale && !aiBusy && (

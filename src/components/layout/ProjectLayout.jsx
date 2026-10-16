@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Loader2,
   ChevronDown,
+  Eye,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Sidebar from './Sidebar';
 import { useProject } from '../../context/ProjectContext';
+import { ROLE_LABELS, canEdit, isOwner, roleOf } from '../../lib/projectRoles';
 
 // Persistent shell for project pages: fixed collapsible sidebar + sticky top
 // navbar. The sidebar never unmounts and never reloads — only the `children`
@@ -184,8 +186,26 @@ export default function ProjectLayout({ sidebarItems, breadcrumbLabels = {}, chi
               <span className="hidden sm:inline">Back to Dashboard</span>
             </button>
 
-            {/* Status dropdown */}
-            {currentProject && (
+            {/* Shared project: the user's role */}
+            {currentProject && !isOwner(currentProject) && (
+              <button
+                type="button"
+                onClick={() => navigate(`/projects/${id}/members`)}
+                title="See who has access"
+                className="hidden shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-200 transition hover:bg-slate-200 sm:inline-flex"
+              >
+                {ROLE_LABELS[roleOf(currentProject)]}
+              </button>
+            )}
+
+            {/* Status: a dropdown for those who can edit, a plain badge otherwise */}
+            {currentProject && !canEdit(currentProject) && (
+              <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${getStatusColor(currentProject.status)}`}>
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                {currentProject.status || 'Draft'}
+              </span>
+            )}
+            {currentProject && canEdit(currentProject) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -230,7 +250,17 @@ export default function ProjectLayout({ sidebarItems, breadcrumbLabels = {}, chi
         </header>
 
         {/* Page content — this is the ONLY part that swaps on navigation */}
-        <main className="w-full flex-1 px-3 pb-24 pt-0 sm:px-4">{children}</main>
+        <main className="w-full flex-1 px-3 pb-24 pt-0 sm:px-4">
+          {currentProject && !canEdit(currentProject) && (
+            <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+              <Eye className="h-4 w-4 shrink-0" />
+              <span>
+                <span className="font-semibold">View only.</span> You can look at everything in this project but cannot change it.
+              </span>
+            </div>
+          )}
+          {children}
+        </main>
       </div>
     </div>
   );
