@@ -14,6 +14,7 @@ import {
   IdCard,
   QrCode,
   Eye,
+  FileText,
 } from 'lucide-react';
 import ShareQrDialog from '../components/ShareQrDialog';
 import { canEdit } from '../lib/projectRoles';
@@ -408,6 +409,7 @@ const QuestionnaireTab = ({ slot }) => {
           )}
           <QuickAction icon={IdCard} accent="cyan" title="View Profiles" description="Demographics and profile photos" onClick={() => goTo('profiles')} />
           <QuickAction icon={BarChart3} accent="violet" title="View Analytics" description="View charts and insights" onClick={() => goTo('analytics')} />
+          <QuickAction icon={FileText} accent="rose" title={`${label} Report`} description="AI narrative report, downloadable as PDF" onClick={() => goTo('group-report')} />
           <QuickAction icon={ExternalLink} accent="amber" title="Copy Link" description="Share questionnaire URL" onClick={copyFormLink} />
           <QuickAction icon={QrCode} accent="sky" title="QR Code" description="Scan or download to share" onClick={() => setQrOpen(true)} />
         </section>

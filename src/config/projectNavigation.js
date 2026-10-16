@@ -55,6 +55,7 @@ const breadcrumbLabels = (slotLabels) => ({
   'narrative-report': 'Narrative Report',
   backup: 'Data Backup & Import',
   members: 'Members & Sharing',
+  'group-report': 'Group Report',
 });
 
 const NAVIGATION = {

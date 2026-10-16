@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useLocation, useOutletContext, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, BarChart3, Download, ChartColumnBig, ChartPie, Inbox, User, MapPin } from 'lucide-react';
+import { ArrowLeft, BarChart3, Download, ChartColumnBig, ChartPie, Inbox, User, MapPin, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -601,10 +601,21 @@ const FormAnalytics = ({ embedded = false }) => {
               <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{form.title}</h2>
             </div>
             {embedded && totalResponses > 0 && (
-              <Button variant="outline" size="sm" onClick={downloadAnalyticsCSV} className="gap-1.5 border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white">
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Export CSV</span>
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/projects/${projectId}/group-report?type=${qType === 'after' ? 'after' : 'before'}`)}
+                  className="gap-1.5 border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span className="hidden sm:inline">Report (PDF)</span>
+                </Button>
+                <Button variant="outline" size="sm" onClick={downloadAnalyticsCSV} className="gap-1.5 border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white">
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">Export CSV</span>
+                </Button>
+              </div>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">

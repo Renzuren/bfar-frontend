@@ -9,6 +9,7 @@ const ACCENTS = {
   violet: { hover: 'hover:border-violet-200', icon: 'bg-violet-50 text-violet-600 group-hover:bg-violet-100' },
   amber: { hover: 'hover:border-amber-200', icon: 'bg-amber-50 text-amber-600 group-hover:bg-amber-100' },
   sky: { hover: 'hover:border-sky-200', icon: 'bg-sky-50 text-sky-600 group-hover:bg-sky-100' },
+  rose: { hover: 'hover:border-rose-200', icon: 'bg-rose-50 text-rose-600 group-hover:bg-rose-100' },
 };
 
 /** A large icon + title + description button used in "Quick Actions" grids. */

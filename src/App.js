@@ -41,6 +41,7 @@ const NoBaselineAnalysisReport = lazyWithRetry(() => import('./pages/NoBaselineA
 const NarrativeReport = lazyWithRetry(() => import('./pages/NarrativeReport'));
 const ProjectBackup = lazyWithRetry(() => import('./pages/ProjectBackup'));
 const ProjectMembers = lazyWithRetry(() => import('./pages/ProjectMembers'));
+const GroupReport = lazyWithRetry(() => import('./pages/GroupReport'));
 const ResponsesTab = lazyWithRetry(() => import('./pages/ResponsesTabRebuilt'));
 const NotFound = lazyWithRetry(() => import('./pages/NotFound'));
 
@@ -135,6 +136,7 @@ function App() {
                 <Route path="narrative-report" element={<NarrativeReport />} />
                 <Route path="backup" element={<ProjectBackup />} />
                 <Route path="members" element={<ProjectMembers />} />
+                <Route path="group-report" element={<GroupReport />} />
               </Route>
 
               {/* Legacy form routes */}
