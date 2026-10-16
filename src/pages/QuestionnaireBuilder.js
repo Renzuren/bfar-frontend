@@ -1014,121 +1014,135 @@ const QuestionnaireBuilder = () => {
         </div>
       </div>
 
-      {/* Section Tabs */}
-      <div className="flex flex-wrap items-center gap-3">
-        {sections.map((sec, idx) => {
-          const cfg = SECTION_TYPE_CONFIG[sec.section_type] || SECTION_TYPE_CONFIG.demographics;
-          const Icon = cfg.icon;
-          const isActive = idx === currentSectionIndex;
-          const isEditing = editingTabIndex === idx;
-          return (
-            <div key={sec.id} className="group relative">
-              {isEditing ? (
+      {/* Sections outline (left) + the selected section's questions (right) */}
+      <div className="grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start">
+        <aside className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm lg:sticky lg:top-24">
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Sections <span className="ml-1 text-slate-400">{sections.length}</span>
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowNewSectionModal(true)}
+              title="Add section"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 transition hover:bg-cyan-50 hover:text-cyan-700"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+          <ol className="max-h-64 space-y-0.5 overflow-y-auto p-2 lg:max-h-[calc(100vh-14rem)]">
+            {sections.map((sec, idx) => {
+              const cfg = SECTION_TYPE_CONFIG[sec.section_type] || SECTION_TYPE_CONFIG.demographics;
+              const Icon = cfg.icon;
+              const isActive = idx === currentSectionIndex;
+              const count = sec.questions.filter(q => !isReservedField(q)).length;
+              return (
+                <li key={sec.id}>
+                  <button
+                    type="button"
+                    draggable
+                    data-drag-target="section"
+                    data-drag-type="section"
+                    data-drag-index={idx}
+                    onDragStart={(e) => handleSectionDragStart(e, idx)}
+                    onDragOver={handleSectionDragOver}
+                    onDragEnd={resetDrag}
+                    onClick={() => setCurrentSectionIndex(idx)}
+                    title={sec.title || cfg.label}
+                    className={`group flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition ${
+                      isActive ? 'bg-slate-900 font-semibold text-white' : 'text-slate-600 hover:bg-slate-100'
+                    } ${dragItem?.type === 'section' && dragItem.fromIndex === idx ? 'opacity-50' : ''} ${
+                      dragOver?.type === 'section' && dragOver.index === idx ? 'ring-2 ring-cyan-400' : ''
+                    }`}
+                  >
+                    <GripVertical className={`h-3.5 w-3.5 shrink-0 cursor-grab ${isActive ? 'text-white/50' : 'text-slate-300 group-hover:text-slate-400'}`} />
+                    <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white/80' : sec.section_type === 'demographics' ? 'text-indigo-500' : 'text-cyan-600'}`} />
+                    <span className="min-w-0 flex-1 truncate">{sec.title || cfg.label}</span>
+                    <span className={`shrink-0 rounded-full px-1.5 text-[11px] font-semibold tabular-nums ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                      {count}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+          <div className="border-t border-slate-100 p-2">
+            <button
+              type="button"
+              onClick={() => setShowNewSectionModal(true)}
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs font-medium text-slate-500 transition hover:border-cyan-400 hover:bg-cyan-50 hover:text-cyan-700"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add section
+            </button>
+          </div>
+        </aside>
+
+      {/* Section Content */}
+      <Card className="min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        <div className={`flex items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 ${
+          current.section_type === 'demographics' ? 'bg-indigo-50/50' : 'bg-cyan-50/50'
+        }`}>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+              current.section_type === 'demographics' ? 'bg-indigo-100 text-indigo-600' : 'bg-cyan-100 text-cyan-600'
+            }`}>
+              <SectionIcon className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              {editingTabIndex === currentSectionIndex ? (
                 <form
-                  onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); commitSectionName(idx); }}
-                  onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) commitSectionName(idx); }}
-                  className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-medium shadow-lg shadow-cyan-500/20 ring-2 ring-cyan-500"
+                  onSubmit={(e) => { e.preventDefault(); commitSectionName(currentSectionIndex); }}
+                  className="flex items-center gap-2"
                 >
-                  <Icon className="h-4 w-4 text-slate-500" />
                   <Input
                     autoFocus
                     value={editingTabValue}
                     onChange={(e) => setEditingTabValue(e.target.value)}
                     onKeyDown={(e) => {
-                      e.stopPropagation();
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        e.currentTarget.blur();
-                      }
                       if (e.key === 'Escape') {
                         e.preventDefault();
                         cancelSectionEdit();
                       }
                     }}
-                    onFocus={(e) => e.stopPropagation()}
-                    className="h-8 w-44"
+                    className="h-8 max-w-xs bg-white"
                   />
-                  <Button type="submit" size="sm" className="h-8 shrink-0">
-                    Save
-                  </Button>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); cancelSectionEdit(); }}
-                    className="h-8 shrink-0 text-xs font-semibold text-slate-400 transition hover:text-slate-600"
-                  >
-                    Cancel
-                  </button>
+                  <Button type="submit" size="sm" className="h-8">Save</Button>
+                  <Button type="button" size="sm" variant="ghost" className="h-8 text-slate-500" onClick={cancelSectionEdit}>Cancel</Button>
                 </form>
               ) : (
-                <button
-                  draggable
-                  data-drag-target="section"
-                  data-drag-type="section"
-                  data-drag-index={idx}
-                  onDragStart={(e) => handleSectionDragStart(e, idx)}
-                  onDragOver={handleSectionDragOver}
-                  onDragEnd={resetDrag}
-                  onClick={() => setCurrentSectionIndex(idx)}
-                  className={`flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition ${
-                    isActive
-                      ? `bg-${cfg.color}-600 text-white shadow-lg shadow-${cfg.color}-600/20`
-                      : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
-                  } ${dragItem?.type === 'section' && dragItem.fromIndex === idx ? 'opacity-50' : ''} ${dragOver?.type === 'section' && dragOver.index === idx ? 'ring-2 ring-cyan-400' : ''}`}
-                >
-                  <GripVertical className="h-3.5 w-3.5 opacity-50" />
-                  <Icon className="h-4 w-4" />
-                  <span className="font-bold">{sec.title || cfg.label}</span>
-                  <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                    {sec.questions.filter(q => !isReservedField(q)).length}
-                  </span>
-                </button>
+                <p className="truncate text-base font-bold text-slate-900">{current.title || sectionConfig.label}</p>
               )}
-              {!isEditing && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); startEditSectionName(idx); }}
-                  title="Rename section"
-                  className={`absolute -bottom-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full text-white opacity-0 shadow transition group-hover:opacity-100 ${isActive ? 'bg-slate-700/80 hover:bg-slate-900' : 'bg-slate-400 hover:bg-slate-600'}`}
-                >
-                  <Pencil className="h-3 w-3" />
-                </button>
-              )}
-              {sections.length > 2 && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); deleteSection(idx); }}
-                  className={`absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full text-white opacity-0 shadow transition group-hover:opacity-100 ${isActive ? 'bg-red-500 hover:bg-red-600' : 'bg-slate-400 hover:bg-red-500'}`}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              )}
-            </div>
-          );
-        })}
-        <button
-          onClick={() => setShowNewSectionModal(true)}
-          className="flex items-center gap-1.5 rounded-xl border-2 border-dashed border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-400 transition hover:border-cyan-400 hover:bg-cyan-50 hover:text-cyan-600"
-        >
-          <Plus className="h-4 w-4" />
-          Add Tab
-        </button>
-      </div>
-
-      {/* Section Content */}
-      <Card className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-        <div className={`flex items-center justify-between border-b border-slate-100 px-6 py-4 ${
-          current.section_type === 'demographics' ? 'bg-indigo-50/50' : 'bg-cyan-50/50'
-        }`}>
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-              current.section_type === 'demographics' ? 'bg-indigo-100 text-indigo-600' : 'bg-cyan-100 text-cyan-600'
-            }`}>
-              <SectionIcon className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{sectionConfig.label} Section</p>
-              <p className="text-sm text-slate-500">{sectionConfig.description}</p>
+              <p className="truncate text-xs text-slate-500">
+                {sectionConfig.label} section · {sectionConfig.description}
+              </p>
             </div>
           </div>
+          {editingTabIndex !== currentSectionIndex && (
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => startEditSectionName(currentSectionIndex)}
+                title="Rename section"
+                className="h-8 w-8 p-0 text-slate-500 hover:text-slate-900"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              {sections.length > 2 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => deleteSection(currentSectionIndex)}
+                  title="Delete section"
+                  className="h-8 w-8 p-0 text-slate-500 hover:bg-rose-50 hover:text-rose-600"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="divide-y divide-slate-100 px-6 py-4">
@@ -1172,6 +1186,7 @@ const QuestionnaireBuilder = () => {
           </Button>
         </div>
       </Card>
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-4 pb-10">
         <Button variant="outline" onClick={() => setCurrentSectionIndex(currentSectionIndex - 1)} disabled={isFirst}>
