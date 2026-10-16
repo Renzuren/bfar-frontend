@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BarChart3, Trash2, CalendarDays, Inbox } from 'lucide-react';
+import { ArrowLeft, BarChart3, Trash2, CalendarDays, Inbox, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import MLAnalyticsPanel from '../components/MLAnalyticsPanel';
@@ -113,6 +113,13 @@ const AnalysisResult = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => navigate(`/ml-analysis/${record.id}/narrative`)}
+                className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700"
+              >
+                <FileText className="h-4 w-4" /> <span className="hidden sm:inline">Narrative Report</span>
+              </Button>
               <Badge variant="outline" className="hidden border-slate-200 text-[10px] text-slate-400 sm:inline-flex">
                 <CalendarDays className="mr-1 h-3 w-3" /> {formatDate(record.createdAt)}
               </Badge>

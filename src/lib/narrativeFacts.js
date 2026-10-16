@@ -52,7 +52,7 @@ const findOutcomeQuestion = (header, forms) => {
   return null;
 };
 
-const mlFacts = (mlAnalysis, forms) => {
+export const mlFacts = (mlAnalysis, forms) => {
   if (!mlAnalysis || typeof mlAnalysis.result_json !== 'string') return null;
   let result;
   try { result = JSON.parse(mlAnalysis.result_json); } catch (_) { return null; }

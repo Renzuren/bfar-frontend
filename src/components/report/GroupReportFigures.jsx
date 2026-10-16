@@ -15,7 +15,7 @@ const SLICE_COLORS = ['#2563eb', '#f97316', '#14b8a6', '#a855f7', '#eab308', '#e
 const pct = (n) => `${Number(n).toFixed(1)}%`;
 const shorten = (text, max = 38) => (String(text).length > max ? `${String(text).slice(0, max - 1)}…` : String(text));
 
-const Figure = ({ num, title, note, children }) => (
+export const Figure = ({ num, title, note, children }) => (
   <figure className="mb-8 break-inside-avoid">
     <figcaption className="mb-2 text-sm font-semibold text-slate-800">
       Figure {num}. {title}

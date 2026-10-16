@@ -32,6 +32,7 @@ const FormProfiles = lazyWithRetry(() => import('./pages/FormProfiles'));
 const FormAnalytics = lazyWithRetry(() => import('./pages/FormAnalytics'));
 const MLUpload = lazyWithRetry(() => import('./pages/MLUpload'));
 const AnalysisResult = lazyWithRetry(() => import('./pages/AnalysisResult'));
+const MLNarrativeReport = lazyWithRetry(() => import('./pages/MLNarrativeReport'));
 const ProjectDashboard = lazyWithRetry(() => import('./pages/ProjectDashboard'));
 const NoBaselineDashboard = lazyWithRetry(() => import('./pages/NoBaselineDashboard'));
 const QuestionnaireBuilder = lazyWithRetry(() => import('./pages/QuestionnaireBuilder'));
@@ -147,6 +148,7 @@ function App() {
               <Route path="/forms/:id/analytics" element={protectedPage(<FormAnalytics />)} />
               <Route path="/ml-upload" element={protectedPage(<MLUpload />)} />
               <Route path="/ml-analysis/:id" element={protectedPage(<AnalysisResult />)} />
+              <Route path="/ml-analysis/:id/narrative" element={protectedPage(<MLNarrativeReport />)} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>
